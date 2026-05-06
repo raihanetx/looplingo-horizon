@@ -8,7 +8,7 @@ import com.looplingo.horizon.data.dao.VideoDao
 import com.looplingo.horizon.data.entity.PlaybackRuleEntity
 import com.looplingo.horizon.data.entity.VideoEntity
 
-@Database(entities = [VideoEntity::class, PlaybackRuleEntity::class], version = 1)
+@Database(entities = [VideoEntity::class, PlaybackRuleEntity::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun videoDao(): VideoDao
     abstract fun playbackRuleDao(): PlaybackRuleDao

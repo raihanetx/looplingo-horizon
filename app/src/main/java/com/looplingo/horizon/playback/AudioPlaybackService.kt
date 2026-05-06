@@ -20,6 +20,7 @@ import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.audio.AudioAttributes as ExoAudioAttributes
+import androidx.media.session.MediaSessionCompat
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 import com.google.android.exoplayer2.source.ClippingMediaSource
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
@@ -27,7 +28,6 @@ import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.google.android.exoplayer2.upstream.DefaultDataSource
 import com.looplingo.horizon.R
 import com.looplingo.horizon.ui.MainActivity
-import androidx.media.session.MediaSessionCompat
 import kotlinx.coroutines.*
 
 class AudioPlaybackService : LifecycleService() {
@@ -101,6 +101,7 @@ class AudioPlaybackService : LifecycleService() {
             setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS)
             setCallback(mediaSessionCallback)
         }
+        mediaSessionConnector = MediaSessionConnector(mediaSession!!)
     }
 
     private val mediaSessionCallback = object : MediaSessionCompat.Callback() {
@@ -125,9 +126,7 @@ class AudioPlaybackService : LifecycleService() {
             .build()
 
         exoPlayer?.addListener(playerListener)
-        mediaSession?.let {
-            MediaSessionConnector(it, exoPlayer!!).setPlayer(exoPlayer)
-        }
+        mediaSessionConnector?.setPlayer(exoPlayer)
     }
 
     private val playerListener = object : Player.Listener {
