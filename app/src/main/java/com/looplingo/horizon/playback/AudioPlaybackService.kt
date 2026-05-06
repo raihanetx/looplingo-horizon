@@ -6,22 +6,15 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes as SystemAudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
 import android.os.Build
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
-import androidx.media.session.MediaButtonReceiver
-import androidx.media.app.NotificationCompat.MediaStyle
 import com.google.android.exoplayer2.C
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.audio.AudioAttributes as ExoAudioAttributes
-import androidx.media.session.MediaSessionCompat
-import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 import com.google.android.exoplayer2.source.ClippingMediaSource
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
@@ -47,7 +40,6 @@ class AudioPlaybackService : LifecycleService() {
     }
 
     private var exoPlayer: ExoPlayer? = null
-    private var mediaSession: MediaSessionCompat? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
@@ -65,7 +57,6 @@ class AudioPlaybackService : LifecycleService() {
         createNotificationChannel()
         setupWakeLock()
         setupExoPlayer()
-        setupMediaSession()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -73,7 +64,6 @@ class AudioPlaybackService : LifecycleService() {
         when (intent?.action) {
             ACTION_START -> intent.getStringExtra(EXTRA_VIDEO_PATH)?.let { startPlayback(it) }
         }
-        MediaButtonReceiver.handleIntent(mediaSession, intent)
         return START_STICKY
     }
 
@@ -96,20 +86,6 @@ class AudioPlaybackService : LifecycleService() {
         ).apply { setReferenceCounted(false) }
     }
 
-    private fun setupMediaSession() {
-        mediaSession = MediaSessionCompat(this, "LoopLingoMediaSession").apply {
-            setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS)
-            setCallback(mediaSessionCallback)
-        }
-        mediaSessionConnector = MediaSessionConnector(mediaSession!!)
-    }
-
-    private val mediaSessionCallback = object : MediaSessionCompat.Callback() {
-        override fun onPlay() { exoPlayer?.play(); wakeLock?.acquire(10*60*1000L) }
-        override fun onPause() { exoPlayer?.pause(); wakeLock?.release() }
-        override fun onStop() { stopSelf() }
-    }
-
     private fun setupExoPlayer() {
         val trackSelector = DefaultTrackSelector(this).apply {
             setParameters(buildUponParameters().setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, true))
@@ -126,7 +102,6 @@ class AudioPlaybackService : LifecycleService() {
             .build()
 
         exoPlayer?.addListener(playerListener)
-        mediaSessionConnector?.setPlayer(exoPlayer)
     }
 
     private val playerListener = object : Player.Listener {
@@ -203,7 +178,6 @@ class AudioPlaybackService : LifecycleService() {
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setStyle(MediaStyle().setMediaSession(mediaSession?.sessionToken))
             .addAction(android.R.drawable.ic_media_previous, "Previous", null)
             .addAction(
                 if (exoPlayer?.isPlaying == true) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
@@ -222,7 +196,6 @@ class AudioPlaybackService : LifecycleService() {
         serviceJob.cancel()
         exoPlayer?.release()
         exoPlayer = null
-        mediaSession?.release()
         wakeLock?.release()
     }
 }
