@@ -43,8 +43,8 @@ jobs:
       - name: Get version info
         id: version
         run: |
-          VERSION_NAME=$(grep versionName app/build.gradle | head -1 | sed 's/.*versionName\s*"\([^"]*\)".*//')
-          VERSION_CODE=$(grep versionCode app/build.gradle | head -1 | sed 's/.*versionCode\s*\([0-9]*\).*//')
+          VERSION_NAME=$(grep 'versionName' app/build.gradle | head -1 | awk -F'"' '{print $2}')
+          VERSION_CODE=$(grep 'versionCode' app/build.gradle | head -1 | awk -F' ' '{print $2}')
           echo "name=v${VERSION_NAME}" >> $GITHUB_OUTPUT
           echo "code=${VERSION_CODE}" >> $GITHUB_OUTPUT
           echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
@@ -65,7 +65,7 @@ jobs:
             Built on ${{ steps.version.outputs.date }}
             Version code: ${{ steps.version.outputs.code }}
 
-            **Download the APK below 👇**
+            Download the APK below
           files: app/build/outputs/apk/release/*.apk
           draft: false
           prerelease: false
