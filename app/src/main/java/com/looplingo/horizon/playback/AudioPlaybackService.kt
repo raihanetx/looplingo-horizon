@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
+import androidx.media.app.NotificationCompat as MediaNotificationCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -752,7 +753,7 @@ class AudioPlaybackService : LifecycleService() {
             .setOngoing(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setStyle(
-                NotificationCompat.MediaStyle()
+                MediaNotificationCompat.MediaStyle()
             )
             .build()
     }
@@ -823,7 +824,7 @@ class AudioPlaybackService : LifecycleService() {
             .setDeleteIntent(stopIntent)
             // MediaStyle: show 3 actions in compact view, link to MediaSession
             .setStyle(
-                NotificationCompat.MediaStyle()
+                MediaNotificationCompat.MediaStyle()
                     .setShowActionsInCompactView(0, 1, 2)
                     .setCancelButtonIntent(stopIntent)
             )
