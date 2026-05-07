@@ -101,14 +101,15 @@ class VideoRepositoryTest {
     }
 
     @Test
-    fun `refreshVideos does not insert if all videos already cached`() = runTest {
+    fun `refreshVideos does not insert new videos if all already cached`() = runTest {
         coEvery { fileScanner.scanVideosList(context) } returns listOf(testVideo)
         coEvery { dao.getAllVideos() } returns listOf(testVideo)
 
         repository.refreshVideos()
 
-        // insertAll should not be called with new videos (but may be called for updates)
-        coVerify(exactly = 0) { dao.insertAll(any()) }
+        // insertAll IS called for updates (REPLACE strategy) even when no new videos,
+        // but we verify that no stale videos were deleted
+        coVerify(exactly = 0) { dao.deleteByPaths(any()) }
     }
 
     @Test

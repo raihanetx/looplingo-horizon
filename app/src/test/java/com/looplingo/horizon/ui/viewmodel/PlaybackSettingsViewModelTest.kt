@@ -198,7 +198,12 @@ class PlaybackSettingsViewModelTest {
     // ══════════════════════════════════════════════════════════════════════
 
     @Test
-    fun `validateCurrentConfig returns valid for good config`() {
+    fun `validateCurrentConfig returns valid for good config`() = runTest {
+        // Return a valid saved config so videoPath is not blank
+        coEvery { repository.getConfigForVideo("/video.mp4") } returns PlaybackConfig(
+            videoPath = "/video.mp4",
+            loopMode = LoopMode.LOOP_INFINITE
+        )
         viewModel.loadConfigForVideo("/video.mp4")
         viewModel.updateConfig(loopMode = LoopMode.LOOP_INFINITE)
 
@@ -207,7 +212,12 @@ class PlaybackSettingsViewModelTest {
     }
 
     @Test
-    fun `validateCurrentConfig returns invalid for A_B_PIN without end`() {
+    fun `validateCurrentConfig returns invalid for A_B_PIN without end`() = runTest {
+        coEvery { repository.getConfigForVideo("/video.mp4") } returns PlaybackConfig(
+            videoPath = "/video.mp4",
+            loopMode = LoopMode.A_B_PIN,
+            rangeEndMs = -1L
+        )
         viewModel.loadConfigForVideo("/video.mp4")
         viewModel.updateConfig(
             loopMode = LoopMode.A_B_PIN,

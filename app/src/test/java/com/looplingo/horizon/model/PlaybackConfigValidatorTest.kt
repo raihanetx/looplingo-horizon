@@ -376,13 +376,13 @@ class PlaybackConfigValidatorTest {
     // ══════════════════════════════════════════════════════════════════════
 
     @Test
-    fun `LoopMode usesLoopCount is true only for LOOP_X_TIMES and AUTO_LOOP`() {
+    fun `LoopMode usesLoopCount is true for LOOP_X_TIMES, AUTO_LOOP, and A_B_PIN`() {
         assertThat(LoopMode.LOOP_X_TIMES.usesLoopCount).isTrue()
         assertThat(LoopMode.AUTO_LOOP.usesLoopCount).isTrue()
+        assertThat(LoopMode.A_B_PIN.usesLoopCount).isTrue()
         assertThat(LoopMode.PLAY_ONCE.usesLoopCount).isFalse()
         assertThat(LoopMode.LOOP_INFINITE.usesLoopCount).isFalse()
         assertThat(LoopMode.FLOW.usesLoopCount).isFalse()
-        assertThat(LoopMode.A_B_PIN.usesLoopCount).isFalse()
     }
 
     @Test
