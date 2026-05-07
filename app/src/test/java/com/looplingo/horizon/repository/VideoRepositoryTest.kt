@@ -99,7 +99,7 @@ class VideoRepositoryTest {
 
         repository.refreshVideos()
 
-        coVerify { dao.deleteByPath("/storage/emulated/0/DCIM/deleted.mp4") }
+        coVerify { dao.deleteByPaths(listOf("/storage/emulated/0/DCIM/deleted.mp4")) }
     }
 
     @Test
