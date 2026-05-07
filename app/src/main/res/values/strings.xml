@@ -14,38 +14,27 @@
     <string name="error_invalid_video_path">Invalid video selected. Please go back and try again.</string>
     <string name="error_save_failed">Failed to save settings. Please try again.</string>
 
-    <!-- Playback settings -->
-    <string name="playback_settings">Playback Settings</string>
-    <string name="start_action">Start Action</string>
-    <string name="autoplay_immediately">Autoplay Immediately</string>
-    <string name="load_and_wait">Load and Wait</string>
-    <string name="loop_mode">Loop Mode</string>
-    <string name="play_once">Play Once</string>
-    <string name="loop_x_times">Loop X Times</string>
-    <string name="loop_infinite">Loop Infinite</string>
-    <string name="flow">Flow</string>
-    <string name="auto_loop">Auto-Loop</string>
-    <string name="ab_pin">A-B Pin</string>
+    <!-- Playback settings — simplified -->
+    <string name="playback_settings">Loop Settings</string>
+    <string name="section_loop_range">A-B Loop Range</string>
+    <string name="hint_start_time">Start (A)</string>
+    <string name="hint_end_time">End (B)</string>
+    <string name="hint_time_format">Format: 1:23 or 83 (seconds)</string>
     <string name="loop_count_label">Loop Count</string>
-    <string name="loop_count_hint">Number of loops</string>
-    <string name="playback_range_seconds">Playback Range (seconds)</string>
-    <string name="start_hint">Start</string>
-    <string name="range_start_hint">0</string>
-    <string name="end_hint">End (empty=entire)</string>
-    <string name="range_separator">to</string>
-    <string name="auto_advance_after_loop">Auto-Advance</string>
-    <string name="auto_advance_description">Move to next video after loop completes</string>
-    <string name="apply_settings">Apply Settings</string>
+    <string name="section_speed">Playback Speed</string>
+    <string name="section_saved_timestamps">Saved Timestamps</string>
+    <string name="range_separator">→</string>
+    <string name="apply_settings">Apply</string>
+    <string name="btn_clear">Clear</string>
+    <string name="btn_use">Use</string>
     <string name="settings_saved">Settings saved</string>
     <string name="loading">Saving…</string>
 
     <!-- Validation errors -->
     <string name="error_loop_count_minimum">Loop count must be at least 1</string>
     <string name="error_loop_count_maximum">Loop count cannot exceed 10,000</string>
-    <string name="error_range_start_negative">Range start cannot be negative</string>
-    <string name="error_range_end_before_start">Range end must be greater than range start</string>
-    <string name="error_ab_pin_requires_end">A-B Pin mode requires an end position</string>
-    <string name="error_ab_pin_range_too_short">A-B range must be at least 1 second</string>
+    <string name="error_range_start_negative">Start time cannot be negative</string>
+    <string name="error_range_end_before_start">End time must be after start time</string>
 
     <!-- Notification -->
     <string name="notification_channel_name">LoopLingo Audio Playback</string>
@@ -68,11 +57,12 @@
     <string name="sort_by_duration">Duration (longest first)</string>
     <string name="sort_by_size">File size (largest first)</string>
 
-    <!-- Accessibility content descriptions -->
+    <!-- Accessibility -->
     <string name="content_desc_video_icon">Audio track icon</string>
     <string name="content_desc_loop_badge">Loop mode badge</string>
     <string name="content_desc_empty_state">No videos found illustration</string>
     <string name="content_desc_sort">Sort videos</string>
     <string name="content_desc_stop_playback">Stop current playback</string>
     <string name="content_desc_navigate_up">Navigate back</string>
+    <string name="content_desc_delete">Delete</string>
 </resources>
