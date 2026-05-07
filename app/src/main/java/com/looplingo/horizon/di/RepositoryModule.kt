@@ -2,6 +2,7 @@ package com.looplingo.horizon.di
 
 import android.content.Context
 import com.looplingo.horizon.data.dao.PlaybackRuleDao
+import com.looplingo.horizon.data.dao.SavedTimestampDao
 import com.looplingo.horizon.data.dao.VideoDao
 import com.looplingo.horizon.repository.PlaybackRepository
 import com.looplingo.horizon.repository.VideoRepository
