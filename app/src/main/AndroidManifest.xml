@@ -27,6 +27,11 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.PlaybackSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HorizonPlayer" />
+
         <service
             android:name=".playback.AudioPlaybackService"
             android:exported="false"
