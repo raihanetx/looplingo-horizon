@@ -22,7 +22,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaStyle
 import com.looplingo.horizon.R
 import com.looplingo.horizon.model.LoopMode
 import com.looplingo.horizon.model.PlaybackConfig
@@ -753,8 +752,7 @@ class AudioPlaybackService : LifecycleService() {
             .setOngoing(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setStyle(
-                MediaStyle()
-                    .setMediaSession(mediaSession?.token)
+                NotificationCompat.MediaStyle()
             )
             .build()
     }
@@ -823,10 +821,9 @@ class AudioPlaybackService : LifecycleService() {
             // Dismiss action for when paused
             .addAction(R.drawable.ic_close, getString(R.string.notification_stop), stopIntent)
             .setDeleteIntent(stopIntent)
-            // Media3 MediaStyle: show 3 actions in compact view, link to MediaSession
+            // MediaStyle: show 3 actions in compact view, link to MediaSession
             .setStyle(
-                MediaStyle()
-                    .setMediaSession(mediaSession?.token)
+                NotificationCompat.MediaStyle()
                     .setShowActionsInCompactView(0, 1, 2)
                     .setCancelButtonIntent(stopIntent)
             )
