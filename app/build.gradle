@@ -41,6 +41,12 @@ android {
                 storePassword keystorePassword
                 keyAlias keyAlias
                 keyPassword keyPassword
+            } else {
+                // Fall back to debug signing for CI/local builds without a release keystore
+                storeFile debug.storeFile
+                storePassword debug.storePassword
+                keyAlias debug.keyAlias
+                keyPassword debug.keyPassword
             }
         }
     }
