@@ -109,7 +109,7 @@
     </style>
 
     <style name="Widget.Horizon.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
-        <item name="android:minHeight">@dimen/button_height</dimen>
+        <item name="android:minHeight">@dimen/button_height</item>
         <item name="cornerRadius">@dimen/button_corner_radius</item>
         <item name="android:textAppearance">@style/TextAppearance.Horizon.LabelLarge</item>
     </style>
