@@ -65,7 +65,10 @@ android {
     }
 
     kotlinOptions { jvmTarget = '17' }
-    buildFeatures { viewBinding true }
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
 
     // Lint configuration
     lint {
@@ -92,6 +95,7 @@ dependencies {
 
     // AndroidX Core
     implementation libs.core.ktx
+    implementation libs.activity.ktx
     implementation libs.appcompat
     implementation libs.material
     implementation libs.constraintlayout

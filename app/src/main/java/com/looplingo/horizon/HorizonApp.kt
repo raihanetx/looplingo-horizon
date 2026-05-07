@@ -24,7 +24,7 @@ class HorizonApp : Application() {
 
     /**
      * Configures Timber logging:
-     6 *  - Debug builds: Verbose logging to Logcat with thread info
+     *  - Debug builds: Verbose logging to Logcat with thread info
      *  - Release builds: No logging (could be extended to log to crashlytics/file)
      */
     private fun setupLogging() {
