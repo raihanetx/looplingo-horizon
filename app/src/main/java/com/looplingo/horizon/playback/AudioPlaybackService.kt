@@ -65,7 +65,9 @@ class AudioPlaybackService : LifecycleService() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        setupAudioManager()
         setupWakeLock()
+        setupMediaSession()
         setupExoPlayer()
     }
 
@@ -74,6 +76,7 @@ class AudioPlaybackService : LifecycleService() {
         when (intent?.action) {
             ACTION_START -> intent.getStringExtra(EXTRA_VIDEO_PATH)?.let { startPlayback(it) }
         }
+        MediaButtonReceiver.handleIntent(mediaSession, intent)
         return START_STICKY
     }
 
@@ -88,12 +91,54 @@ class AudioPlaybackService : LifecycleService() {
         }
     }
 
+    private fun setupAudioManager() {
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(
+                    SystemAudioAttributes.Builder()
+                        .setUsage(SystemAudioAttributes.USAGE_MEDIA)
+                        .setContentType(SystemAudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setWillPauseWhenDucked(true)
+                .build()
+        }
+    }
+
     private fun setupWakeLock() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
             "LoopLingo::PlaybackWakeLock"
         ).apply { setReferenceCounted(false) }
+    }
+
+    private fun setupMediaSession() {
+        mediaSession = MediaSessionCompat(this, "LoopLingoMediaSession").apply {
+            setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS)
+            setCallback(mediaSessionCallback)
+            isActive = true
+        }
+        mediaSessionConnector = MediaSessionConnector(mediaSession!!)
+    }
+
+    private val mediaSessionCallback = object : MediaSessionCompat.Callback() {
+        override fun onPlay() {
+            exoPlayer?.play()
+            wakeLock?.acquire(10 * 60 * 1000L)
+        }
+        override fun onPause() {
+            exoPlayer?.pause()
+            wakeLock?.release()
+        }
+        override fun onStop() {
+            stopSelf()
+        }
+        override fun onSkipToNext() {
+            advanceRange()
+        }
+        override fun onSkipToPrevious() {}
     }
 
     private fun setupExoPlayer() {
@@ -112,6 +157,7 @@ class AudioPlaybackService : LifecycleService() {
             .build()
 
         exoPlayer?.addListener(playerListener)
+        mediaSessionConnector?.setPlayer(exoPlayer)
     }
 
     private val playerListener = object : Player.Listener {
@@ -125,9 +171,33 @@ class AudioPlaybackService : LifecycleService() {
             if (isPlaying) {
                 wakeLock?.acquire(10 * 60 * 1000L)
                 startForeground(NOTIFICATION_ID, buildNotification())
+                requestAudioFocus()
             } else {
                 wakeLock?.release()
+                abandonAudioFocus()
             }
+        }
+    }
+
+    private fun requestAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let {
+                audioManager?.requestAudioFocus(it)
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager?.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let {
+                audioManager?.abandonAudioFocusRequest(it)
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager?.abandonAudioFocus(null)
         }
     }
 
@@ -182,6 +252,11 @@ class AudioPlaybackService : LifecycleService() {
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setStyle(
+                androidx.media.app.NotificationCompat.MediaStyle()
+                    .setMediaSession(mediaSession?.sessionToken)
+                    .setShowActionsInCompactView(0, 1)
+            )
             .addAction(android.R.drawable.ic_media_previous, "Previous", null)
             .addAction(playPauseDrawable, "Play/Pause", null)
             .addAction(android.R.drawable.ic_media_next, "Next", null)
@@ -197,7 +272,11 @@ class AudioPlaybackService : LifecycleService() {
         serviceJob.cancel()
         exoPlayer?.release()
         exoPlayer = null
+        mediaSessionConnector?.setPlayer(null)
+        mediaSession?.release()
+        mediaSession = null
         wakeLock?.release()
+        abandonAudioFocus()
     }
 }
 
