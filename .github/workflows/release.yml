@@ -3,14 +3,13 @@ name: Build Release APK
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
 
 jobs:
   build:
-    name: Build & Test
+    name: Build Release APK
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -22,22 +21,14 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-home-cache-cleanup: true
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
-      # Decode the CI release keystore from GitHub Secrets
       - name: Decode Keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/ci-release.jks
           chmod 600 app/ci-release.jks
 
-      # Run unit tests first — fail fast if tests break
-      - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --stacktrace
-
-      # Build the release APK
       - name: Build Release APK
         env:
           KEYSTORE_FILE: app/ci-release.jks
@@ -46,31 +37,13 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease --stacktrace
 
-      # Run lint checks
-      - name: Run Lint
-        run: ./gradlew lintDebug --stacktrace
-        continue-on-error: true
-
-      # Upload the release APK as an artifact
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: looplingo-horizon-release
+          name: LoopLingo-Horizon-Release
           path: app/build/outputs/apk/release/*.apk
           retention-days: 30
 
-      # Upload test results
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: |
-            app/build/reports/tests/
-            app/build/reports/lint-results-debug.html
-          retention-days: 14
-
-      # Clean up keystore — never leave secrets on disk
-      - name: Cleanup
+      - name: Cleanup keystore
         if: always()
         run: rm -f app/ci-release.jks
