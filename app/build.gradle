@@ -31,16 +31,16 @@ android {
         release {
             // Read signing credentials from environment variables or local.properties.
             // This avoids hardcoding secrets in version control.
-            def keystoreFile = System.getenv("KEYSTORE_FILE") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("keystore.file", null) : null }
-            def keystorePassword = System.getenv("KEYSTORE_PASSWORD") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("keystore.password", null) : null }
-            def keyAlias = System.getenv("KEY_ALIAS") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("key.alias", null) : null }
-            def keyPassword = System.getenv("KEY_PASSWORD") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("key.password", null) : null }
+            def ksFile = System.getenv("KEYSTORE_FILE") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("keystore.file", null) : null }
+            def ksPassword = System.getenv("KEYSTORE_PASSWORD") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("keystore.password", null) : null }
+            def ksAlias = System.getenv("KEY_ALIAS") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("key.alias", null) : null }
+            def ksKeyPassword = System.getenv("KEY_PASSWORD") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("key.password", null) : null }
 
-            if (keystoreFile != null) {
-                storeFile file(keystoreFile)
-                storePassword keystorePassword
-                keyAlias keyAlias
-                keyPassword keyPassword
+            if (ksFile != null) {
+                storeFile file(ksFile)
+                storePassword ksPassword
+                keyAlias ksAlias
+                keyPassword ksKeyPassword
             }
         }
     }
