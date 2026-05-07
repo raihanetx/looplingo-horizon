@@ -37,7 +37,7 @@ android {
             def ksKeyPassword = System.getenv("KEY_PASSWORD") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("key.password", null) : null }
 
             if (ksFile != null) {
-                storeFile file(ksFile)
+                storeFile rootProject.file(ksFile)
                 storePassword ksPassword
                 keyAlias ksAlias
                 keyPassword ksKeyPassword
