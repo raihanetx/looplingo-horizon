@@ -43,18 +43,12 @@
         <item name="colorSurfaceContainer">@color/colorSurfaceContainer</item>
         <item name="colorSurfaceContainerHigh">@color/colorSurfaceContainerHigh</item>
         <item name="colorSurfaceContainerHighest">@color/colorSurfaceContainerHighest</item>
-        <item name="colorInverseSurface">@color/colorInverseSurface</item>
-        <item name="colorInverseOnSurface">@color/colorInverseOnSurface</item>
-        <item name="colorInversePrimary">@color/colorInversePrimary</item>
 
         <!-- Window -->
         <item name="android:statusBarColor">@color/transparent</item>
         <item name="android:navigationBarColor">@color/transparent</item>
         <item name="android:windowBackground">@color/colorBackground</item>
         <item name="android:windowLightStatusBar">true</item>
-
-        <!-- Default text appearance -->
-        <item name="android:textViewStyle">@style/Widget.Horizon.TextView</item>
 
         <!-- Custom component overrides -->
         <item name="snackbarStyle">@style/Widget.Horizon.Snackbar</item>
@@ -82,8 +76,7 @@
     <!-- ══════════════════════════════════════════════════════════════════════
          DEFAULT TEXTVIEW STYLE — ensures all TextViews use semantic colors
          ══════════════════════════════════════════════════════════════════════ -->
-    <style name="Widget.Horizon.TextView" parent="Widget.Material3.TextView">
+    <style name="Widget.Horizon.TextView" parent="Widget.AppCompat.TextView">
         <item name="android:textColor">@color/colorOnSurface</item>
-        <item name="android:textAppearance">@style/TextAppearance.Horizon.BodyMedium</item>
     </style>
 </resources>
