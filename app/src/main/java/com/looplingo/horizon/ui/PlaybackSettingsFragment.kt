@@ -4,8 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
-import android.widget.AutoCompleteTextView
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -13,35 +12,26 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import com.google.android.material.chip.Chip
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.looplingo.horizon.R
 import com.looplingo.horizon.databinding.FragmentPlaybackSettingsBinding
-import com.looplingo.horizon.model.LoopMode
-import com.looplingo.horizon.model.PlaybackConfigValidator
-import com.looplingo.horizon.model.StartAction
+import com.looplingo.horizon.model.SpeedPresets
 import com.looplingo.horizon.ui.viewmodel.PlaybackSettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.concurrent.TimeUnit
 
 /**
- * Fragment for configuring playback settings of a specific video.
+ * Simplified playback settings: A-B loop + loop count + speed.
  *
- * The user can set:
- *  - Start action: Auto-play or Load & Wait
- *  - Loop mode: Play Once, Loop X Times, Loop Infinite, Flow, Auto-Loop, A-B Pin
- *  - Loop count (for Loop X Times and Auto-Loop modes)
- *  - Playback range in seconds (for A-B Pin mode)
- *  - Auto-advance to next video after loop completes
- *
- * All inputs are validated before saving via [PlaybackConfigValidator].
- * The config is persisted to Room and will be loaded by the playback service.
- *
- * UI uses Material Design 3 components:
- *  - MaterialAutoCompleteTextView instead of Spinner
- *  - TextInputLayout for all text inputs with error states
- *  - MaterialSwitch instead of CheckBox
- *  - Card sections for visual grouping
+ * No modes, no dropdowns, no radio groups.
+ *  - A (start time) and B (end time) in mm:ss format
+ *  - Loop count (default 3)
+ *  - Speed selector chips
+ *  - Saved timestamps list
  */
 @AndroidEntryPoint
 class PlaybackSettingsFragment : Fragment() {
@@ -52,23 +42,7 @@ class PlaybackSettingsFragment : Fragment() {
     private val viewModel: PlaybackSettingsViewModel by viewModels()
     private val args: PlaybackSettingsFragmentArgs by navArgs()
 
-    // Loop mode display labels matching the LoopMode enum order
-    private val loopModeLabels by lazy {
-        arrayOf(
-            getString(R.string.play_once),
-            getString(R.string.loop_x_times),
-            getString(R.string.loop_infinite),
-            getString(R.string.flow),
-            getString(R.string.auto_loop),
-            getString(R.string.ab_pin)
-        )
-    }
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPlaybackSettingsBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -78,122 +52,76 @@ class PlaybackSettingsFragment : Fragment() {
 
         val videoPath = args.videoPath
         if (videoPath.isBlank()) {
-            Timber.e("PlaybackSettingsFragment launched with blank videoPath")
-            showSnackbar(getString(R.string.error_invalid_video_path))
             findNavController().navigateUp()
             return
         }
 
-        Timber.d("Opening playback settings for: %s", videoPath)
         viewModel.loadConfigForVideo(videoPath)
-
         setupToolbar()
-        setupLoopModeDropdown()
-        setupStartActionRadio()
+        setupSpeedChips()
         setupApplyButton()
+        setupClearButton()
         setupObservers()
     }
 
     private fun setupToolbar() {
-        binding.toolbar.setNavigationOnClickListener {
-            findNavController().navigateUp()
-        }
+        binding.toolbar.setNavigationOnClickListener { findNavController().navigateUp() }
     }
 
-    private fun setupLoopModeDropdown() {
-        val adapter = ArrayAdapter(requireContext(), R.layout.dropdown_item, loopModeLabels)
-        (binding.actvLoopMode as AutoCompleteTextView).setAdapter(adapter)
+    private fun setupSpeedChips() {
+        val chipGroup = binding.chipGroupSpeed
+        chipGroup.removeAllViews()
 
-        binding.actvLoopMode.setOnItemClickListener { _, _, position, _ ->
-            val mode = LoopMode.entries.getOrElse(position) { LoopMode.LOOP_INFINITE }
-
-            // Apply sensible defaults when switching to a mode that uses loopCount.
-            // Only reset loopCount if the user hasn't previously customised it
-            // for the new mode — otherwise preserve their value.
-            val currentConfig = viewModel.config.value
-            val previousMode = currentConfig.loopMode
-
-            if (mode != previousMode) {
-                if (mode.usesLoopCount) {
-                    // Reset to the mode's default loop count so the user gets a
-                    // sensible starting value (e.g., 3 for LOOP_X_TIMES instead of 1).
-                    viewModel.updateConfig(loopMode = mode, loopCount = mode.defaultLoopCount)
-                } else {
-                    viewModel.updateConfig(loopMode = mode)
-                }
-
-                // Reset range fields when leaving A_B_PIN mode
-                if (previousMode == LoopMode.A_B_PIN && mode != LoopMode.A_B_PIN) {
-                    viewModel.updateConfig(rangeStartMs = 0L, rangeEndMs = -1L)
-                }
+        for (preset in SpeedPresets.ALL) {
+            val chip = Chip(requireContext()).apply {
+                text = preset.label
+                isCheckable = true
+                id = View.generateViewId()
+                tag = preset.speed
             }
-
-            updateVisibilityForMode(mode)
+            chipGroup.addView(chip)
         }
     }
 
-    private fun setupStartActionRadio() {
-        binding.rbAutoplay.isChecked = true
-        binding.rgStartAction.setOnCheckedChangeListener { _, checkedId ->
-            val startAction = if (checkedId == binding.rbAutoplay.id) StartAction.AUTO_PLAY else StartAction.WAIT_MANUAL
-            viewModel.updateConfig(startAction = startAction)
+    private fun selectSpeedChip(speed: Float) {
+        val chipGroup = binding.chipGroupSpeed
+        for (i in 0 until chipGroup.childCount) {
+            val chip = chipGroup.getChildAt(i) as? Chip ?: continue
+            val chipSpeed = chip.tag as? Float ?: continue
+            chip.isChecked = (chipSpeed == speed)
         }
     }
 
-    /**
-     * Show/hide UI elements based on the selected loop mode.
-     * - Loop count is shown for modes where [LoopMode.usesLoopCount] is true
-     * - Playback range is only shown for A-B Pin mode
-     * - Auto-advance is disabled for FLOW mode (it always advances)
-     * - Auto-advance is disabled for LOOP_INFINITE (it never ends)
-     */
-    private fun updateVisibilityForMode(mode: LoopMode) {
-        // Loop count: visible for modes that use it
-        binding.tilLoopCount.visibility =
-            if (mode.usesLoopCount) {
-                View.VISIBLE
+    private fun getSelectedSpeed(): Float {
+        val chipId = binding.chipGroupSpeed.checkedChipId
+        if (chipId == View.NO_ID) return SpeedPresets.DEFAULT.speed
+        val chip = binding.chipGroupSpeed.findViewById<View>(chipId) as? Chip ?: return SpeedPresets.DEFAULT.speed
+        return chip.tag as? Float ?: SpeedPresets.DEFAULT.speed
+    }
+
+    private fun setupApplyButton() {
+        binding.btnApply.setOnClickListener {
+            val rangeStartMs = parseTimeToMs(binding.etRangeStart.text.toString())
+            val rangeEndMs = parseTimeToMs(binding.etRangeEnd.text.toString())
+            val loopCount = binding.etLoopCount.text.toString().toIntOrNull() ?: 1
+            val speed = getSelectedSpeed()
+
+            // Validate
+            var hasError = false
+            if (rangeStartMs < 0) {
+                binding.tilRangeStart.error = getString(R.string.error_range_start_negative)
+                hasError = true
             } else {
-                View.GONE
+                binding.tilRangeStart.error = null
             }
 
-        // Playback range: only visible for A-B Pin mode
-        binding.layoutRangeSection.visibility =
-            if (mode == LoopMode.A_B_PIN) {
-                View.VISIBLE
+            if (rangeEndMs > 0 && rangeEndMs <= rangeStartMs) {
+                binding.tilRangeEnd.error = getString(R.string.error_range_end_before_start)
+                hasError = true
             } else {
-                View.GONE
+                binding.tilRangeEnd.error = null
             }
 
-        // Auto-advance: disable and dim for FLOW (always advances) and LOOP_INFINITE (never ends)
-        val autoAdvanceApplicable = mode != LoopMode.FLOW && mode != LoopMode.LOOP_INFINITE
-        binding.switchAutoAdvance.isEnabled = autoAdvanceApplicable
-        binding.switchAutoAdvance.alpha = if (autoAdvanceApplicable) 1.0f else 0.4f
-        if (!autoAdvanceApplicable) {
-            binding.switchAutoAdvance.isChecked = mode == LoopMode.FLOW // FLOW always advances
-            viewModel.updateConfig(autoAdvance = mode == LoopMode.FLOW)
-        }
-
-        // Clear any previous error when mode changes
-        binding.tilLoopCount.error = null
-        binding.tilRangeStart.error = null
-        binding.tilRangeEnd.error = null
-    }
-
-    /**
-     * Validate all user inputs before saving using the shared validator.
-     * Shows inline errors on TextInputLayout fields.
-     * Returns true if all inputs are valid.
-     */
-    private fun validateInputs(
-        loopMode: LoopMode,
-        loopCount: Int,
-        rangeStartSec: Long,
-        rangeEndSec: Long
-    ): Boolean {
-        var hasError = false
-
-        // Validate loop count for relevant modes
-        if (loopMode.usesLoopCount) {
             if (loopCount < 1) {
                 binding.tilLoopCount.error = getString(R.string.error_loop_count_minimum)
                 hasError = true
@@ -203,145 +131,131 @@ class PlaybackSettingsFragment : Fragment() {
             } else {
                 binding.tilLoopCount.error = null
             }
-        }
 
-        // Validate range — only relevant for A-B Pin mode
-        if (loopMode == LoopMode.A_B_PIN) {
-            if (rangeStartSec < 0) {
-                binding.tilRangeStart.error = getString(R.string.error_range_start_negative)
-                hasError = true
-            } else {
-                binding.tilRangeStart.error = null
-            }
-
-            if (rangeEndSec < 0) {
-                binding.tilRangeEnd.error = getString(R.string.error_ab_pin_requires_end)
-                hasError = true
-            } else if (rangeEndSec <= rangeStartSec) {
-                binding.tilRangeEnd.error = getString(R.string.error_range_end_before_start)
-                hasError = true
-            } else if ((rangeEndSec - rangeStartSec) < 1) {
-                binding.tilRangeEnd.error = getString(R.string.error_ab_pin_range_too_short)
-                hasError = true
-            } else {
-                binding.tilRangeEnd.error = null
-            }
-        } else {
-            // Non A-B Pin modes don't use range — clear any residual errors
-            binding.tilRangeStart.error = null
-            binding.tilRangeEnd.error = null
-        }
-
-        return !hasError
-    }
-
-    private fun setupApplyButton() {
-        binding.btnApply.setOnClickListener {
-            val currentConfig = viewModel.config.value
-            val loopCount = binding.etLoopCount.text.toString().toIntOrNull()
-                ?: currentConfig.loopCount
-            val rangeStartSec = binding.etRangeStart.text.toString().toLongOrNull()
-                ?: (currentConfig.rangeStartMs / 1000)
-            val rangeEndSec = binding.etRangeEnd.text.toString().toLongOrNull()
-                ?: if (currentConfig.rangeEndMs <= 0) -1L else (currentConfig.rangeEndMs / 1000)
-            val autoAdvance = binding.switchAutoAdvance.isChecked
-
-            // Get the current loop mode from the ViewModel
-            val currentMode = currentConfig.loopMode
-
-            // Validate all inputs with inline error display
-            val isValid = validateInputs(currentMode, loopCount, rangeStartSec, rangeEndSec)
-            if (!isValid) {
-                Timber.w("Input validation failed for mode: %s", currentMode)
-                return@setOnClickListener
-            }
-
-            // Convert seconds to milliseconds for storage
-            val rangeStartMs = rangeStartSec.coerceAtLeast(0L) * 1000
-            val rangeEndMs = if (rangeEndSec < 0) -1L else rangeEndSec * 1000
+            if (hasError) return@setOnClickListener
 
             viewModel.updateConfig(
-                loopCount = loopCount.coerceAtLeast(1),
                 rangeStartMs = rangeStartMs,
-                rangeEndMs = rangeEndMs,
-                autoAdvance = autoAdvance
+                rangeEndMs = if (binding.etRangeEnd.text.isNullOrBlank()) -1L else rangeEndMs,
+                loopCount = loopCount,
+                speed = speed
             )
-
-            // Reset saved state before saving
-            viewModel.resetSavedState()
             viewModel.saveConfig()
         }
     }
 
+    private fun setupClearButton() {
+        binding.btnClear.setOnClickListener {
+            viewModel.deleteConfig()
+        }
+    }
+
     private fun setupObservers() {
-        // Use repeatOnLifecycle(STARTED) so Flow collection pauses when the UI
-        // is stopped and restarts when it's started again.
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                // Observe config changes and update UI
                 launch {
                     viewModel.config.collect { config ->
-                        // Update loop mode dropdown without triggering the listener
-                        val modeIndex = LoopMode.entries.indexOf(config.loopMode)
-                        if ((binding.actvLoopMode as AutoCompleteTextView).text.toString() != loopModeLabels.getOrElse(modeIndex) { "" }) {
-                            binding.actvLoopMode.setText(loopModeLabels.getOrElse(modeIndex) { "" }, false)
-                        }
-
+                        binding.etRangeStart.setText(formatMsToTime(config.rangeStartMs))
+                        binding.etRangeEnd.setText(if (config.rangeEndMs <= 0) "" else formatMsToTime(config.rangeEndMs))
                         binding.etLoopCount.setText(config.loopCount.toString())
-
-                        // Display in seconds (stored in ms internally)
-                        binding.etRangeStart.setText(
-                            if (config.rangeStartMs == 0L) "0" else (config.rangeStartMs / 1000).toString()
-                        )
-                        binding.etRangeEnd.setText(
-                            if (config.rangeEndMs <= 0L) "" else (config.rangeEndMs / 1000).toString()
-                        )
-
-                        binding.switchAutoAdvance.isChecked = config.autoAdvance
-
-                        if (config.startAction == StartAction.AUTO_PLAY) binding.rbAutoplay.isChecked = true
-                        else binding.rbWait.isChecked = true
-
-                        updateVisibilityForMode(config.loopMode)
+                        selectSpeedChip(config.speed)
                     }
                 }
 
-                // Observe save success
                 launch {
                     viewModel.isSaved.collect { saved ->
                         if (saved) {
-                            Timber.i("Settings saved successfully, navigating back")
                             showSnackbar(getString(R.string.settings_saved))
                             findNavController().navigateUp()
                         }
                     }
                 }
 
-                // Observe save errors
                 launch {
                     viewModel.saveError.collect { errorMsg ->
                         errorMsg?.let {
-                            Timber.w("Save error: %s", it)
-                            showSnackbar(it) {
-                                viewModel.clearSaveError()
-                                viewModel.saveConfig()
-                            }
+                            showSnackbar(it) { viewModel.clearSaveError(); viewModel.saveConfig() }
                         }
                     }
                 }
 
-                // Observe loading state
                 launch {
-                    viewModel.isLoading.collect { isLoading ->
-                        binding.btnApply.isEnabled = !isLoading
-                        if (isLoading) {
-                            binding.btnApply.text = getString(R.string.loading)
-                        } else {
-                            binding.btnApply.text = getString(R.string.apply_settings)
-                        }
+                    viewModel.savedTimestamps.collect { timestamps ->
+                        updateSavedTimestampsList(timestamps)
                     }
                 }
             }
+        }
+    }
+
+    private fun updateSavedTimestampsList(timestamps: List<com.looplingo.horizon.data.entity.SavedTimestampEntity>) {
+        val container = binding.savedTimestampsContainer
+        container.removeAllViews()
+
+        if (timestamps.isEmpty()) {
+            binding.layoutSavedTimestamps.visibility = View.GONE
+            return
+        }
+
+        binding.layoutSavedTimestamps.visibility = View.VISIBLE
+
+        for (ts in timestamps) {
+            val itemView = layoutInflater.inflate(R.layout.item_saved_timestamp, container, false)
+            itemView.findViewById<TextView>(R.id.tv_timestamp_label).text = ts.label
+            itemView.findViewById<TextView>(R.id.tv_timestamp_range).text =
+                "${formatMsToTime(ts.rangeStartMs)} → ${formatMsToTime(ts.rangeEndMs)} (x${ts.loopCount})"
+
+            itemView.findViewById<View>(R.id.btn_use_timestamp).setOnClickListener {
+                binding.etRangeStart.setText(formatMsToTime(ts.rangeStartMs))
+                binding.etRangeEnd.setText(formatMsToTime(ts.rangeEndMs))
+                binding.etLoopCount.setText(ts.loopCount.toString())
+            }
+
+            itemView.findViewById<View>(R.id.btn_delete_timestamp).setOnClickListener {
+                viewModel.deleteTimestamp(ts)
+            }
+
+            container.addView(itemView)
+        }
+    }
+
+    /** Parse "1:23" or "83" to milliseconds. Supports mm:ss or pure seconds. */
+    private fun parseTimeToMs(text: String?): Long {
+        if (text.isNullOrBlank()) return 0L
+        val trimmed = text.trim()
+
+        // Try mm:ss format
+        if (trimmed.contains(":")) {
+            val parts = trimmed.split(":")
+            if (parts.size == 2) {
+                val minutes = parts[0].toLongOrNull() ?: 0L
+                val seconds = parts[1].toLongOrNull() ?: 0L
+                return (minutes * 60 + seconds) * 1000
+            }
+            if (parts.size == 3) {
+                val hours = parts[0].toLongOrNull() ?: 0L
+                val minutes = parts[1].toLongOrNull() ?: 0L
+                val seconds = parts[2].toLongOrNull() ?: 0L
+                return (hours * 3600 + minutes * 60 + seconds) * 1000
+            }
+        }
+
+        // Pure seconds
+        val seconds = trimmed.toLongOrNull() ?: 0L
+        return seconds * 1000
+    }
+
+    /** Format milliseconds to "m:ss" or "h:mm:ss" */
+    private fun formatMsToTime(ms: Long): String {
+        if (ms <= 0) return "0:00"
+        val totalSeconds = ms / 1000
+        val hours = TimeUnit.SECONDS.toHours(totalSeconds)
+        val minutes = TimeUnit.SECONDS.toMinutes(totalSeconds) % 60
+        val seconds = totalSeconds % 60
+        return if (hours > 0) {
+            String.format("%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format("%d:%02d", minutes, seconds)
         }
     }
 
