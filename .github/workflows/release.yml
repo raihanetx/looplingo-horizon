@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Release APK
@@ -37,12 +40,37 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease --stacktrace
 
-      - name: Upload Release APK
+      - name: Get version info
+        id: version
+        run: |
+          VERSION_NAME=$(grep versionName app/build.gradle | head -1 | sed 's/.*versionName\s*"\([^"]*\)".*//')
+          VERSION_CODE=$(grep versionCode app/build.gradle | head -1 | sed 's/.*versionCode\s*\([0-9]*\).*//')
+          echo "name=v${VERSION_NAME}" >> $GITHUB_OUTPUT
+          echo "code=${VERSION_CODE}" >> $GITHUB_OUTPUT
+          echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+
+      - name: Upload Release APK as artifact
         uses: actions/upload-artifact@v4
         with:
           name: LoopLingo-Horizon-Release
           path: app/build/outputs/apk/release/*.apk
           retention-days: 30
+
+      - name: Create GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.name }}
+          name: "LoopLingo Horizon ${{ steps.version.outputs.name }}"
+          body: |
+            Built on ${{ steps.version.outputs.date }}
+            Version code: ${{ steps.version.outputs.code }}
+
+            **Download the APK below 👇**
+          files: app/build/outputs/apk/release/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Cleanup keystore
         if: always()
