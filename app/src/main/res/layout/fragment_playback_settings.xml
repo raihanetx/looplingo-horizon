@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/colorBackground"
+    android:fitsSystemWindows="true">
+
+    <!-- App Bar with back navigation -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/app_bar_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/colorSurface"
+        app:elevation="@dimen/app_bar_elevation">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:navigationIcon="@drawable/ic_arrow_back"
+            app:navigationContentDescription="@string/content_desc_navigate_up"
+            app:title="@string/playback_settings"
+            app:titleTextAppearance="@style/TextAppearance.Horizon.TitleLarge"
+            app:titleTextColor="@color/colorOnSurface" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Scrollable content -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/space_lg"
+            android:paddingVertical="@dimen/space_lg">
+
+            <!-- ════════ SECTION: Start Action ════════ -->
+            <TextView
+                style="@style/Widget.Horizon.SectionHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/start_action" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Horizon.CardView.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/space_lg">
+
+                <RadioGroup
+                    android:id="@+id/rg_start_action"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="@dimen/space_md">
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/rb_autoplay"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="@dimen/touch_target_min"
+                        android:text="@string/autoplay_immediately"
+                        android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/rb_wait"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="@dimen/touch_target_min"
+                        android:text="@string/load_and_wait"
+                        android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
+
+                </RadioGroup>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ════════ SECTION: Loop Mode ════════ -->
+            <TextView
+                style="@style/Widget.Horizon.SectionHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/loop_mode" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Horizon.CardView.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/space_lg">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/space_md">
+
+                    <!-- Loop Mode dropdown (replaces Spinner) -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_loop_mode"
+                        style="@style/Widget.Horizon.ExposedDropdown"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="@string/loop_mode">
+
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                            android:id="@+id/actv_loop_mode"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                            tools:text="Loop Infinite" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Loop Count (visible for LOOP_X_TIMES, AUTO_LOOP, and A_B_PIN) -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_loop_count"
+                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_md"
+                        android:hint="@string/loop_count_label"
+                        android:visibility="gone"
+                        app:counterEnabled="true"
+                        app:counterMaxLength="5"
+                        app:errorEnabled="true">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_loop_count"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="number"
+                            android:maxLength="5"
+                            android:hint="@string/loop_count_hint"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ════════ SECTION: Playback Range (only visible for A-B Pin) ════════ -->
+            <LinearLayout
+                android:id="@+id/layout_range_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    style="@style/Widget.Horizon.SectionHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/playback_range_seconds" />
+
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.Horizon.CardView.Filled"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="@dimen/space_lg">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="@dimen/space_md">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_range_start"
+                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/start_hint">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_range_start"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="number"
+                            android:hint="@string/range_start_hint"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginHorizontal="@dimen/space_sm"
+                        android:text="@string/range_separator"
+                        android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                        android:textColor="@color/colorOnSurfaceVariant" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_range_end"
+                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/end_hint">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_range_end"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="number"
+                            android:text=""
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout> <!-- end layout_range_section -->
+
+            <!-- ════════ SECTION: Auto-Advance ════════ -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Horizon.CardView.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/space_xl">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="@dimen/space_lg"
+                    android:paddingVertical="@dimen/space_sm">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/auto_advance_after_loop"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                            android:textColor="@color/colorOnSurface" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/auto_advance_description"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                            android:textColor="@color/colorOnSurfaceVariant" />
+
+                    </LinearLayout>
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switch_auto_advance"
+                        style="@style/Widget.Horizon.Switch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="@dimen/touch_target_min"
+                        android:minHeight="@dimen/touch_target_min"
+                        android:contentDescription="@string/auto_advance_after_loop" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ════════ Apply Button ════════ -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_apply"
+                style="@style/Widget.Horizon.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/space_xl"
+                android:text="@string/apply_settings"
+                app:icon="@drawable/ic_check"
+                app:iconGravity="textStart" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -15,10 +15,24 @@ local.properties
 app/build/
 captures/
 
-# Keystores
+# Keystores — NEVER commit these to version control
 *.jks
 *.keystore
+
+# CI keystore (decoded from secrets at build time)
+app/ci-release.jks
+
+# Room schema exports (generated at build time)
+app/schemas/
+
+# Lint baseline (auto-updated by CI)
+app/lint-baseline.xml
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Secrets
+*.pem
+*.p12
+secrets.properties

@@ -1,9 +1,89 @@
 <resources>
-    <style name="Theme.HorizonPlayer" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorPrimaryDark">@color/purple_700</item>
-        <item name="colorAccent">@color/teal_200</item>
-        <item name="android:statusBarColor">@color/black</item>
-        <item name="android:windowBackground">@color/black</item>
+    <!-- ══════════════════════════════════════════════════════════════════════
+         MAIN APPLICATION THEME
+         Parent: DayNight so Android auto-switches light/dark based on system.
+         NoActionBar — we host our own Toolbar in each Fragment.
+         ══════════════════════════════════════════════════════════════════════ -->
+    <style name="Theme.HorizonPlayer" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary brand -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorOnPrimary">@color/colorOnPrimary</item>
+        <item name="colorPrimaryContainer">@color/colorPrimaryContainer</item>
+        <item name="colorOnPrimaryContainer">@color/colorOnPrimaryContainer</item>
+
+        <!-- Secondary brand -->
+        <item name="colorSecondary">@color/colorSecondary</item>
+        <item name="colorOnSecondary">@color/colorOnSecondary</item>
+        <item name="colorSecondaryContainer">@color/colorSecondaryContainer</item>
+        <item name="colorOnSecondaryContainer">@color/colorOnSecondaryContainer</item>
+
+        <!-- Tertiary brand -->
+        <item name="colorTertiary">@color/colorTertiary</item>
+        <item name="colorOnTertiary">@color/colorOnTertiary</item>
+        <item name="colorTertiaryContainer">@color/colorTertiaryContainer</item>
+        <item name="colorOnTertiaryContainer">@color/colorOnTertiaryContainer</item>
+
+        <!-- Error -->
+        <item name="colorError">@color/colorError</item>
+        <item name="colorOnError">@color/colorOnError</item>
+        <item name="colorErrorContainer">@color/colorErrorContainer</item>
+        <item name="colorOnErrorContainer">@color/colorOnErrorContainer</item>
+
+        <!-- Surfaces -->
+        <item name="android:colorBackground">@color/colorBackground</item>
+        <item name="colorOnBackground">@color/colorOnBackground</item>
+        <item name="colorSurface">@color/colorSurface</item>
+        <item name="colorOnSurface">@color/colorOnSurface</item>
+        <item name="colorSurfaceVariant">@color/colorSurfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/colorOnSurfaceVariant</item>
+        <item name="colorOutline">@color/colorOutline</item>
+        <item name="colorOutlineVariant">@color/colorOutlineVariant</item>
+        <item name="colorSurfaceContainerLowest">@color/colorSurfaceContainerLowest</item>
+        <item name="colorSurfaceContainerLow">@color/colorSurfaceContainerLow</item>
+        <item name="colorSurfaceContainer">@color/colorSurfaceContainer</item>
+        <item name="colorSurfaceContainerHigh">@color/colorSurfaceContainerHigh</item>
+        <item name="colorSurfaceContainerHighest">@color/colorSurfaceContainerHighest</item>
+        <item name="colorInverseSurface">@color/colorInverseSurface</item>
+        <item name="colorInverseOnSurface">@color/colorInverseOnSurface</item>
+        <item name="colorInversePrimary">@color/colorInversePrimary</item>
+
+        <!-- Window -->
+        <item name="android:statusBarColor">@color/transparent</item>
+        <item name="android:navigationBarColor">@color/transparent</item>
+        <item name="android:windowBackground">@color/colorBackground</item>
+        <item name="android:windowLightStatusBar">true</item>
+
+        <!-- Default text appearance -->
+        <item name="android:textViewStyle">@style/Widget.Horizon.TextView</item>
+
+        <!-- Custom component overrides -->
+        <item name="snackbarStyle">@style/Widget.Horizon.Snackbar</item>
+        <item name="snackbarTextViewStyle">@style/Widget.Horizon.Snackbar.TextView</item>
+        <item name="materialCardViewStyle">@style/Widget.Horizon.CardView.Elevated</item>
+    </style>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         DARK THEME OVERRIDES (system auto-applies via DayNight parent)
+         We only need to override window flags that differ in dark mode.
+         ══════════════════════════════════════════════════════════════════════ -->
+    <style name="Theme.HorizonPlayer.Dark" parent="Theme.HorizonPlayer">
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         SPLASH SCREEN (API 31+)
+         ══════════════════════════════════════════════════════════════════════ -->
+    <style name="Theme.HorizonPlayer.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/colorPrimary</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.HorizonPlayer</item>
+    </style>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         DEFAULT TEXTVIEW STYLE — ensures all TextViews use semantic colors
+         ══════════════════════════════════════════════════════════════════════ -->
+    <style name="Widget.Horizon.TextView" parent="Widget.Material3.TextView">
+        <item name="android:textColor">@color/colorOnSurface</item>
+        <item name="android:textAppearance">@style/TextAppearance.Horizon.BodyMedium</item>
     </style>
 </resources>

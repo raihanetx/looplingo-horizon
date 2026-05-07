@@ -1,35 +1,106 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:background="@color/black">
+    android:layout_marginHorizontal="@dimen/space_lg"
+    android:layout_marginVertical="@dimen/space_xs"
+    app:cardCornerRadius="@dimen/card_corner_radius"
+    app:cardElevation="@dimen/card_elevation"
+    app:strokeColor="@color/colorOutlineVariant"
+    app:strokeWidth="0dp"
+    android:foreground="?attr/selectableItemBackground">
 
-    <TextView
-        android:id="@+id/tv_title"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        android:minHeight="@dimen/video_item_height"
+        android:padding="@dimen/card_content_padding">
 
-    <TextView
-        android:id="@+id/tv_path"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textColor="@color/teal_200"
-        android:textSize="12sp"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:layout_marginTop="4dp" />
+        <!-- Audio track icon (placeholder — no thumbnail extraction needed) -->
+        <ImageView
+            android:id="@+id/iv_video_icon"
+            android:layout_width="@dimen/video_item_icon_size"
+            android:layout_height="@dimen/video_item_icon_size"
+            android:contentDescription="@string/content_desc_video_icon"
+            android:scaleType="centerInside"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:srcCompat="@drawable/ic_audio_track"
+            app:tint="@color/colorPrimary" />
 
-    <TextView
-        android:id="@+id/tv_duration"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textColor="@color/white"
-        android:textSize="12sp"
-        android:layout_marginTop="4dp" />
+        <!-- Loop mode badge (top-right corner of icon) -->
+        <TextView
+            android:id="@+id/tv_loop_badge"
+            android:layout_width="@dimen/video_item_badge_size"
+            android:layout_height="@dimen/video_item_badge_size"
+            android:background="@drawable/badge_background"
+            android:gravity="center"
+            android:textColor="@color/colorOnPrimary"
+            android:textSize="10sp"
+            android:visibility="gone"
+            android:contentDescription="@string/content_desc_loop_badge"
+            app:layout_constraintEnd_toEndOf="@id/iv_video_icon"
+            app:layout_constraintTop_toTopOf="@id/iv_video_icon"
+            tools:text="∞"
+            tools:visibility="visible" />
 
-</LinearLayout>
+        <!-- Video title -->
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_lg"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
+            android:textColor="@color/colorOnSurface"
+            app:layout_constraintEnd_toStartOf="@id/tv_duration"
+            app:layout_constraintStart_toEndOf="@id/iv_video_icon"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="Chapter 03 - Introducing Yourself" />
+
+        <!-- Video path (secondary info) -->
+        <TextView
+            android:id="@+id/tv_path"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_lg"
+            android:ellipsize="middle"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+            android:textColor="@color/colorOnSurfaceVariant"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/iv_video_icon"
+            app:layout_constraintTop_toBottomOf="@id/tv_title"
+            tools:text="/storage/emulated/0/Movies/lesson3.mp4" />
+
+        <!-- Duration (right-aligned) -->
+        <TextView
+            android:id="@+id/tv_duration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
+            android:textColor="@color/colorOnSurfaceVariant"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="05:32" />
+
+        <!-- File size (optional, below path) -->
+        <TextView
+            android:id="@+id/tv_size"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_lg"
+            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+            android:textColor="@color/colorOutline"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/iv_video_icon"
+            app:layout_constraintTop_toBottomOf="@id/tv_path"
+            tools:text="24.5 MB" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

@@ -1,3 +1,78 @@
 <resources>
     <string name="app_name">LoopLingo</string>
+
+    <!-- Main screen -->
+    <string name="no_videos_found">No videos found</string>
+    <string name="permission_required">Permission required to scan videos</string>
+    <string name="permission_denied_message">Storage permission is needed to find videos on your device</string>
+    <string name="permission_rationale">LoopLingo needs access to your video files to provide audio playback for language learning.</string>
+
+    <!-- Error messages -->
+    <string name="retry">Retry</string>
+    <string name="error_starting_playback">Could not start playback. Please try again.</string>
+    <string name="error_navigation">Could not open settings. Please try again.</string>
+    <string name="error_invalid_video_path">Invalid video selected. Please go back and try again.</string>
+    <string name="error_save_failed">Failed to save settings. Please try again.</string>
+
+    <!-- Playback settings -->
+    <string name="playback_settings">Playback Settings</string>
+    <string name="start_action">Start Action</string>
+    <string name="autoplay_immediately">Autoplay Immediately</string>
+    <string name="load_and_wait">Load and Wait</string>
+    <string name="loop_mode">Loop Mode</string>
+    <string name="play_once">Play Once</string>
+    <string name="loop_x_times">Loop X Times</string>
+    <string name="loop_infinite">Loop Infinite</string>
+    <string name="flow">Flow</string>
+    <string name="auto_loop">Auto-Loop</string>
+    <string name="ab_pin">A-B Pin</string>
+    <string name="loop_count_label">Loop Count</string>
+    <string name="loop_count_hint">Number of loops</string>
+    <string name="playback_range_seconds">Playback Range (seconds)</string>
+    <string name="start_hint">Start</string>
+    <string name="range_start_hint">0</string>
+    <string name="end_hint">End (empty=entire)</string>
+    <string name="range_separator">to</string>
+    <string name="auto_advance_after_loop">Auto-Advance</string>
+    <string name="auto_advance_description">Move to next video after loop completes</string>
+    <string name="apply_settings">Apply Settings</string>
+    <string name="settings_saved">Settings saved</string>
+    <string name="loading">Saving…</string>
+
+    <!-- Validation errors -->
+    <string name="error_loop_count_minimum">Loop count must be at least 1</string>
+    <string name="error_loop_count_maximum">Loop count cannot exceed 10,000</string>
+    <string name="error_range_start_negative">Range start cannot be negative</string>
+    <string name="error_range_end_before_start">Range end must be greater than range start</string>
+    <string name="error_ab_pin_requires_end">A-B Pin mode requires an end position</string>
+    <string name="error_ab_pin_range_too_short">A-B range must be at least 1 second</string>
+
+    <!-- Notification -->
+    <string name="notification_channel_name">LoopLingo Audio Playback</string>
+    <string name="notification_channel_description">Notifications for audio playback</string>
+    <string name="notification_pause">Pause</string>
+    <string name="notification_play">Play</string>
+    <string name="notification_previous">Previous</string>
+    <string name="notification_next">Next</string>
+    <string name="notification_stop">Stop</string>
+    <string name="notification_error_title">LoopLingo — Playback Error</string>
+    <string name="notification_error_unknown">Unknown playback error</string>
+    <string name="notification_loading">Loading audio…</string>
+
+    <!-- Toolbar menu -->
+    <string name="action_sort">Sort</string>
+    <string name="action_stop_playback">Stop Playback</string>
+    <string name="sort_by">Sort by</string>
+    <string name="sort_by_date">Date (newest first)</string>
+    <string name="sort_by_title">Title (A-Z)</string>
+    <string name="sort_by_duration">Duration (longest first)</string>
+    <string name="sort_by_size">File size (largest first)</string>
+
+    <!-- Accessibility content descriptions -->
+    <string name="content_desc_video_icon">Audio track icon</string>
+    <string name="content_desc_loop_badge">Loop mode badge</string>
+    <string name="content_desc_empty_state">No videos found illustration</string>
+    <string name="content_desc_sort">Sort videos</string>
+    <string name="content_desc_stop_playback">Stop current playback</string>
+    <string name="content_desc_navigate_up">Navigate back</string>
 </resources>

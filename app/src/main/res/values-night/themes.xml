@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark mode override: only flip the status bar icon style.
+         The DayNight parent in values/themes.xml already handles
+         color switching via the night-qualified colors.xml aliases.
+         We must NOT re-declare the full theme here, or we lose all
+         custom color/component/style mappings from the base theme. -->
+    <style name="Theme.HorizonPlayer.Dark" parent="Theme.HorizonPlayer">
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

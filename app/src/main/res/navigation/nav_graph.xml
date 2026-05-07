@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/mainFragment">
+
+    <fragment
+        android:id="@+id/mainFragment"
+        android:name="com.looplingo.horizon.ui.MainFragment"
+        android:label="LoopLingo">
+
+        <action
+            android:id="@+id/action_main_to_playbackSettings"
+            app:destination="@id/playbackSettingsFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/playbackSettingsFragment"
+        android:name="com.looplingo.horizon.ui.PlaybackSettingsFragment"
+        android:label="Playback Settings">
+
+        <argument
+            android:name="videoPath"
+            app:argType="string" />
+    </fragment>
+
+</navigation>

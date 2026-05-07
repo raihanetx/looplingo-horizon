@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Severity overrides for LoopLingo Horizon -->
+
+    <!-- Critical: enforce these as errors -->
+    <issue id="MissingPermission" severity="error" />
+    <issue id="PermissionImpliesUnsupportedChromeOsHardware" severity="error" />
+    <issue id="ForegroundServicePermission" severity="error" />
+    <issue id="InvalidWakeLockTag" severity="error" />
+    <issue id="RestrictedApi" severity="error" />
+    <issue id="UnsafeProtectedBroadcastReceiver" severity="error" />
+
+    <!-- Important: warn about these -->
+    <issue id="UnusedResources" severity="warning" />
+    <issue id="ObsoleteSdkInt" severity="warning" />
+    <issue id="NewApi" severity="warning" />
+    <issue id="Deprecated" severity="warning" />
+    <issue id="TypographyEllipsis" severity="warning" />
+    <issue id="StringFormatInvalid" severity="warning" />
+
+    <!-- Code quality warnings -->
+    <issue id="HardcodedText" severity="warning" />
+    <issue id="SetTextI18n" severity="warning" />
+    <issue id="SpUsage" severity="informational" />
+    <issue id="IconMissingDensityFolder" severity="warning" />
+    <issue id="IconDensities" severity="warning" />
+
+    <!-- Suppress: acceptable for this project -->
+    <issue id="AllowBackup" severity="ignore" />
+    <issue id="MissingApplicationIcon" severity="ignore" />
+    <issue id="GoogleAppIndexingWarning" severity="ignore" />
+    <issue id="IntentFilterExportedReceiver" severity="informational" />
+
+    <!-- Timber-specific: suppress log deprecation since we use Timber -->
+    <issue id="LogNotTimber" severity="error" />
+    <issue id="StringFormatInTimber" severity="warning" />
+    <issue id="ThrowableNotAtBeginning" severity="warning" />
+</lint>

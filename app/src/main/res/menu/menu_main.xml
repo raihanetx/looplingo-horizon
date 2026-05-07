@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_sort"
+        android:icon="@drawable/ic_sort"
+        android:title="@string/action_sort"
+        android:contentDescription="@string/content_desc_sort"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_stop_playback"
+        android:icon="@drawable/ic_stop"
+        android:title="@string/action_stop_playback"
+        android:contentDescription="@string/content_desc_stop_playback"
+        app:showAsAction="ifRoom" />
+
+</menu>
