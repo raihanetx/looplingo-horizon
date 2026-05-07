@@ -6,10 +6,14 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes as SystemAudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.os.Build
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
+import androidx.media.session.MediaButtonReceiver
 import com.google.android.exoplayer2.C
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
@@ -18,6 +22,8 @@ import com.google.android.exoplayer2.audio.AudioAttributes as ExoAudioAttributes
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.google.android.exoplayer2.upstream.DefaultDataSource
+import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
+import androidx.media.session.MediaSessionCompat
 import com.looplingo.horizon.R
 import com.looplingo.horizon.ui.MainActivity
 import kotlinx.coroutines.*
@@ -39,7 +45,11 @@ class AudioPlaybackService : LifecycleService() {
     }
 
     private var exoPlayer: ExoPlayer? = null
+    private var mediaSession: MediaSessionCompat? = null
+    private var mediaSessionConnector: MediaSessionConnector? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var audioManager: AudioManager? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
     private var serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
@@ -54,7 +64,9 @@ class AudioPlaybackService : LifecycleService() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        setupAudioManager()
         setupWakeLock()
+        setupMediaSession()
         setupExoPlayer()
     }
 
@@ -63,6 +75,7 @@ class AudioPlaybackService : LifecycleService() {
         when (intent?.action) {
             ACTION_START -> intent.getStringExtra(EXTRA_VIDEO_PATH)?.let { startPlayback(it) }
         }
+        MediaButtonReceiver.handleIntent(mediaSession, intent)
         return START_STICKY
     }
 
@@ -85,6 +98,71 @@ class AudioPlaybackService : LifecycleService() {
         ).apply { setReferenceCounted(false) }
     }
 
+    private fun setupAudioManager() {
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(
+                    SystemAudioAttributes.Builder()
+                        .setUsage(SystemAudioAttributes.USAGE_MEDIA)
+                        .setContentType(SystemAudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setWillPauseWhenDucked(true)
+                .build()
+        }
+    }
+
+    private fun setupMediaSession() {
+        mediaSession = MediaSessionCompat(this, "LoopLingoMediaSession").apply {
+            setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS)
+            setCallback(mediaSessionCallback)
+            isActive = true
+        }
+        mediaSessionConnector = MediaSessionConnector(mediaSession!!)
+    }
+
+    private val mediaSessionCallback = object : MediaSessionCompat.Callback() {
+        override fun onPlay() {
+            exoPlayer?.play()
+            wakeLock?.acquire(10 * 60 * 1000L)
+        }
+        override fun onPause() {
+            exoPlayer?.pause()
+            wakeLock?.release()
+        }
+        override fun onStop() {
+            stopSelf()
+        }
+        override fun onSkipToNext() {
+            advanceRange()
+        }
+        override fun onSkipToPrevious() {
+        }
+    }
+
+    private fun requestAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let {
+                audioManager?.requestAudioFocus(it)
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager?.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let {
+                audioManager?.abandonAudioFocusRequest(it)
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager?.abandonAudioFocus(null)
+        }
+    }
+
     private fun setupExoPlayer() {
         val trackSelector = DefaultTrackSelector(this).apply {
             setParameters(buildUponParameters().setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, true))
@@ -101,6 +179,7 @@ class AudioPlaybackService : LifecycleService() {
             .build()
 
         exoPlayer?.addListener(playerListener)
+        mediaSessionConnector?.setPlayer(exoPlayer)
     }
 
     private val playerListener = object : Player.Listener {
@@ -114,8 +193,10 @@ class AudioPlaybackService : LifecycleService() {
             if (isPlaying) {
                 wakeLock?.acquire(10 * 60 * 1000L)
                 startForeground(NOTIFICATION_ID, buildNotification())
+                requestAudioFocus()
             } else {
                 wakeLock?.release()
+                abandonAudioFocus()
             }
         }
     }
@@ -178,6 +259,11 @@ class AudioPlaybackService : LifecycleService() {
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setStyle(
+                androidx.media.app.NotificationCompat.MediaStyle()
+                    .setMediaSession(mediaSession?.sessionToken)
+                    .setShowActionsInCompactView(0, 1)
+            )
             .addAction(android.R.drawable.ic_media_previous, "Previous", null)
             .addAction(playPauseDrawable, "Play/Pause", null)
             .addAction(android.R.drawable.ic_media_next, "Next", null)
@@ -193,7 +279,11 @@ class AudioPlaybackService : LifecycleService() {
         serviceJob.cancel()
         exoPlayer?.release()
         exoPlayer = null
+        mediaSessionConnector?.setPlayer(null)
+        mediaSession?.release()
+        mediaSession = null
         wakeLock?.release()
+        abandonAudioFocus()
     }
 }
 
