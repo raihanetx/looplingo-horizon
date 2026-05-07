@@ -15,7 +15,6 @@ import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.audio.AudioAttributes as ExoAudioAttributes
-import com.google.android.exoplayer2.source.ClippingMediaSource
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.google.android.exoplayer2.upstream.DefaultDataSource
@@ -113,9 +112,11 @@ class AudioPlaybackService : LifecycleService() {
         }
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (isPlaying) {
-                wakeLock?.acquire(10*60*1000L)
+                wakeLock?.acquire(10 * 60 * 1000L)
                 startForeground(NOTIFICATION_ID, buildNotification())
-            } else wakeLock?.release()
+            } else {
+                wakeLock?.release()
+            }
         }
     }
 
@@ -124,12 +125,8 @@ class AudioPlaybackService : LifecycleService() {
         val mediaSource = ProgressiveMediaSource.Factory(DefaultDataSource.Factory(this))
             .createMediaSource(MediaItem.fromUri(videoPath))
 
-        val source = if (rangeEndMs != C.TIME_UNSET) {
-            ClippingMediaSource(mediaSource, rangeStartMs, rangeEndMs)
-        } else mediaSource
-
         exoPlayer?.apply {
-            setMediaSource(source)
+            setMediaSource(mediaSource)
             prepare()
             repeatMode = if (loopMode != LoopMode.PLAY_ONCE) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
             play()
@@ -171,6 +168,9 @@ class AudioPlaybackService : LifecycleService() {
             this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+
+        val playPauseDrawable = if (exoPlayer?.isPlaying == true) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("LoopLingo")
             .setContentText("Playing: ${currentVideoPath?.substringAfterLast("/")}")
@@ -179,10 +179,7 @@ class AudioPlaybackService : LifecycleService() {
             .setOngoing(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .addAction(android.R.drawable.ic_media_previous, "Previous", null)
-            .addAction(
-                if (exoPlayer?.isPlaying == true) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
-                "Play/Pause", null
-            )
+            .addAction(playPauseDrawable, "Play/Pause", null)
             .addAction(android.R.drawable.ic_media_next, "Next", null)
             .build()
     }
