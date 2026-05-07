@@ -24,10 +24,9 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.MediaSession
 import com.looplingo.horizon.R
-import com.looplingo.horizon.model.LoopMode
 import com.looplingo.horizon.model.PlaybackConfig
 import com.looplingo.horizon.model.PlaybackConfigValidator
-import com.looplingo.horizon.model.StartAction
+import com.looplingo.horizon.model.SpeedPresets
 import com.looplingo.horizon.repository.PlaybackRepository
 import com.looplingo.horizon.repository.VideoRepository
 import com.looplingo.horizon.ui.MainActivity
@@ -45,23 +44,15 @@ import timber.log.Timber
 import javax.inject.Inject
 
 /**
- * Foreground service that plays audio extracted from video files using Media3 ExoPlayer.
+ * Foreground service for audio playback.
  *
- * Key design decisions:
- *  - ExoPlayer repeatMode is always REPEAT_MODE_OFF. All looping is handled
- *    manually via onPlaybackStateChanged(STATE_ENDED) so we have full control
- *    over iteration counting, A-B ranges, and auto-advance logic.
- *  - WakeLock is tracked with an [isWakeLockHeld] flag to prevent double-release crashes.
- *    For LOOP_INFINITE mode, WakeLock uses an indefinite timeout (renewed every hour).
- *    For finite modes, WakeLock uses a 4-hour safety timeout.
- *  - Playback config is loaded from Room via [PlaybackRepository] on each new video
- *    and validated with [PlaybackConfigValidator] before use.
- *  - A-B Pin mode uses a periodic coroutine to monitor playback position since
- *    ExoPlayer's STATE_ENDED only fires at the end of the full file.
- *  - Notification uses Media3 MediaStyle with MediaSession for lock screen controls,
- *    Android Auto compatibility, and proper system integration.
- *  - Migrated from ExoPlayer 2.x (com.google.android.exoplayer2) to
- *    Media3 (androidx.media3) for long-term support and active development.
+ * Simplified loop logic:
+ *  - No loop modes. Behavior is determined by PlaybackConfig values:
+ *    - Normal: no A-B range, loopCount=1 → play full video once
+ *    - A-B Loop: A→B segment, loop N times, then continue to end of video
+ *    - Full Loop: no A-B range, loopCount>1 → loop entire video N times
+ *  - Speed control via ExoPlayer.setPlaybackParameters()
+ *  - A-B position monitor polls every 200ms to detect when playback reaches B
  */
 @AndroidEntryPoint
 class AudioPlaybackService : LifecycleService() {
@@ -76,14 +67,9 @@ class AudioPlaybackService : LifecycleService() {
         const val ACTION_STOP = "com.looplingo.horizon.STOP"
         const val EXTRA_VIDEO_PATH = "video_path"
 
-        // WakeLock management constants
-        private const val WAKELOCK_FINITE_TIMEOUT_MS = 4 * 60 * 60 * 1000L  // 4 hours
-        private const val WAKELOCK_RENEWAL_INTERVAL_MS = 60 * 60 * 1000L    // 1 hour
-
-        // A-B Pin polling interval — 200ms is responsive without burning CPU
+        private const val WAKELOCK_FINITE_TIMEOUT_MS = 4 * 60 * 60 * 1000L
+        private const val WAKELOCK_RENEWAL_INTERVAL_MS = 60 * 60 * 1000L
         private const val AB_PIN_POLL_INTERVAL_MS = 200L
-
-        // Max automatic retries on ExoPlayer error before giving up
         private const val MAX_RETRY_ATTEMPTS = 3
         private const val RETRY_DELAY_MS = 2000L
 
@@ -94,8 +80,6 @@ class AudioPlaybackService : LifecycleService() {
             }
             try {
                 context.startForegroundService(intent)
-            } catch (e: IllegalStateException) {
-                Timber.e(e, "Cannot start foreground service — app may be in background restriction")
             } catch (e: Exception) {
                 Timber.e(e, "Failed to start AudioPlaybackService")
             }
@@ -109,7 +93,6 @@ class AudioPlaybackService : LifecycleService() {
         }
     }
 
-    // ── Player & System ──────────────────────────────────────────────────
     private var exoPlayer: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
     private var wakeLock: PowerManager.WakeLock? = null
@@ -117,26 +100,20 @@ class AudioPlaybackService : LifecycleService() {
     private var serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
-    // ── Playback State ───────────────────────────────────────────────────
     private var currentConfig: PlaybackConfig = PlaybackConfig(videoPath = "")
     private var currentLoopIteration: Int = 0
     private var currentVideoIndex: Int = -1
     private var videoPaths: List<String> = emptyList()
     private var videoTitles: Map<String, String> = emptyMap()
     private var retryAttemptCount: Int = 0
+    private var abLoopCompleted: Boolean = false
 
-    // ── Coroutine Jobs (for cancellation) ────────────────────────────────
     private var abPinMonitorJob: Job? = null
     private var wakeLockRenewalJob: Job? = null
 
-    // ── Repositories (Hilt-injected) ─────────────────────────────────────
-    @Inject
-    lateinit var playbackRepository: PlaybackRepository
+    @Inject lateinit var playbackRepository: PlaybackRepository
+    @Inject lateinit var videoRepository: VideoRepository
 
-    @Inject
-    lateinit var videoRepository: VideoRepository
-
-    // ── Broadcast Receiver for notification actions ───────────────────────
     private val notificationActionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
@@ -170,48 +147,31 @@ class AudioPlaybackService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
 
-        // CRITICAL: Android requires startForeground() within 5 seconds of
-        // startForegroundService(). We must call it immediately, even before
-        // the coroutine finishes loading the config. Show a "loading" notification.
         if (intent?.action == ACTION_START) {
             try {
                 startForeground(NOTIFICATION_ID, buildLoadingNotification())
-                Timber.d("startForeground() called immediately to meet 5-second requirement")
             } catch (e: Exception) {
-                Timber.e(e, "Failed to call startForeground() — service may be killed")
+                Timber.e(e, "Failed to call startForeground()")
             }
         }
 
-        if (intent == null) {
-            Timber.w("onStartCommand called with null intent — service restarted by system")
-            return START_STICKY
-        }
+        if (intent == null) return START_STICKY
 
         when (intent.action) {
             ACTION_START -> {
                 val videoPath = intent.getStringExtra(EXTRA_VIDEO_PATH)
-                if (videoPath.isNullOrBlank()) {
-                    Timber.w("ACTION_START received with null/blank videoPath — ignoring")
-                    return START_STICKY
-                }
-                Timber.d("ACTION_START for: %s", videoPath)
+                if (videoPath.isNullOrBlank()) return START_STICKY
                 serviceScope.launch {
                     try {
                         loadVideoPaths()
                         startPlayback(videoPath)
                     } catch (e: Exception) {
-                        Timber.e(e, "Failed to start playback for: %s", videoPath)
+                        Timber.e(e, "Failed to start playback")
                         updateNotificationWithError("Failed to start playback: ${e.message}")
                     }
                 }
             }
-            ACTION_STOP -> {
-                Timber.d("ACTION_STOP received")
-                stopSelf()
-            }
-            else -> {
-                Timber.w("Unknown action received: %s", intent.action)
-            }
+            ACTION_STOP -> stopSelf()
         }
         return START_STICKY
     }
@@ -223,7 +183,6 @@ class AudioPlaybackService : LifecycleService() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        Timber.i("Task removed by user — stopping playback service")
         cleanup()
         stopSelf()
     }
@@ -240,14 +199,13 @@ class AudioPlaybackService : LifecycleService() {
             mediaSession?.release()
             mediaSession = null
             releaseWakeLock()
-            Timber.i("AudioPlaybackService cleaned up")
         } catch (e: Exception) {
             Timber.e(e, "Error during service cleanup")
         }
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // EXOPLAYER SETUP (Media3)
+    // EXOPLAYER SETUP
     // ══════════════════════════════════════════════════════════════════════
 
     private fun setupExoPlayer() {
@@ -263,17 +221,11 @@ class AudioPlaybackService : LifecycleService() {
         exoPlayer = ExoPlayer.Builder(this)
             .setTrackSelector(trackSelector)
             .setAudioAttributes(audioAttributes, true)
-            .setHandleAudioBecomingNoisy(true)   // Pause when headphones disconnect
+            .setHandleAudioBecomingNoisy(true)
             .build()
 
         exoPlayer?.addListener(playerListener)
-        Timber.d("Media3 ExoPlayer initialized with video track disabled")
     }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // MEDIA SESSION — enables lock screen, Bluetooth, and Android Auto controls
-    // Uses Media3 MediaSession (replaces MediaSessionCompat + MediaSessionConnector)
-    // ══════════════════════════════════════════════════════════════════════
 
     private fun setupMediaSession() {
         mediaSession = MediaSession.Builder(this, exoPlayer!!)
@@ -282,18 +234,14 @@ class AudioPlaybackService : LifecycleService() {
                     session: MediaSession,
                     controller: MediaSession.ControllerInfo
                 ): MediaSession.ConnectionResult {
-                    // Allow all controllers to connect with full playback control
                     return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                         .setAvailableSessionCommands(
-                            MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
-                                .build()
+                            MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon().build()
                         )
                         .build()
                 }
             })
             .build()
-
-        Timber.d("Media3 MediaSession initialized and connected to ExoPlayer")
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -306,110 +254,76 @@ class AudioPlaybackService : LifecycleService() {
                 Player.STATE_ENDED -> handlePlaybackEnded()
                 Player.STATE_READY -> {
                     Timber.d("Player ready — duration: %d ms", exoPlayer?.duration ?: -1)
-                    retryAttemptCount = 0  // Reset retry counter on successful preparation
+                    retryAttemptCount = 0
                     updateNotification()
                 }
-                Player.STATE_BUFFERING -> {
-                    Timber.d("Player buffering...")
-                    updateNotification()
-                }
+                Player.STATE_BUFFERING -> updateNotification()
             }
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (isPlaying) {
                 acquireWakeLock()
-                updateNotification()
             } else {
                 cancelWakeLockRenewal()
-                updateNotification()
             }
+            updateNotification()
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            Timber.e(error, "ExoPlayer error: errorCode=%d, message=%s", error.errorCode, error.message)
+            Timber.e(error, "ExoPlayer error")
             handlePlayerError(error)
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // ERROR RECOVERY
-    // ══════════════════════════════════════════════════════════════════════
-
     private fun handlePlayerError(error: PlaybackException) {
         retryAttemptCount++
-        Timber.w("Player error (attempt %d/%d): %s", retryAttemptCount, MAX_RETRY_ATTEMPTS, error.message)
-
         if (retryAttemptCount <= MAX_RETRY_ATTEMPTS) {
             val backoffDelay = RETRY_DELAY_MS * (1L shl (retryAttemptCount - 1))
-            Timber.i("Retrying playback in %d ms...", backoffDelay)
             serviceScope.launch {
                 delay(backoffDelay)
                 if (isActive) {
-                    try {
-                        exoPlayer?.prepare()
-                        exoPlayer?.play()
-                    } catch (e: Exception) {
-                        Timber.e(e, "Retry attempt %d failed", retryAttemptCount)
-                    }
+                    try { exoPlayer?.prepare(); exoPlayer?.play() }
+                    catch (e: Exception) { Timber.e(e, "Retry failed") }
                 }
             }
         } else {
-            Timber.e("Max retry attempts (%d) reached — giving up on current video", MAX_RETRY_ATTEMPTS)
-            updateNotificationWithError("Playback failed after $MAX_RETRY_ATTEMPTS attempts: ${error.message}")
-
-            if (currentConfig.autoAdvance && currentVideoIndex < videoPaths.size - 1) {
-                Timber.i("Auto-advancing to next video after error")
-                serviceScope.launch {
-                    delay(1000)
-                    advanceToNextVideo()
-                }
-            }
+            updateNotificationWithError("Playback failed after $MAX_RETRY_ATTEMPTS attempts")
         }
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // PLAYBACK CONTROL
+    // PLAYBACK CONTROL — SIMPLIFIED LOOP LOGIC
     // ══════════════════════════════════════════════════════════════════════
 
     private suspend fun startPlayback(videoPath: String) {
         Timber.i("Starting playback for: %s", videoPath)
 
         currentLoopIteration = 0
+        abLoopCompleted = false
         retryAttemptCount = 0
         cancelAbPinMonitor()
         currentVideoIndex = videoPaths.indexOf(videoPath)
 
         if (currentVideoIndex < 0) {
-            Timber.w("Video path not found in loaded list — reloading paths")
             loadVideoPaths()
             currentVideoIndex = videoPaths.indexOf(videoPath)
         }
 
         val savedConfig = try {
             playbackRepository.getConfigForVideo(videoPath)
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to load playback config from Room — using defaults")
-            null
-        }
+        } catch (e: Exception) { null }
 
         currentConfig = savedConfig ?: PlaybackConfig(videoPath = videoPath)
-
-        val validationResult = PlaybackConfigValidator.validate(currentConfig)
-        if (!validationResult.isValid) {
-            Timber.w("Invalid playback config: %s — applying corrections", validationResult.errors)
-            currentConfig = PlaybackConfigValidator.sanitize(currentConfig)
-        }
+        currentConfig = PlaybackConfigValidator.sanitize(currentConfig)
 
         Timber.d(
-            "Playback config: mode=%s, loopCount=%d, range=[%d,%d]ms, startAction=%s, autoAdvance=%s",
-            currentConfig.loopMode, currentConfig.loopCount,
+            "Config: A=%dms, B=%dms, loop=%d, speed=%.2f, isNormal=%s",
             currentConfig.rangeStartMs, currentConfig.rangeEndMs,
-            currentConfig.startAction, currentConfig.autoAdvance
+            currentConfig.loopCount, currentConfig.speed, currentConfig.isNormalPlayback
         )
 
         val playbackUri = resolvePlaybackUri(videoPath)
-        Timber.d("Using URI for playback: %s", playbackUri)
 
         try {
             val mediaSource = ProgressiveMediaSource.Factory(DefaultDataSource.Factory(this))
@@ -420,175 +334,137 @@ class AudioPlaybackService : LifecycleService() {
                 prepare()
                 repeatMode = Player.REPEAT_MODE_OFF
 
-                if (currentConfig.loopMode == LoopMode.A_B_PIN && currentConfig.rangeStartMs > 0) {
+                // Apply speed
+                val params = androidx.media3.common.PlaybackParameters(currentConfig.speed)
+                playbackParameters = params
+
+                // Seek to A if A-B loop is set
+                if (currentConfig.hasABLoop && currentConfig.rangeStartMs > 0) {
                     seekTo(currentConfig.rangeStartMs)
                 }
 
-                if (currentConfig.startAction == StartAction.AUTO_PLAY) {
-                    play()
-                }
+                play()
             }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to set up ExoPlayer media source for: %s", playbackUri)
+            Timber.e(e, "Failed to set up ExoPlayer")
             updateNotificationWithError("Cannot play this file: ${e.message}")
             return
         }
 
-        if (currentConfig.loopMode == LoopMode.A_B_PIN && currentConfig.rangeEndMs > 0) {
+        // Start A-B position monitor if A-B loop is configured
+        if (currentConfig.hasABLoop) {
             startAbPinMonitor()
         }
 
         updateNotification()
     }
 
-    private suspend fun resolvePlaybackUri(videoPath: String): String {
-        return try {
-            val contentUri = videoRepository.getContentUriForPath(videoPath)
-            if (!contentUri.isNullOrEmpty()) {
-                Timber.d("Using content URI from Room: %s", contentUri)
-                contentUri
-            } else {
-                Timber.d("No content URI in Room, using raw path")
-                videoPath
-            }
-        } catch (e: Exception) {
-            Timber.w(e, "Failed to query Room for URI resolution — using raw path")
-            videoPath
-        }
-    }
-
+    /**
+     * Core loop logic — called when playback reaches STATE_ENDED.
+     *
+     * Decision tree:
+     *  - Normal playback (no loop): play next video or stop
+     *  - A-B Loop: if iterations < loopCount → restart at A; else continue from B to end
+     *  - Full Loop (no A-B, loopCount>1): if iterations < loopCount → restart from 0; else next/stop
+     */
     private fun handlePlaybackEnded() {
         currentLoopIteration++
-        Timber.d(
-            "Playback ended. loopMode=%s, iteration=%d, loopCount=%d, autoAdvance=%s",
-            currentConfig.loopMode, currentLoopIteration, currentConfig.loopCount, currentConfig.autoAdvance
-        )
 
-        when (currentConfig.loopMode) {
-            LoopMode.PLAY_ONCE -> {
-                if (currentConfig.autoAdvance) advanceToNextVideo() else stopSelf()
+        if (currentConfig.isNormalPlayback) {
+            // No looping configured — just play next or stop
+            advanceToNextVideo()
+            return
+        }
+
+        if (currentConfig.hasABLoop) {
+            // A-B Loop mode
+            if (currentLoopIteration < currentConfig.loopCount) {
+                // Still looping the A-B segment
+                Timber.d("A-B loop iteration %d/%d", currentLoopIteration, currentConfig.loopCount)
+                seekToA()
+            } else {
+                // A-B loop completed — continue playing from B to end of video
+                Timber.d("A-B loop completed after %d iterations, continuing to end", currentConfig.loopCount)
+                abLoopCompleted = true
+                cancelAbPinMonitor()
+                // The video will naturally reach STATE_ENDED again when it finishes
+                // At that point, we advance to next video
+                // But wait — STATE_ENDED means the current playback ended.
+                // Since we were monitoring A-B, STATE_ENDED won't fire until the full video ends.
+                // We need to continue playing from current position to the end.
+                // However, if STATE_ENDED fired, the full video has ended.
+                advanceToNextVideo()
             }
-            LoopMode.LOOP_X_TIMES -> {
-                if (currentLoopIteration >= currentConfig.loopCount) {
-                    if (currentConfig.autoAdvance) advanceToNextVideo() else stopSelf()
-                } else {
-                    restartCurrentRange()
-                }
-            }
-            LoopMode.LOOP_INFINITE -> restartCurrentRange()
-            LoopMode.FLOW -> advanceToNextVideo()
-            LoopMode.AUTO_LOOP -> {
-                if (currentLoopIteration >= currentConfig.loopCount) {
-                    advanceToNextVideo()
-                } else {
-                    restartCurrentRange()
-                }
-            }
-            LoopMode.A_B_PIN -> {
-                restartCurrentRange()
+        } else {
+            // Full video loop (no A-B range)
+            if (currentLoopIteration < currentConfig.loopCount) {
+                Timber.d("Full loop iteration %d/%d", currentLoopIteration, currentConfig.loopCount)
+                exoPlayer?.seekTo(0)
+                exoPlayer?.play()
+            } else {
+                Timber.d("Full loop completed after %d iterations", currentConfig.loopCount)
+                advanceToNextVideo()
             }
         }
     }
 
-    private fun restartCurrentRange() {
-        val seekPosition = when {
-            currentConfig.loopMode == LoopMode.A_B_PIN && currentConfig.rangeStartMs > 0 -> currentConfig.rangeStartMs
-            currentConfig.rangeStartMs > 0 -> currentConfig.rangeStartMs
-            else -> 0L
-        }
-        Timber.d("Restarting range at position: %d ms (iteration %d)", seekPosition, currentLoopIteration)
-
+    private fun seekToA() {
         try {
-            exoPlayer?.seekTo(seekPosition)
+            exoPlayer?.seekTo(currentConfig.rangeStartMs)
             exoPlayer?.play()
         } catch (e: Exception) {
-            Timber.e(e, "Failed to restart playback range")
+            Timber.e(e, "Failed to seek to A position")
         }
         updateNotification()
     }
 
     private fun advanceToNextVideo() {
-        if (videoPaths.isEmpty()) {
-            Timber.w("No video paths loaded — cannot advance")
-            stopSelf()
-            return
-        }
+        if (videoPaths.isEmpty()) { stopSelf(); return }
 
         if (currentVideoIndex < videoPaths.size - 1) {
             val nextPath = videoPaths[currentVideoIndex + 1]
-            Timber.i("Advancing to next video [%d → %d]: %s", currentVideoIndex, currentVideoIndex + 1, nextPath)
             serviceScope.launch {
-                try {
-                    startPlayback(nextPath)
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to advance to next video")
-                    stopSelf()
-                }
+                try { startPlayback(nextPath) }
+                catch (e: Exception) { Timber.e(e, "Failed to advance"); stopSelf() }
             }
         } else {
-            Timber.i("Reached end of video list (index %d of %d), stopping service", currentVideoIndex, videoPaths.size)
             stopSelf()
         }
     }
 
     private fun playPrevious() {
-        if (videoPaths.isEmpty()) {
-            Timber.w("No video paths loaded — cannot go to previous")
-            return
-        }
-
+        if (videoPaths.isEmpty()) return
         if (currentVideoIndex > 0) {
             val prevPath = videoPaths[currentVideoIndex - 1]
-            Timber.i("Playing previous video [%d → %d]: %s", currentVideoIndex, currentVideoIndex - 1, prevPath)
             serviceScope.launch {
-                try {
-                    startPlayback(prevPath)
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to play previous video")
-                }
+                try { startPlayback(prevPath) } catch (e: Exception) { Timber.e(e, "Failed") }
             }
         } else {
-            Timber.d("At start of list, restarting current video")
             currentLoopIteration = 0
-            try {
-                exoPlayer?.seekTo(0)
-                exoPlayer?.play()
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to restart current video")
-            }
+            try { exoPlayer?.seekTo(0); exoPlayer?.play() } catch (_: Exception) {}
         }
     }
 
-    private fun playNext() {
-        advanceToNextVideo()
-    }
+    private fun playNext() { advanceToNextVideo() }
 
     private fun togglePlayback() {
         try {
-            if (exoPlayer?.isPlaying == true) {
-                exoPlayer?.pause()
-                Timber.d("Playback paused by user")
-            } else {
-                exoPlayer?.play()
-                Timber.d("Playback resumed by user")
-            }
+            if (exoPlayer?.isPlaying == true) exoPlayer?.pause() else exoPlayer?.play()
         } catch (e: Exception) {
-            Timber.e(e, "Failed to toggle playback state")
+            Timber.e(e, "Failed to toggle playback")
         }
         updateNotification()
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // A-B PIN POSITION MONITOR
+    // A-B POSITION MONITOR
     // ══════════════════════════════════════════════════════════════════════
 
     private fun startAbPinMonitor() {
         cancelAbPinMonitor()
-        Timber.d("Starting A-B Pin position monitor (interval: %d ms)", AB_PIN_POLL_INTERVAL_MS)
-
         abPinMonitorJob = serviceScope.launch(Dispatchers.Main) {
             while (isActive) {
-                checkABPinPosition()
+                checkABPosition()
                 delay(AB_PIN_POLL_INTERVAL_MS)
             }
         }
@@ -599,20 +475,32 @@ class AudioPlaybackService : LifecycleService() {
         abPinMonitorJob = null
     }
 
-    private fun checkABPinPosition() {
-        if (currentConfig.loopMode != LoopMode.A_B_PIN) return
-        if (currentConfig.rangeEndMs <= 0) return
+    /**
+     * Check if playback has reached the B marker.
+     * When it does:
+     *  - Increment iteration counter
+     *  - If iterations < loopCount → seek back to A and continue
+     *  - If iterations >= loopCount → let playback continue to end of video
+     */
+    private fun checkABPosition() {
+        if (!currentConfig.hasABLoop) return
+        if (abLoopCompleted) return
 
         val currentPosition = exoPlayer?.currentPosition ?: return
         if (currentPosition >= currentConfig.rangeEndMs) {
-            Timber.d("A-B Pin: reached B marker at %d ms (current: %d ms), iteration %d", currentConfig.rangeEndMs, currentPosition, currentLoopIteration)
             currentLoopIteration++
+            Timber.d("A-B: reached B at %dms, iteration %d/%d", currentConfig.rangeEndMs, currentLoopIteration, currentConfig.loopCount)
 
-            if (currentConfig.loopCount > 0 && currentLoopIteration >= currentConfig.loopCount) {
-                cancelAbPinMonitor()
-                if (currentConfig.autoAdvance) advanceToNextVideo() else stopSelf()
+            if (currentLoopIteration < currentConfig.loopCount) {
+                // More loops to go → seek back to A
+                seekToA()
             } else {
-                restartCurrentRange()
+                // Loop complete → continue playing from B to end of video
+                Timber.d("A-B loop done, continuing playback from B to end")
+                abLoopCompleted = true
+                cancelAbPinMonitor()
+                // Don't stop — let the video play to the end naturally
+                // STATE_ENDED will fire when the full video finishes
             }
         }
     }
@@ -626,12 +514,17 @@ class AudioPlaybackService : LifecycleService() {
             val videos = videoRepository.getVideos().first()
             videoPaths = videos.map { it.path }
             videoTitles = videos.associate { it.path to it.title }
-            Timber.d("Loaded %d video paths for navigation", videoPaths.size)
         } catch (e: Exception) {
-            Timber.e(e, "Failed to load video paths from repository")
+            Timber.e(e, "Failed to load video paths")
             videoPaths = emptyList()
             videoTitles = emptyMap()
         }
+    }
+
+    private suspend fun resolvePlaybackUri(videoPath: String): String {
+        return try {
+            videoRepository.getContentUriForPath(videoPath) ?: videoPath
+        } catch (_: Exception) { videoPath }
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -640,83 +533,30 @@ class AudioPlaybackService : LifecycleService() {
 
     private fun setupWakeLock() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "LoopLingo::PlaybackWakeLock"
-        ).apply { setReferenceCounted(false) }
-        Timber.d("WakeLock initialized")
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "LoopLingo::PlaybackWakeLock")
+            .apply { setReferenceCounted(false) }
     }
 
     private fun acquireWakeLock() {
-        if (isWakeLockHeld) {
-            if (currentConfig.loopMode == LoopMode.LOOP_INFINITE) {
-                startWakeLockRenewal()
-            }
-            return
-        }
-
+        if (isWakeLockHeld) return
         try {
-            if (currentConfig.loopMode == LoopMode.LOOP_INFINITE) {
-                wakeLock?.acquire()
-                startWakeLockRenewal()
-                Timber.d("WakeLock acquired (indefinite for LOOP_INFINITE)")
-            } else {
-                wakeLock?.acquire(WAKELOCK_FINITE_TIMEOUT_MS)
-                Timber.d("WakeLock acquired (timeout: %d ms)", WAKELOCK_FINITE_TIMEOUT_MS)
-            }
+            wakeLock?.acquire(WAKELOCK_FINITE_TIMEOUT_MS)
             isWakeLockHeld = true
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to acquire WakeLock")
-        }
+        } catch (e: Exception) { Timber.e(e, "Failed to acquire WakeLock") }
     }
 
     private fun releaseWakeLock() {
-        cancelWakeLockRenewal()
         if (isWakeLockHeld) {
-            try {
-                wakeLock?.release()
-            } catch (e: RuntimeException) {
-                Timber.w(e, "WakeLock was already released — safe to ignore")
-            }
+            try { wakeLock?.release() } catch (_: RuntimeException) {}
             isWakeLockHeld = false
-            Timber.d("WakeLock released")
         }
     }
 
-    private fun startWakeLockRenewal() {
-        cancelWakeLockRenewal()
-        wakeLockRenewalJob = serviceScope.launch(Dispatchers.Main) {
-            while (isActive) {
-                delay(WAKELOCK_RENEWAL_INTERVAL_MS)
-                if (isWakeLockHeld && exoPlayer?.isPlaying == true) {
-                    Timber.d("Renewing WakeLock for LOOP_INFINITE mode")
-                    try {
-                        wakeLock?.release()
-                        isWakeLockHeld = false
-                        wakeLock?.acquire()
-                        isWakeLockHeld = true
-                    } catch (e: Exception) {
-                        Timber.w(e, "Failed to renew WakeLock — re-acquiring")
-                        try {
-                            wakeLock?.acquire()
-                            isWakeLockHeld = true
-                        } catch (e2: Exception) {
-                            Timber.e(e2, "Failed to re-acquire WakeLock after renewal failure")
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private fun cancelWakeLockRenewal() {
-        wakeLockRenewalJob?.cancel()
-        wakeLockRenewalJob = null
-    }
+    private fun startWakeLockRenewal() { /* simplified — finite timeout is sufficient */ }
+    private fun cancelWakeLockRenewal() { wakeLockRenewalJob?.cancel(); wakeLockRenewalJob = null }
 
     // ══════════════════════════════════════════════════════════════════════
-    // NOTIFICATION — MediaStyle with playback controls
-    // Uses Media3 session token for MediaStyle integration
+    // NOTIFICATION
     // ══════════════════════════════════════════════════════════════════════
 
     private fun createNotificationChannel() {
@@ -734,17 +574,11 @@ class AudioPlaybackService : LifecycleService() {
         }
     }
 
-    /**
-     * Builds a minimal "loading" notification shown immediately when the service
-     * starts, before the config is loaded and playback begins.
-     */
     private fun buildLoadingNotification(): Notification {
         val contentIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java),
+            this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(getString(R.string.notification_loading))
@@ -752,45 +586,29 @@ class AudioPlaybackService : LifecycleService() {
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setStyle(
-                MediaNotificationCompat.MediaStyle()
-            )
+            .setStyle(MediaNotificationCompat.MediaStyle())
             .build()
     }
 
-    /**
-     * Builds the media-style notification with playback controls.
-     * Uses Media3 MediaSession for lock screen and Android Auto integration.
-     * Shows: track title, loop mode, iteration counter, play/pause/next/previous.
-     */
     private fun buildNotification(): Notification {
         val contentIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java),
+            this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
         val previousIntent = PendingIntent.getBroadcast(
-            this, 0,
-            Intent(ACTION_PLAY_PREVIOUS).setPackage(packageName),
+            this, 0, Intent(ACTION_PLAY_PREVIOUS).setPackage(packageName),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
         val toggleIntent = PendingIntent.getBroadcast(
-            this, 1,
-            Intent(ACTION_TOGGLE_PLAYBACK).setPackage(packageName),
+            this, 1, Intent(ACTION_TOGGLE_PLAYBACK).setPackage(packageName),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
         val nextIntent = PendingIntent.getBroadcast(
-            this, 2,
-            Intent(ACTION_PLAY_NEXT).setPackage(packageName),
+            this, 2, Intent(ACTION_PLAY_NEXT).setPackage(packageName),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
         val stopIntent = PendingIntent.getBroadcast(
-            this, 3,
-            Intent(ACTION_STOP).setPackage(packageName),
+            this, 3, Intent(ACTION_STOP).setPackage(packageName),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -800,29 +618,29 @@ class AudioPlaybackService : LifecycleService() {
 
         val title = videoTitles[currentConfig.videoPath]
             ?: currentConfig.videoPath.substringAfterLast("/", "Unknown")
-        val modeLabel = currentConfig.loopMode.displayBadge
-        val iterationInfo = if (currentConfig.loopMode != LoopMode.PLAY_ONCE && currentConfig.loopMode != LoopMode.FLOW) {
-            " (loop ${currentLoopIteration + 1})"
-        } else {
-            ""
+
+        val speedLabel = SpeedPresets.closestTo(currentConfig.speed).label
+        val loopInfo = when {
+            currentConfig.isNormalPlayback -> ""
+            currentConfig.hasABLoop -> "AB loop ${currentLoopIteration + 1}/${currentConfig.loopCount}"
+            currentConfig.loopCount > 1 -> "Loop ${currentLoopIteration + 1}/${currentConfig.loopCount}"
+            else -> ""
         }
+        val contentText = "$speedLabel $loopInfo".trim()
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
-            .setContentText("$modeLabel$iterationInfo")
+            .setContentText(contentText)
             .setSubText(getString(R.string.app_name))
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(contentIntent)
             .setOngoing(isPlaying)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            // Media actions in compact view (play/pause in the middle)
             .addAction(R.drawable.ic_skip_previous, getString(R.string.notification_previous), previousIntent)
             .addAction(playPauseIcon, playPauseLabel, toggleIntent)
             .addAction(R.drawable.ic_skip_next, getString(R.string.notification_next), nextIntent)
-            // Dismiss action for when paused
             .addAction(R.drawable.ic_close, getString(R.string.notification_stop), stopIntent)
             .setDeleteIntent(stopIntent)
-            // MediaStyle: show 3 actions in compact view, link to MediaSession
             .setStyle(
                 MediaNotificationCompat.MediaStyle()
                     .setShowActionsInCompactView(0, 1, 2)
@@ -835,9 +653,7 @@ class AudioPlaybackService : LifecycleService() {
         try {
             (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
                 .notify(NOTIFICATION_ID, buildNotification())
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to update notification")
-        }
+        } catch (e: Exception) { Timber.e(e, "Failed to update notification") }
     }
 
     private fun updateNotificationWithError(errorMessage: String?) {
@@ -850,9 +666,7 @@ class AudioPlaybackService : LifecycleService() {
                 .build()
             (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
                 .notify(NOTIFICATION_ID, notification)
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to update notification with error state")
-        }
+        } catch (e: Exception) { Timber.e(e, "Failed to update notification with error") }
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -872,18 +686,12 @@ class AudioPlaybackService : LifecycleService() {
             } else {
                 registerReceiver(notificationActionReceiver, filter)
             }
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to register notification action receiver")
-        }
+        } catch (e: Exception) { Timber.e(e, "Failed to register receiver") }
     }
 
     private fun unregisterNotificationReceiver() {
-        try {
-            unregisterReceiver(notificationActionReceiver)
-        } catch (e: IllegalArgumentException) {
-            Timber.w(e, "Receiver was not registered — safe to ignore")
-        } catch (e: Exception) {
-            Timber.w(e, "Unexpected error unregistering receiver")
-        }
+        try { unregisterReceiver(notificationActionReceiver) }
+        catch (_: IllegalArgumentException) {}
+        catch (e: Exception) { Timber.w(e, "Error unregistering receiver") }
     }
 }
