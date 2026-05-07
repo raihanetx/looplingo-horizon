@@ -29,7 +29,6 @@ import org.junit.Test
 class VideoRepositoryTest {
 
     private lateinit var dao: VideoDao
-    private lateinit var playbackRepository: PlaybackRepository
     private lateinit var fileScanner: FileScanner
     private lateinit var context: Context
     private lateinit var repository: VideoRepository
@@ -46,10 +45,9 @@ class VideoRepositoryTest {
     @Before
     fun setUp() {
         dao = mockk(relaxed = true)
-        playbackRepository = mockk(relaxed = true)
         fileScanner = mockk(relaxed = true)
         context = mockk(relaxed = true)
-        repository = VideoRepository(dao, playbackRepository, fileScanner, context)
+        repository = VideoRepository(dao, fileScanner, context)
     }
 
     // ══════════════════════════════════════════════════════════════════════
