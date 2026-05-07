@@ -1,39 +1,68 @@
 package com.looplingo.horizon.model
 
 /**
- * Represents the complete playback configuration for a single video.
- * This is the single source of truth for how a video should be played.
+ * Simplified playback configuration for a single video.
  *
- * @property videoPath      Absolute path or content URI of the video file.
- * @property startAction    Whether to auto-play or wait for manual start.
- * @property rangeStartMs   Start of the playback range in milliseconds (0 = beginning).
- * @property rangeEndMs     End of the playback range in milliseconds (-1 = entire duration).
- * @property loopMode       The looping behaviour to apply.
- * @property loopCount      Number of times to loop (only meaningful when [LoopMode.usesLoopCount] is true).
- * @property autoAdvance    Whether to automatically move to the next video after the loop completes.
+ * Logic:
+ *  - No loop mode enum. The behavior is determined by the config values:
+ *    - If rangeEndMs <= 0 AND loopCount <= 1 → play full video once (normal playback)
+ *    - If rangeEndMs > 0 AND loopCount > 0 → loop the A→B segment N times,
+ *      then continue playing the rest of the video
+ *    - If rangeEndMs <= 0 AND loopCount > 1 → loop the entire video N times
+ *
+ * Speed presets available: 0.5x, 0.75x, 0.9x, 1.0x, 1.25x, 1.5x, 2.0x
+ * Default speed is 1.0x (normal).
  */
 data class PlaybackConfig(
     val videoPath: String,
-    val startAction: StartAction = StartAction.AUTO_PLAY,
     val rangeStartMs: Long = 0L,
     val rangeEndMs: Long = -1L,
-    val loopMode: LoopMode = LoopMode.LOOP_INFINITE,
     val loopCount: Int = 1,
-    val autoAdvance: Boolean = false
-)
+    val speed: Float = 1.0f
+) {
+    /** Whether this config has an A-B loop range set. */
+    val hasABLoop: Boolean
+        get() = rangeEndMs > 0L && rangeEndMs > rangeStartMs
+
+    /** Whether this config will loop (either A-B or full video). */
+    val willLoop: Boolean
+        get() = loopCount > 1 || hasABLoop
+
+    /** Whether this is just normal full-video playback (no looping, no range). */
+    val isNormalPlayback: Boolean
+        get() = !hasABLoop && loopCount <= 1
+
+    /** Short badge text for the video list. */
+    val displayBadge: String
+        get() = when {
+            isNormalPlayback -> ""
+            hasABLoop -> "AB"
+            loopCount > 1 -> "x$loopCount"
+            else -> ""
+        }
+}
 
 /**
- * Determines how playback begins after a video is loaded.
+ * Speed presets for playback.
+ * The user can select from these fixed values.
  */
-enum class StartAction(val value: Int) {
-    /** Start playing immediately when the video is loaded. */
-    AUTO_PLAY(0),
-    /** Load the video but wait for the user to press play. */
-    WAIT_MANUAL(1);
+object SpeedPresets {
+    data class Preset(val label: String, val speed: Float)
 
-    companion object {
-        /** Converts an integer value back to a [StartAction], or defaults to [AUTO_PLAY]. */
-        fun fromValue(value: Int): StartAction =
-            entries.find { it.value == value } ?: AUTO_PLAY
+    val ALL = listOf(
+        Preset("0.5x", 0.5f),
+        Preset("0.75x", 0.75f),
+        Preset("0.9x", 0.9f),
+        Preset("1x", 1.0f),
+        Preset("1.25x", 1.25f),
+        Preset("1.5x", 1.5f),
+        Preset("2x", 2.0f),
+    )
+
+    val DEFAULT = Preset("1x", 1.0f)
+
+    /** Find the closest preset for a given speed value. */
+    fun closestTo(speed: Float): Preset {
+        return ALL.minByOrNull { kotlin.math.abs(it.speed - speed) } ?: DEFAULT
     }
 }
