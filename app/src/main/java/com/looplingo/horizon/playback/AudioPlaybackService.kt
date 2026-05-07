@@ -21,8 +21,6 @@ import com.google.android.exoplayer2.audio.AudioAttributes as ExoAudioAttributes
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.google.android.exoplayer2.upstream.DefaultDataSource
-import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
-import androidx.media.session.MediaSessionCompat
 import com.looplingo.horizon.R
 import com.looplingo.horizon.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
@@ -47,11 +45,7 @@ class AudioPlaybackService : LifecycleService() {
     }
 
     private var exoPlayer: ExoPlayer? = null
-    private var mediaSession: MediaSessionCompat? = null
-    private var mediaSessionConnector: MediaSessionConnector? = null
     private var wakeLock: PowerManager.WakeLock? = null
-    private var audioManager: AudioManager? = null
-    private var audioFocusRequest: AudioFocusRequest? = null
     private var serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
