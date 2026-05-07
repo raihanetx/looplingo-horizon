@@ -26,12 +26,12 @@ jobs:
 
       - name: Decode Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/ci-release.jks
-          chmod 600 app/ci-release.jks
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > ci-release.jks
+          chmod 600 ci-release.jks
 
       - name: Build Release APK
         env:
-          KEYSTORE_FILE: app/ci-release.jks
+          KEYSTORE_FILE: ci-release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -46,4 +46,4 @@ jobs:
 
       - name: Cleanup keystore
         if: always()
-        run: rm -f app/ci-release.jks
+        run: rm -f ci-release.jks
