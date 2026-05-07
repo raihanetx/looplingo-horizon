@@ -28,7 +28,7 @@ class VideoAdapter(
     /** Long-press callback — set externally for navigation to settings. */
     var onVideoLongClick: ((VideoEntity) -> Unit)? = null
 
-    /** Map of video path → configured LoopMode for showing badges. */
+    /** Map of video path → badge label for showing loop status. */
     var configuredModes: Map<String, String> = emptyMap()
         set(value) {
             field = value
