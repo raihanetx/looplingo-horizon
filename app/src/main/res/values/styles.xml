@@ -160,7 +160,7 @@
          SWITCH (replaces CheckBox for auto-advance)
          ══════════════════════════════════════════════════════════════════════ -->
 
-    <style name="Widget.Horizon.Switch" parent="Widget.Material3.MaterialSwitch">
+    <style name="Widget.Horizon.Switch" parent="">
         <item name="materialThemeOverlay">@style/ThemeOverlay.Horizon.Switch</item>
     </style>
 
