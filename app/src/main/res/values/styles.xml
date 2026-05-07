@@ -160,7 +160,7 @@
          SWITCH (replaces CheckBox for auto-advance)
          ══════════════════════════════════════════════════════════════════════ -->
 
-    <style name="Widget.Horizon.Switch" parent="Widget.Material3.CompoundButton.Switch">
+    <style name="Widget.Horizon.Switch" parent="Widget.Material3.MaterialSwitch">
         <item name="materialThemeOverlay">@style/ThemeOverlay.Horizon.Switch</item>
     </style>
 
@@ -174,7 +174,7 @@
          SECTION HEADER (for settings screen grouping)
          ══════════════════════════════════════════════════════════════════════ -->
 
-    <style name="Widget.Horizon.SectionHeader">
+    <style name="Widget.Horizon.SectionHeader" parent="android:Widget.TextView">
         <item name="android:textAppearance">@style/TextAppearance.Horizon.LabelLarge</item>
         <item name="android:textColor">@color/colorPrimary</item>
         <item name="android:letterSpacing">0.05</item>
@@ -191,7 +191,7 @@
         <item name="actionTextColorAlpha">1.0</item>
     </style>
 
-    <style name="Widget.Horizon.Snackbar.TextView" parent="Widget.Material3.Snackbar.TextView">
+    <style name="Widget.Horizon.Snackbar.TextView" parent="Widget.Material3.Snackbar">
         <item name="android:textAppearance">@style/TextAppearance.Horizon.BodyMedium</item>
     </style>
 </resources>
