@@ -172,6 +172,104 @@
 
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- ════════ Transcript / Subtitles ════════ -->
+            <TextView
+                style="@style/Widget.Horizon.SectionHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/section_transcript" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Horizon.CardView.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/space_lg">
+
+                <LinearLayout
+                    android:id="@+id/layout_transcript"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/space_md">
+
+                    <!-- No subtitle found message -->
+                    <LinearLayout
+                        android:id="@+id/layout_no_subtitles"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:paddingVertical="@dimen/space_lg">
+
+                        <TextView
+                            android:id="@+id/tv_no_subtitles"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/transcript_not_found"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                            android:textColor="@color/colorOnSurfaceVariant"
+                            android:gravity="center" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_sm"
+                            android:text="@string/transcript_hint"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                            android:textColor="@color/colorOutline"
+                            android:gravity="center" />
+
+                    </LinearLayout>
+
+                    <!-- Subtitle list container (populated programmatically) -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_transcript"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:maxHeight="300dp"
+                        android:visibility="gone"
+                        android:nestedScrollingEnabled="false" />
+
+                    <!-- Active subtitle line (floating, shown during playback) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/card_active_subtitle"
+                        style="@style/Widget.Horizon.CardView.Elevated"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_md"
+                        android:visibility="gone"
+                        app:cardBackgroundColor="@color/colorPrimaryContainer">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="@dimen/space_md">
+
+                            <TextView
+                                android:id="@+id/tv_active_timestamp"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                                android:textColor="@color/colorOnPrimaryContainer"
+                                android:fontFamily="sans-serif-medium" />
+
+                            <TextView
+                                android:id="@+id/tv_active_text"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/space_xs"
+                                android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                                android:textColor="@color/colorOnPrimaryContainer" />
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- ════════ Saved Timestamps ════════ -->
             <LinearLayout
                 android:id="@+id/layout_saved_timestamps"

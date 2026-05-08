@@ -70,7 +70,9 @@ class AudioPlaybackService : LifecycleService() {
         const val ACTION_PLAY_PREVIOUS = "com.looplingo.horizon.PLAY_PREVIOUS"
         const val ACTION_TOGGLE_PLAYBACK = "com.looplingo.horizon.TOGGLE_PLAYBACK"
         const val ACTION_STOP = "com.looplingo.horizon.STOP"
+        const val ACTION_SEEK_TO = "com.looplingo.horizon.SEEK_TO"
         const val EXTRA_VIDEO_PATH = "video_path"
+        const val EXTRA_SEEK_POSITION_MS = "seek_position_ms"
 
         private const val WAKELOCK_TIMEOUT_MS = 3 * 60 * 60 * 1000L  // 3 hours (was 4)
         private const val MAX_RETRY_ATTEMPTS = 3
@@ -81,6 +83,23 @@ class AudioPlaybackService : LifecycleService() {
         private const val AB_CHECK_NEAR_MS = 500L       // <5s away: check every 500ms
         private const val AB_NEAR_THRESHOLD_MS = 5000L  // Switch to frequent checks within 5s of B
 
+        // ══════════════════════════════════════════════════════════════════════
+        // STATIC PLAYBACK STATE — readable by UI for transcript sync
+        // These are updated by the service and read by PlaybackSettingsFragment
+        // for real-time subtitle highlighting. Uses @Volatile for thread safety.
+        // ══════════════════════════════════════════════════════════════════════
+        @Volatile
+        var currentPositionMs: Long = 0L
+            private set
+
+        @Volatile
+        var isPlaying: Boolean = false
+            private set
+
+        @Volatile
+        var currentVideoPath: String = ""
+            private set
+
         fun startService(context: Context, videoPath: String) {
             val intent = Intent(context, AudioPlaybackService::class.java).apply {
                 action = ACTION_START
@@ -90,6 +109,23 @@ class AudioPlaybackService : LifecycleService() {
                 context.startForegroundService(intent)
             } catch (e: Exception) {
                 Timber.e(e, "Failed to start AudioPlaybackService")
+            }
+        }
+
+        /**
+         * Request the service to seek to a specific position.
+         * Used by the transcript UI when the user taps a subtitle line.
+         */
+        fun seekToPosition(context: Context, videoPath: String, positionMs: Long) {
+            val intent = Intent(context, AudioPlaybackService::class.java).apply {
+                action = ACTION_SEEK_TO
+                putExtra(EXTRA_VIDEO_PATH, videoPath)
+                putExtra(EXTRA_SEEK_POSITION_MS, positionMs)
+            }
+            try {
+                context.startService(intent)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to send seek request")
             }
         }
 
@@ -119,6 +155,10 @@ class AudioPlaybackService : LifecycleService() {
     // Handler-based A-B monitoring (replaces wasteful coroutine polling)
     private val abHandler = Handler(Looper.getMainLooper())
     private var abCheckRunnable: Runnable? = null
+
+    // Position update handler for transcript sync (lightweight, 500ms interval)
+    private val positionHandler = Handler(Looper.getMainLooper())
+    private var positionUpdateRunnable: Runnable? = null
 
     @Inject lateinit var playbackRepository: PlaybackRepository
     @Inject lateinit var videoRepository: VideoRepository
@@ -181,6 +221,13 @@ class AudioPlaybackService : LifecycleService() {
                     }
                 }
             }
+            ACTION_SEEK_TO -> {
+                val videoPath = intent.getStringExtra(EXTRA_VIDEO_PATH)
+                val seekMs = intent.getLongExtra(EXTRA_SEEK_POSITION_MS, 0)
+                if (!videoPath.isNullOrBlank() && seekMs >= 0) {
+                    handleSeekRequest(videoPath, seekMs)
+                }
+            }
             ACTION_STOP -> stopSelf()
         }
         return START_NOT_STICKY
@@ -200,6 +247,7 @@ class AudioPlaybackService : LifecycleService() {
     private fun cleanup() {
         try {
             cancelAbMonitor()
+            cancelPositionUpdate()
             unregisterNotificationReceiver()
             serviceJob.cancel()
             exoPlayer?.removeListener(playerListener)
@@ -208,8 +256,44 @@ class AudioPlaybackService : LifecycleService() {
             mediaSession?.release()
             mediaSession = null
             releaseWakeLock()
+            // Reset static state
+            isPlaying = false
+            currentPositionMs = 0L
+            currentVideoPath = ""
         } catch (e: Exception) {
             Timber.e(e, "Error during service cleanup")
+        }
+    }
+
+    /**
+     * Handle a seek request from the transcript UI.
+     * If the requested video matches the currently playing video, just seek.
+     * Otherwise, start playback of the requested video and seek to the position.
+     */
+    private fun handleSeekRequest(videoPath: String, positionMs: Long) {
+        if (videoPath == currentConfig.videoPath && exoPlayer != null) {
+            // Same video — just seek
+            try {
+                exoPlayer?.seekTo(positionMs)
+                exoPlayer?.play()
+                Timber.d("Seek to %dms for current video", positionMs)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to seek")
+            }
+        } else {
+            // Different video — start it and seek
+            serviceScope.launch {
+                try {
+                    loadVideoPaths()
+                    startPlayback(videoPath)
+                    // Wait for player to be ready, then seek
+                    delay(500)
+                    exoPlayer?.seekTo(positionMs)
+                    Timber.d("Started new video and seeked to %dms", positionMs)
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to start and seek")
+                }
+            }
         }
     }
 
@@ -271,6 +355,8 @@ class AudioPlaybackService : LifecycleService() {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            // Update static state for transcript sync
+            this@AudioPlaybackService.isPlaying = isPlaying
             if (isPlaying) {
                 acquireWakeLock()
             } else {
@@ -308,6 +394,9 @@ class AudioPlaybackService : LifecycleService() {
 
     private suspend fun startPlayback(videoPath: String) {
         Timber.i("Starting playback for: %s", videoPath)
+
+        // Update static state for transcript sync
+        currentVideoPath = videoPath
 
         currentLoopIteration = 0
         abLoopCompleted = false
@@ -365,6 +454,9 @@ class AudioPlaybackService : LifecycleService() {
         if (currentConfig.hasABLoop) {
             scheduleAbCheck()
         }
+
+        // Start position updates for transcript sync
+        startPositionUpdate()
 
         updateNotification()
     }
@@ -531,6 +623,38 @@ class AudioPlaybackService : LifecycleService() {
 
         abCheckRunnable = Runnable { checkABPositionAndReschedule() }
         abHandler.postDelayed(abCheckRunnable!!, nextDelay)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // POSITION UPDATE — For transcript sync in UI
+    // ══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Start periodic position updates for the transcript sync feature.
+     * This is a lightweight Handler-based 500ms update that writes the
+     * current position to a static volatile field, which the
+     * PlaybackSettingsFragment reads for subtitle highlighting.
+     *
+     * Only active when playback is actually occurring.
+     */
+    private fun startPositionUpdate() {
+        cancelPositionUpdate()
+        positionUpdateRunnable = object : Runnable {
+            override fun run() {
+                try {
+                    currentPositionMs = exoPlayer?.currentPosition ?: 0L
+                } catch (_: Exception) {
+                    currentPositionMs = 0L
+                }
+                positionHandler.postDelayed(this, 500L)
+            }
+        }
+        positionHandler.post(positionUpdateRunnable!!)
+    }
+
+    private fun cancelPositionUpdate() {
+        positionUpdateRunnable?.let { positionHandler.removeCallbacks(it) }
+        positionUpdateRunnable = null
     }
 
     // ══════════════════════════════════════════════════════════════════════

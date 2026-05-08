@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A single subtitle cue item in the transcript list.
+    Shows the timestamp on the left and the text on the right.
+    The "active" state highlights the current line being spoken.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout_cue_item"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingVertical="@dimen/space_sm"
+    android:paddingHorizontal="@dimen/space_md"
+    android:background="@color/colorSurfaceContainerLow"
+    android:clickable="true"
+    android:focusable="true"
+    android:backgroundTint="@color/colorSurfaceContainerLow">
+
+    <!-- Timestamp -->
+    <TextView
+        android:id="@+id/tv_cue_timestamp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:fontFamily="sans-serif-medium"
+        android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+        android:textColor="@color/colorOnSurfaceVariant"
+        android:minWidth="48dp"
+        tools:text="1:23" />
+
+    <!-- Subtitle text -->
+    <TextView
+        android:id="@+id/tv_cue_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="@dimen/space_md"
+        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+        android:textColor="@color/colorOnSurface"
+        tools:text="Hello, how are you today?" />
+
+</LinearLayout>

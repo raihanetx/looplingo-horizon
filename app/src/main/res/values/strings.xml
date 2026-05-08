@@ -57,6 +57,13 @@
     <string name="sort_by_duration">Duration (longest first)</string>
     <string name="sort_by_size">File size (largest first)</string>
 
+    <!-- Transcript / Subtitles -->
+    <string name="section_transcript">Transcript</string>
+    <string name="transcript_not_found">No transcript found</string>
+    <string name="transcript_hint">Place a .srt, .vtt, or .lrc file with the same name as your audio file in the same folder.</string>
+    <string name="transcript_cue_count">%d lines found</string>
+    <string name="transcript_now_playing">Now playing</string>
+
     <!-- Accessibility -->
     <string name="content_desc_video_icon">Audio track icon</string>
     <string name="content_desc_loop_badge">Loop mode badge</string>

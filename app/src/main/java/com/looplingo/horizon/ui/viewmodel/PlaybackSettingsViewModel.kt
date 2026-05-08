@@ -7,7 +7,10 @@ import com.looplingo.horizon.data.entity.SavedTimestampEntity
 import com.looplingo.horizon.model.PlaybackConfig
 import com.looplingo.horizon.model.PlaybackConfigValidator
 import com.looplingo.horizon.model.SpeedPresets
+import com.looplingo.horizon.model.SubtitleCue
+import com.looplingo.horizon.playback.AudioPlaybackService
 import com.looplingo.horizon.repository.PlaybackRepository
+import com.looplingo.horizon.repository.TranscriptRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +22,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PlaybackSettingsViewModel @Inject constructor(
     private val playbackRepository: PlaybackRepository,
-    private val savedTimestampDao: SavedTimestampDao
+    private val savedTimestampDao: SavedTimestampDao,
+    private val transcriptRepository: TranscriptRepository
 ) : ViewModel() {
 
     private val _config = MutableStateFlow(PlaybackConfig(videoPath = ""))
@@ -33,6 +37,22 @@ class PlaybackSettingsViewModel @Inject constructor(
 
     private val _savedTimestamps = MutableStateFlow<List<SavedTimestampEntity>>(emptyList())
     val savedTimestamps: StateFlow<List<SavedTimestampEntity>> = _savedTimestamps.asStateFlow()
+
+    /** Subtitle cues for the current video. */
+    private val _subtitleCues = MutableStateFlow<List<SubtitleCue>>(emptyList())
+    val subtitleCues: StateFlow<List<SubtitleCue>> = _subtitleCues.asStateFlow()
+
+    /** Index of the currently active subtitle cue (-1 if none). */
+    private val _activeCueIndex = MutableStateFlow(-1)
+    val activeCueIndex: StateFlow<Int> = _activeCueIndex.asStateFlow()
+
+    /** Whether the video currently playing in the service matches this settings screen. */
+    private val _isCurrentlyPlaying = MutableStateFlow(false)
+    val isCurrentlyPlaying: StateFlow<Boolean> = _isCurrentlyPlaying.asStateFlow()
+
+    /** Current playback position in ms (updated via polling when playing). */
+    private val _playbackPositionMs = MutableStateFlow(0L)
+    val playbackPositionMs: StateFlow<Long> = _playbackPositionMs.asStateFlow()
 
     fun loadConfigForVideo(videoPath: String) {
         viewModelScope.launch {
@@ -53,6 +73,46 @@ class PlaybackSettingsViewModel @Inject constructor(
                 Timber.e(e, "Failed to load saved timestamps")
             }
         }
+
+        // Load subtitles for this video
+        loadSubtitles(videoPath)
+    }
+
+    private fun loadSubtitles(videoPath: String) {
+        viewModelScope.launch {
+            try {
+                val cues = transcriptRepository.getSubtitlesForVideo(videoPath)
+                _subtitleCues.value = cues
+                if (cues.isNotEmpty()) {
+                    Timber.i("Loaded %d subtitle cues for: %s", cues.size, videoPath.substringAfterLast("/"))
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load subtitles")
+                _subtitleCues.value = emptyList()
+            }
+        }
+    }
+
+    /**
+     * Update the active subtitle cue based on the current playback position.
+     * Called from the UI layer which polls the MediaController position.
+     */
+    fun updatePlaybackPosition(positionMs: Long, isPlaying: Boolean) {
+        _playbackPositionMs.value = positionMs
+        _isCurrentlyPlaying.value = isPlaying
+
+        val cues = _subtitleCues.value
+        if (cues.isEmpty()) return
+
+        // Find active cue using binary search logic
+        var activeIndex = -1
+        for (i in cues.indices) {
+            if (positionMs in cues[i].startMs..cues[i].endMs) {
+                activeIndex = i
+                break
+            }
+        }
+        _activeCueIndex.value = activeIndex
     }
 
     fun updateConfig(
@@ -145,5 +205,13 @@ class PlaybackSettingsViewModel @Inject constructor(
         val minutes = totalSeconds / 60
         val seconds = totalSeconds % 60
         return String.format("%d:%02d", minutes, seconds)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // Clear subtitle cache for this video to free memory
+        if (_config.value.videoPath.isNotBlank()) {
+            transcriptRepository.clearCacheForVideo(_config.value.videoPath)
+        }
     }
 }

@@ -1,6 +1,8 @@
 package com.looplingo.horizon.ui
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,12 +14,14 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.chip.Chip
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.looplingo.horizon.R
 import com.looplingo.horizon.databinding.FragmentPlaybackSettingsBinding
 import com.looplingo.horizon.model.SpeedPresets
+import com.looplingo.horizon.model.SubtitleCue
 import com.looplingo.horizon.ui.viewmodel.PlaybackSettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -25,13 +29,13 @@ import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
 /**
- * Simplified playback settings: A-B loop + loop count + speed.
+ * Playback settings with A-B loop, speed control, and transcript view.
  *
- * No modes, no dropdowns, no radio groups.
- *  - A (start time) and B (end time) in mm:ss format
- *  - Loop count (default 3)
- *  - Speed selector chips
- *  - Saved timestamps list
+ * Transcript feature:
+ *  - Automatically finds .srt/.vtt/.lrc files with the same name as the audio
+ *  - Displays all subtitle lines with timestamps
+ *  - Highlights the current line during playback (via MediaController polling)
+ *  - Tap a subtitle line to seek to that position
  */
 @AndroidEntryPoint
 class PlaybackSettingsFragment : Fragment() {
@@ -41,6 +45,13 @@ class PlaybackSettingsFragment : Fragment() {
 
     private val viewModel: PlaybackSettingsViewModel by viewModels()
     private val args: PlaybackSettingsFragmentArgs by navArgs()
+
+    private lateinit var transcriptAdapter: SubtitleCueAdapter
+
+    // Polling for playback position (used to sync transcript highlight)
+    private val positionHandler = Handler(Looper.getMainLooper())
+    private var positionPollingRunnable: Runnable? = null
+    private val POSITION_POLL_INTERVAL_MS = 500L
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPlaybackSettingsBinding.inflate(inflater, container, false)
@@ -59,6 +70,7 @@ class PlaybackSettingsFragment : Fragment() {
         viewModel.loadConfigForVideo(videoPath)
         setupToolbar()
         setupSpeedChips()
+        setupTranscript()
         setupApplyButton()
         setupClearButton()
         setupObservers()
@@ -98,6 +110,101 @@ class PlaybackSettingsFragment : Fragment() {
         val chip = binding.chipGroupSpeed.findViewById<View>(chipId) as? Chip ?: return SpeedPresets.DEFAULT.speed
         return chip.tag as? Float ?: SpeedPresets.DEFAULT.speed
     }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // TRANSCRIPT SETUP
+    // ══════════════════════════════════════════════════════════════════════
+
+    private fun setupTranscript() {
+        transcriptAdapter = SubtitleCueAdapter { cue ->
+            // When user taps a subtitle line, seek to that position in playback
+            try {
+                val videoPath = args.videoPath
+                com.looplingo.horizon.playback.AudioPlaybackService.seekToPosition(
+                    requireContext(), videoPath, cue.startMs
+                )
+                Timber.d("Tapped subtitle cue at %dms — seeking playback", cue.startMs)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to seek from subtitle tap")
+            }
+        }
+
+        binding.rvTranscript.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = transcriptAdapter
+            isNestedScrollingEnabled = false
+        }
+    }
+
+    private fun updateTranscriptDisplay(cues: List<SubtitleCue>) {
+        if (cues.isEmpty()) {
+            binding.layoutNoSubtitles.visibility = View.VISIBLE
+            binding.rvTranscript.visibility = View.GONE
+            binding.cardActiveSubtitle.visibility = View.GONE
+            return
+        }
+
+        binding.layoutNoSubtitles.visibility = View.GONE
+        binding.rvTranscript.visibility = View.VISIBLE
+        transcriptAdapter.submitList(cues)
+    }
+
+    /**
+     * Start polling the service for playback position to sync transcript.
+     * Uses a lightweight Handler-based approach — only active when the
+     * fragment is visible and playback is ongoing.
+     */
+    private fun startPositionPolling() {
+        stopPositionPolling()
+        positionPollingRunnable = object : Runnable {
+            override fun run() {
+                try {
+                    // Read current position from the service via a content provider
+                    // or shared preference. For simplicity, we use a static holder
+                    // in the service that the fragment can read.
+                    val position = com.looplingo.horizon.playback.AudioPlaybackService.currentPositionMs
+                    val isPlaying = com.looplingo.horizon.playback.AudioPlaybackService.isPlaying
+                    val currentVideoPath = com.looplingo.horizon.playback.AudioPlaybackService.currentVideoPath
+
+                    if (isPlaying && currentVideoPath == args.videoPath) {
+                        viewModel.updatePlaybackPosition(position, true)
+                    } else {
+                        viewModel.updatePlaybackPosition(position, false)
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "Position polling error")
+                }
+                positionHandler.postDelayed(this, POSITION_POLL_INTERVAL_MS)
+            }
+        }
+        positionHandler.post(positionPollingRunnable!!)
+    }
+
+    private fun stopPositionPolling() {
+        positionPollingRunnable?.let { positionHandler.removeCallbacks(it) }
+        positionPollingRunnable = null
+    }
+
+    private fun updateActiveSubtitle(activeIndex: Int, cues: List<SubtitleCue>, isPlaying: Boolean) {
+        // Update the active subtitle card
+        if (isPlaying && activeIndex >= 0 && activeIndex < cues.size) {
+            val cue = cues[activeIndex]
+            binding.cardActiveSubtitle.visibility = View.VISIBLE
+            binding.tvActiveTimestamp.text = getString(
+                R.string.transcript_now_playing
+            ) + " " + cue.startLabel
+            binding.tvActiveText.text = cue.text
+        } else {
+            binding.cardActiveSubtitle.visibility = View.GONE
+        }
+
+        // Update the adapter's active index for highlighting
+        transcriptAdapter.activeIndex = activeIndex
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // BUTTONS & OBSERVERS
+    // ══════════════════════════════════════════════════════════════════════
 
     private fun setupApplyButton() {
         binding.btnApply.setOnClickListener {
@@ -182,6 +289,22 @@ class PlaybackSettingsFragment : Fragment() {
                 launch {
                     viewModel.savedTimestamps.collect { timestamps ->
                         updateSavedTimestampsList(timestamps)
+                    }
+                }
+
+                launch {
+                    viewModel.subtitleCues.collect { cues ->
+                        updateTranscriptDisplay(cues)
+                        // Start polling for position if we have subtitles
+                        if (cues.isNotEmpty()) {
+                            startPositionPolling()
+                        }
+                    }
+                }
+
+                launch {
+                    viewModel.activeCueIndex.collect { index ->
+                        updateActiveSubtitle(index, viewModel.subtitleCues.value, viewModel.isCurrentlyPlaying.value)
                     }
                 }
             }
@@ -271,6 +394,87 @@ class PlaybackSettingsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        stopPositionPolling()
         _binding = null
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SUBTITLE CUE ADAPTER (inner class)
+    // ══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Simple RecyclerView adapter for subtitle cue items.
+     * Highlights the currently active cue with a different background color.
+     */
+    private class SubtitleCueAdapter(
+        private val onCueClick: (SubtitleCue) -> Unit
+    ) : RecyclerView.Adapter<SubtitleCueAdapter.CueViewHolder>() {
+
+        private val cues = mutableListOf<SubtitleCue>()
+        var activeIndex: Int = -1
+            set(value) {
+                val oldIndex = field
+                field = value
+                if (oldIndex != value) {
+                    if (oldIndex >= 0) notifyItemChanged(oldIndex)
+                    if (value >= 0) notifyItemChanged(value)
+                }
+            }
+
+        fun submitList(newCues: List<SubtitleCue>) {
+            cues.clear()
+            cues.addAll(newCues)
+            activeIndex = -1
+            notifyDataSetChanged()
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CueViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_subtitle_cue, parent, false)
+            return CueViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: CueViewHolder, position: Int) {
+            val cue = cues[position]
+            holder.bind(cue, position == activeIndex)
+            holder.itemView.setOnClickListener { onCueClick(cue) }
+        }
+
+        override fun getItemCount() = cues.size
+
+        class CueViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            private val timestamp: TextView = itemView.findViewById(R.id.tv_cue_timestamp)
+            private val text: TextView = itemView.findViewById(R.id.tv_cue_text)
+            private val layout: View = itemView.findViewById(R.id.layout_cue_item)
+
+            fun bind(cue: SubtitleCue, isActive: Boolean) {
+                timestamp.text = cue.startLabel
+                text.text = cue.text
+
+                if (isActive) {
+                    // Highlight active cue with primary container color
+                    layout.setBackgroundColor(
+                        layout.context.getColor(com.looplingo.horizon.R.color.colorPrimaryContainer)
+                    )
+                    text.setTextColor(
+                        layout.context.getColor(com.looplingo.horizon.R.color.colorOnPrimaryContainer)
+                    )
+                    timestamp.setTextColor(
+                        layout.context.getColor(com.looplingo.horizon.R.color.colorOnPrimaryContainer)
+                    )
+                } else {
+                    // Normal appearance
+                    layout.setBackgroundColor(
+                        layout.context.getColor(com.looplingo.horizon.R.color.colorSurfaceContainerLow)
+                    )
+                    text.setTextColor(
+                        layout.context.getColor(com.looplingo.horizon.R.color.colorOnSurface)
+                    )
+                    timestamp.setTextColor(
+                        layout.context.getColor(com.looplingo.horizon.R.color.colorOnSurfaceVariant)
+                    )
+                }
+            }
+        }
     }
 }

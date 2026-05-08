@@ -5,6 +5,7 @@ import com.looplingo.horizon.data.dao.PlaybackRuleDao
 import com.looplingo.horizon.data.dao.SavedTimestampDao
 import com.looplingo.horizon.data.dao.VideoDao
 import com.looplingo.horizon.repository.PlaybackRepository
+import com.looplingo.horizon.repository.TranscriptRepository
 import com.looplingo.horizon.repository.VideoRepository
 import com.looplingo.horizon.util.FileScanner
 import dagger.Module
@@ -34,5 +35,13 @@ object RepositoryModule {
         playbackRuleDao: PlaybackRuleDao
     ): PlaybackRepository {
         return PlaybackRepository(playbackRuleDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideTranscriptRepository(
+        subtitleScanner: com.looplingo.horizon.util.SubtitleScanner
+    ): TranscriptRepository {
+        return TranscriptRepository(subtitleScanner)
     }
 }
