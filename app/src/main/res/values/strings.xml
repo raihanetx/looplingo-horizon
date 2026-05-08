@@ -27,8 +27,20 @@
     <string name="apply_settings">Apply</string>
     <string name="btn_clear">Clear</string>
     <string name="btn_use">Use</string>
+    <string name="btn_try">Try</string>
+    <string name="btn_save">Save</string>
+    <string name="btn_try_loop">Try Loop</string>
+    <string name="btn_save_loop">Save Loop</string>
     <string name="settings_saved">Settings saved</string>
+    <string name="loop_preview_active">Loop preview active</string>
+    <string name="loop_preview_hint">This is a preview. Tap Save to keep these settings.</string>
+    <string name="speed_instant_hint">Speed changes apply instantly to playing audio</string>
     <string name="loading">Saving…</string>
+
+    <!-- Mini Player -->
+    <string name="content_desc_play_pause">Play or pause</string>
+    <string name="mini_player_ab_set">A-B loop active</string>
+    <string name="mini_player_a_set">Point A set at %s</string>
 
     <!-- Validation errors -->
     <string name="error_loop_count_minimum">Loop count must be at least 1</string>
@@ -56,13 +68,6 @@
     <string name="sort_by_title">Title (A-Z)</string>
     <string name="sort_by_duration">Duration (longest first)</string>
     <string name="sort_by_size">File size (largest first)</string>
-
-    <!-- Transcript / Subtitles -->
-    <string name="section_transcript">Transcript</string>
-    <string name="transcript_not_found">No transcript found</string>
-    <string name="transcript_hint">Place a .srt, .vtt, or .lrc file with the same name as your audio file in the same folder.</string>
-    <string name="transcript_cue_count">%d lines found</string>
-    <string name="transcript_now_playing">Now playing</string>
 
     <!-- Accessibility -->
     <string name="content_desc_video_icon">Audio track icon</string>

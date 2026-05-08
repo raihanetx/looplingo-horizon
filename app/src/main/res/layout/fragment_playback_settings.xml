@@ -37,6 +37,52 @@
             android:paddingHorizontal="@dimen/space_lg"
             android:paddingVertical="@dimen/space_lg">
 
+            <!-- Now Playing indicator -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_now_playing"
+                style="@style/Widget.Horizon.CardView.Elevated"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/space_lg"
+                android:visibility="gone"
+                app:cardBackgroundColor="@color/colorPrimaryContainer">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="@dimen/space_md">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_audio_track"
+                        app:tint="@color/colorOnPrimaryContainer" />
+
+                    <TextView
+                        android:id="@+id/tv_now_playing_title"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="@dimen/space_sm"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                        android:textColor="@color/colorOnPrimaryContainer" />
+
+                    <TextView
+                        android:id="@+id/tv_now_playing_position"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/space_sm"
+                        android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                        android:textColor="@color/colorOnPrimaryContainer" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- ════════ A-B Loop Range ════════ -->
             <TextView
                 style="@style/Widget.Horizon.SectionHeader"
@@ -138,11 +184,22 @@
 
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Try loop button — preview before saving -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_try_loop"
+                        style="@style/Widget.Horizon.Button.Tonal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_md"
+                        android:text="@string/btn_try_loop"
+                        app:icon="@drawable/ic_play"
+                        app:iconGravity="textStart" />
+
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- ════════ Speed Control ════════ -->
+            <!-- ════════ Speed Control (instant apply) ════════ -->
             <TextView
                 style="@style/Widget.Horizon.SectionHeader"
                 android:layout_width="match_parent"
@@ -155,116 +212,33 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/space_lg">
 
-                <HorizontalScrollView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:scrollbars="none"
-                    android:padding="@dimen/space_md">
-
-                    <com.google.android.material.chip.ChipGroup
-                        android:id="@+id/chip_group_speed"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        app:singleSelection="true"
-                        app:chipSpacingHorizontal="@dimen/space_sm" />
-
-                </HorizontalScrollView>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- ════════ Transcript / Subtitles ════════ -->
-            <TextView
-                style="@style/Widget.Horizon.SectionHeader"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/section_transcript" />
-
-            <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.Horizon.CardView.Filled"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/space_lg">
-
                 <LinearLayout
-                    android:id="@+id/layout_transcript"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:padding="@dimen/space_md">
 
-                    <!-- No subtitle found message -->
-                    <LinearLayout
-                        android:id="@+id/layout_no_subtitles"
+                    <HorizontalScrollView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:paddingVertical="@dimen/space_lg">
+                        android:scrollbars="none">
 
-                        <TextView
-                            android:id="@+id/tv_no_subtitles"
-                            android:layout_width="match_parent"
+                        <com.google.android.material.chip.ChipGroup
+                            android:id="@+id/chip_group_speed"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/transcript_not_found"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                            android:textColor="@color/colorOnSurfaceVariant"
-                            android:gravity="center" />
+                            app:singleSelection="true"
+                            app:chipSpacingHorizontal="@dimen/space_sm" />
 
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="@dimen/space_sm"
-                            android:text="@string/transcript_hint"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
-                            android:textColor="@color/colorOutline"
-                            android:gravity="center" />
+                    </HorizontalScrollView>
 
-                    </LinearLayout>
-
-                    <!-- Subtitle list container (populated programmatically) -->
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/rv_transcript"
+                    <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:maxHeight="300dp"
-                        android:visibility="gone"
-                        android:nestedScrollingEnabled="false" />
-
-                    <!-- Active subtitle line (floating, shown during playback) -->
-                    <com.google.android.material.card.MaterialCardView
-                        android:id="@+id/card_active_subtitle"
-                        style="@style/Widget.Horizon.CardView.Elevated"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_md"
-                        android:visibility="gone"
-                        app:cardBackgroundColor="@color/colorPrimaryContainer">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:padding="@dimen/space_md">
-
-                            <TextView
-                                android:id="@+id/tv_active_timestamp"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                                android:textColor="@color/colorOnPrimaryContainer"
-                                android:fontFamily="sans-serif-medium" />
-
-                            <TextView
-                                android:id="@+id/tv_active_text"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="@dimen/space_xs"
-                                android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
-                                android:textColor="@color/colorOnPrimaryContainer" />
-
-                        </LinearLayout>
-
-                    </com.google.android.material.card.MaterialCardView>
+                        android:layout_marginTop="@dimen/space_sm"
+                        android:text="@string/speed_instant_hint"
+                        android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                        android:textColor="@color/colorOnSurfaceVariant" />
 
                 </LinearLayout>
 
@@ -325,7 +299,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="@dimen/space_sm"
-                    android:text="@string/apply_settings"
+                    android:text="@string/btn_save"
                     app:icon="@drawable/ic_check"
                     app:iconGravity="textStart" />
 

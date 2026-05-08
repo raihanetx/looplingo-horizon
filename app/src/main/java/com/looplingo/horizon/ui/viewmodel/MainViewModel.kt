@@ -3,6 +3,8 @@ package com.looplingo.horizon.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.looplingo.horizon.data.entity.VideoEntity
+import com.looplingo.horizon.model.PlaybackConfig
+import com.looplingo.horizon.model.PlaybackConfigValidator
 import com.looplingo.horizon.model.SortOrder
 import com.looplingo.horizon.repository.PlaybackRepository
 import com.looplingo.horizon.repository.VideoRepository
@@ -140,5 +142,30 @@ class MainViewModel @Inject constructor(
     /** Clear the current error state. Call this when the user dismisses the error. */
     fun clearError() {
         _error.value = null
+    }
+
+    /**
+     * Save a playback config from the mini player.
+     * This allows quick save of A-B loop settings without navigating to the settings screen.
+     */
+    suspend fun savePlaybackConfig(
+        videoPath: String,
+        rangeStartMs: Long,
+        rangeEndMs: Long,
+        loopCount: Int
+    ) {
+        val config = PlaybackConfig(
+            videoPath = videoPath,
+            rangeStartMs = rangeStartMs,
+            rangeEndMs = rangeEndMs,
+            loopCount = loopCount
+        )
+        val sanitized = if (!PlaybackConfigValidator.isValid(config)) {
+            PlaybackConfigValidator.sanitize(config)
+        } else {
+            config
+        }
+        playbackRepository.saveConfig(sanitized)
+        Timber.i("Saved playback config from mini player: %s", videoPath.substringAfterLast("/"))
     }
 }

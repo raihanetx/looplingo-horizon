@@ -4,12 +4,16 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -19,9 +23,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.chip.Chip
 import com.google.android.material.snackbar.Snackbar
 import com.looplingo.horizon.R
 import com.looplingo.horizon.databinding.FragmentMainBinding
+import com.looplingo.horizon.model.SpeedPresets
 import com.looplingo.horizon.playback.AudioPlaybackService
 import com.looplingo.horizon.model.SortOrder
 import com.looplingo.horizon.ui.adapter.VideoAdapter
@@ -29,6 +35,7 @@ import com.looplingo.horizon.ui.viewmodel.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.concurrent.TimeUnit
 
 /**
  * Main screen showing the list of video files found on the device.
@@ -38,6 +45,7 @@ import timber.log.Timber
  *  - Click a video to start audio playback via [AudioPlaybackService]
  *  - Long-press a video to open its playback settings
  *  - Pull-to-refresh to rescan the media library
+ *  - Mini player bar with instant speed control and A-B loop when audio is playing
  *  - Shows loading, empty, and error states with user feedback
  *  - Toolbar with sort and stop-playback actions
  */
@@ -50,6 +58,14 @@ class MainFragment : Fragment() {
     private val viewModel: MainViewModel by viewModels()
 
     private lateinit var videoAdapter: VideoAdapter
+
+    // Mini player state
+    private val miniPlayerHandler = Handler(Looper.getMainLooper())
+    private var miniPlayerPollingRunnable: Runnable? = null
+    private var miniABStartMs: Long = 0L
+    private var miniABEndMs: Long = -1L
+    private var miniABLoopCount: Int = 3
+    private var isABControlsVisible: Boolean = false
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -89,6 +105,7 @@ class MainFragment : Fragment() {
         setupSwipeRefresh()
         setupObservers()
         setupSettingsButton()
+        setupMiniPlayer()
         checkPermissionsAndScan()
     }
 
@@ -155,17 +172,14 @@ class MainFragment : Fragment() {
         binding.rvVideoList.layoutManager = LinearLayoutManager(requireContext())
         binding.rvVideoList.adapter = videoAdapter
 
-        // Performance: set fixed size for items to avoid unnecessary measure passes
-        binding.rvVideoList.setHasFixedSize(false)  // Items have variable height due to path text
+        binding.rvVideoList.setHasFixedSize(false)
 
-        // Performance: increase RecycledViewPool for smoother scrolling
         binding.rvVideoList.setRecycledViewPool(
             androidx.recyclerview.widget.RecyclerView.RecycledViewPool().apply {
-                setMaxRecycledViews(0, 20)  // 20 cached ViewHolders for type 0
+                setMaxRecycledViews(0, 20)
             }
         )
 
-        // Item animations for smooth insert/remove
         binding.rvVideoList.itemAnimator?.apply {
             addDuration = 200
             removeDuration = 200
@@ -187,7 +201,6 @@ class MainFragment : Fragment() {
     }
 
     private fun setupSettingsButton() {
-        // Long-press on a video navigates to its playback settings
         videoAdapter.onVideoLongClick = { video ->
             try {
                 val action = MainFragmentDirections.actionMainToPlaybackSettings(video.path)
@@ -198,22 +211,209 @@ class MainFragment : Fragment() {
             }
         }
 
-        // Empty state retry button
         binding.btnEmptyRetry.setOnClickListener {
             viewModel.refreshVideos()
         }
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // MINI PLAYER
+    // ══════════════════════════════════════════════════════════════════════
+
+    private fun setupMiniPlayer() {
+        val miniPlayer = binding.miniPlayer.root
+
+        // Play/Pause toggle
+        miniPlayer.findViewById<View>(R.id.iv_mini_play_pause).setOnClickListener {
+            try {
+                val isPlaying = AudioPlaybackService.isPlaying
+                if (isPlaying) {
+                    AudioPlaybackService.stopService(requireContext())
+                } else {
+                    // Restart the last video — for simplicity, use the service's current path
+                    val lastPath = AudioPlaybackService.currentVideoPath
+                    if (lastPath.isNotBlank()) {
+                        AudioPlaybackService.startService(requireContext(), lastPath)
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to toggle playback from mini player")
+            }
+        }
+
+        // Close/Stop button
+        miniPlayer.findViewById<View>(R.id.iv_mini_close).setOnClickListener {
+            AudioPlaybackService.stopService(requireContext())
+        }
+
+        // Speed chips — instant apply
+        val chipGroup = miniPlayer.findViewById<com.google.android.material.chip.ChipGroup>(R.id.chip_group_mini_speed)
+        chipGroup.removeAllViews()
+        for (preset in SpeedPresets.ALL) {
+            val chip = Chip(requireContext()).apply {
+                text = preset.label
+                isCheckable = true
+                id = View.generateViewId()
+                tag = preset.speed
+            }
+            chip.setOnClickListener {
+                // Instant speed change — no save needed
+                AudioPlaybackService.setSpeed(requireContext(), preset.speed)
+                Timber.d("Mini player speed changed to %s", preset.label)
+            }
+            chipGroup.addView(chip)
+        }
+
+        // A/B controls
+        miniPlayer.findViewById<View>(R.id.btn_mini_set_a).setOnClickListener {
+            val pos = AudioPlaybackService.currentPositionMs
+            miniABStartMs = pos
+            miniPlayer.findViewById<TextView>(R.id.tv_mini_a_time).text = formatMsToTime(pos)
+            updateMiniABIndicator()
+            showSnackbar(getString(R.string.mini_player_a_set, formatMsToTime(pos)))
+        }
+
+        miniPlayer.findViewById<View>(R.id.btn_mini_set_b).setOnClickListener {
+            val pos = AudioPlaybackService.currentPositionMs
+            miniABEndMs = pos
+            miniPlayer.findViewById<TextView>(R.id.tv_mini_b_time).text = formatMsToTime(pos)
+            updateMiniABIndicator()
+        }
+
+        // Try loop — preview without saving
+        miniPlayer.findViewById<View>(R.id.btn_mini_try_loop).setOnClickListener {
+            tryLoopFromMiniPlayer()
+        }
+
+        // Save loop — commit to database
+        miniPlayer.findViewById<View>(R.id.btn_mini_save_loop).setOnClickListener {
+            saveLoopFromMiniPlayer()
+        }
+
+        // Toggle A-B controls visibility on indicator click
+        miniPlayer.findViewById<View>(R.id.tv_mini_ab_indicator).setOnClickListener {
+            isABControlsVisible = !isABControlsVisible
+            miniPlayer.findViewById<View>(R.id.layout_mini_ab_controls).visibility =
+                if (isABControlsVisible) View.VISIBLE else View.GONE
+        }
+    }
+
+    private fun tryLoopFromMiniPlayer() {
+        val videoPath = AudioPlaybackService.currentVideoPath
+        if (videoPath.isBlank()) return
+
+        if (miniABEndMs > 0 && miniABEndMs > miniABStartMs) {
+            AudioPlaybackService.setABLoop(
+                requireContext(), videoPath,
+                miniABStartMs, miniABEndMs, miniABLoopCount
+            )
+            showSnackbar(getString(R.string.loop_preview_active))
+        } else {
+            showSnackbar("Set both A and B points first")
+        }
+    }
+
+    private fun saveLoopFromMiniPlayer() {
+        val videoPath = AudioPlaybackService.currentVideoPath
+        if (videoPath.isBlank()) return
+
+        if (miniABEndMs > 0 && miniABEndMs > miniABStartMs) {
+            // Save to repository via the service's config, then persist
+            AudioPlaybackService.setABLoop(
+                requireContext(), videoPath,
+                miniABStartMs, miniABEndMs, miniABLoopCount
+            )
+            // Also persist to database
+            lifecycleScope.launch {
+                try {
+                    viewModel.savePlaybackConfig(
+                        videoPath, miniABStartMs, miniABEndMs, miniABLoopCount
+                    )
+                    showSnackbar(getString(R.string.settings_saved))
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to save loop from mini player")
+                    showSnackbar(getString(R.string.error_save_failed))
+                }
+            }
+        } else {
+            showSnackbar("Set both A and B points first")
+        }
+    }
+
+    private fun updateMiniABIndicator() {
+        val indicator = binding.miniPlayer.root.findViewById<TextView>(R.id.tv_mini_ab_indicator)
+        if (miniABEndMs > 0 && miniABEndMs > miniABStartMs) {
+            indicator.visibility = View.VISIBLE
+            indicator.text = "AB"
+        } else if (miniABStartMs > 0) {
+            indicator.visibility = View.VISIBLE
+            indicator.text = "A"
+        } else {
+            indicator.visibility = View.GONE
+        }
+    }
+
+    private fun startMiniPlayerPolling() {
+        stopMiniPlayerPolling()
+        miniPlayerPollingRunnable = object : Runnable {
+            override fun run() {
+                try {
+                    val isPlaying = AudioPlaybackService.isPlaying
+                    val currentPath = AudioPlaybackService.currentVideoPath
+                    val position = AudioPlaybackService.currentPositionMs
+
+                    val miniPlayer = binding.miniPlayer.root
+                    if (currentPath.isNotBlank()) {
+                        miniPlayer.visibility = View.VISIBLE
+
+                        // Update title
+                        val title = currentPath.substringAfterLast("/").substringBeforeLast(".")
+                        miniPlayer.findViewById<TextView>(R.id.tv_mini_title).text = title
+
+                        // Update position
+                        miniPlayer.findViewById<TextView>(R.id.tv_mini_position).text = formatMsToTime(position)
+
+                        // Update play/pause icon
+                        val playPauseIcon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
+                        miniPlayer.findViewById<ImageView>(R.id.iv_mini_play_pause).setImageResource(playPauseIcon)
+                    } else {
+                        miniPlayer.visibility = View.GONE
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "Mini player polling error")
+                }
+                miniPlayerHandler.postDelayed(this, 500L)
+            }
+        }
+        miniPlayerHandler.post(miniPlayerPollingRunnable!!)
+    }
+
+    private fun stopMiniPlayerPolling() {
+        miniPlayerPollingRunnable?.let { miniPlayerHandler.removeCallbacks(it) }
+        miniPlayerPollingRunnable = null
+    }
+
+    /** Format milliseconds to "m:ss" or "h:mm:ss" */
+    private fun formatMsToTime(ms: Long): String {
+        if (ms <= 0) return "0:00"
+        val totalSeconds = ms / 1000
+        val hours = TimeUnit.SECONDS.toHours(totalSeconds)
+        val minutes = TimeUnit.SECONDS.toMinutes(totalSeconds) % 60
+        val seconds = totalSeconds % 60
+        return if (hours > 0) {
+            String.format("%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format("%d:%02d", minutes, seconds)
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // OBSERVERS
+    // ══════════════════════════════════════════════════════════════════════
+
     private fun setupObservers() {
-        // Use repeatOnLifecycle(STARTED) so Flow collection pauses when the UI
-        // is stopped and restarts when it's started again. This avoids delivering
-        // updates to a stopped UI and prevents unnecessary background work.
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                // Launch all collectors in the STARTED scope so they are
-                // automatically cancelled and restarted with the lifecycle.
-
-                // Observe video list
                 launch {
                     viewModel.videos.collect { videoList ->
                         videoAdapter.submitList(videoList)
@@ -221,11 +421,9 @@ class MainFragment : Fragment() {
                     }
                 }
 
-                // Observe loading state
                 launch {
                     viewModel.isLoading.collect { isLoading ->
                         if (isLoading) {
-                            // If not triggered by swipe refresh, show the centered progress bar
                             if (!binding.swipeRefresh.isRefreshing) {
                                 binding.progressBar.visibility = View.VISIBLE
                             }
@@ -236,7 +434,6 @@ class MainFragment : Fragment() {
                     }
                 }
 
-                // Observe error state
                 launch {
                     viewModel.error.collect { errorMsg ->
                         errorMsg?.let {
@@ -247,7 +444,6 @@ class MainFragment : Fragment() {
                     }
                 }
 
-                // Observe configured modes for badge display
                 launch {
                     viewModel.configuredModes.collect { modes ->
                         videoAdapter.configuredModes = modes
@@ -257,11 +453,6 @@ class MainFragment : Fragment() {
         }
     }
 
-    /**
-     * Controls visibility of the empty state layout vs. the video list.
-     * When [isEmpty] is true, shows the empty state with optional retry button.
-     * When [isPermError] is true, shows the permission-specific empty state.
-     */
     private fun updateEmptyState(isEmpty: Boolean, isPermError: Boolean) {
         if (isEmpty) {
             binding.layoutEmpty.visibility = View.VISIBLE
@@ -275,7 +466,6 @@ class MainFragment : Fragment() {
     }
 
     private fun checkPermissionsAndScan() {
-        // Request notification permission on Android 13+ so media controls appear
         requestNotificationPermissionIfNeeded()
 
         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -304,11 +494,6 @@ class MainFragment : Fragment() {
         }
     }
 
-    /**
-     * On Android 13+ (API 33), the POST_NOTIFICATIONS permission is required
-     * for the media playback notification to appear. We request it once;
-     * if denied, playback still works but the notification won't show.
-     */
     private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
@@ -334,9 +519,6 @@ class MainFragment : Fragment() {
         }
     }
 
-    /**
-     * Shows a Snackbar with a retry action that refreshes the video list.
-     */
     private fun showSnackbarWithRetry(message: String) {
         view?.let { rootView ->
             Snackbar.make(rootView, message, Snackbar.LENGTH_LONG)
@@ -347,9 +529,6 @@ class MainFragment : Fragment() {
         }
     }
 
-    /**
-     * Shows a Snackbar with an optional action.
-     */
     private fun showSnackbar(message: String, actionLabel: String? = null, action: (() -> Unit)? = null) {
         view?.let { rootView ->
             val snackbar = Snackbar.make(rootView, message, Snackbar.LENGTH_LONG)
@@ -360,8 +539,19 @@ class MainFragment : Fragment() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        startMiniPlayerPolling()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        stopMiniPlayerPolling()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        stopMiniPlayerPolling()
         _binding = null
     }
 }

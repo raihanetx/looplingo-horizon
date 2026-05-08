@@ -71,8 +71,14 @@ class AudioPlaybackService : LifecycleService() {
         const val ACTION_TOGGLE_PLAYBACK = "com.looplingo.horizon.TOGGLE_PLAYBACK"
         const val ACTION_STOP = "com.looplingo.horizon.STOP"
         const val ACTION_SEEK_TO = "com.looplingo.horizon.SEEK_TO"
+        const val ACTION_SET_SPEED = "com.looplingo.horizon.SET_SPEED"
+        const val ACTION_SET_AB_LOOP = "com.looplingo.horizon.SET_AB_LOOP"
         const val EXTRA_VIDEO_PATH = "video_path"
         const val EXTRA_SEEK_POSITION_MS = "seek_position_ms"
+        const val EXTRA_SPEED = "speed"
+        const val EXTRA_RANGE_START_MS = "range_start_ms"
+        const val EXTRA_RANGE_END_MS = "range_end_ms"
+        const val EXTRA_LOOP_COUNT = "loop_count"
 
         private const val WAKELOCK_TIMEOUT_MS = 3 * 60 * 60 * 1000L  // 3 hours (was 4)
         private const val MAX_RETRY_ATTEMPTS = 3
@@ -140,6 +146,46 @@ class AudioPlaybackService : LifecycleService() {
                 context.startService(intent)
             } catch (e: Exception) {
                 Timber.e(e, "Failed to send seek request")
+            }
+        }
+
+        /**
+         * Change playback speed in real-time without restarting the service.
+         */
+        fun setSpeed(context: Context, speed: Float) {
+            val intent = Intent(context, AudioPlaybackService::class.java).apply {
+                action = ACTION_SET_SPEED
+                putExtra(EXTRA_SPEED, speed)
+            }
+            try {
+                context.startService(intent)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to send speed change request")
+            }
+        }
+
+        /**
+         * Change A-B loop range in real-time without restarting the service.
+         * This allows try-before-save: preview the loop before committing.
+         */
+        fun setABLoop(
+            context: Context,
+            videoPath: String,
+            rangeStartMs: Long,
+            rangeEndMs: Long,
+            loopCount: Int
+        ) {
+            val intent = Intent(context, AudioPlaybackService::class.java).apply {
+                action = ACTION_SET_AB_LOOP
+                putExtra(EXTRA_VIDEO_PATH, videoPath)
+                putExtra(EXTRA_RANGE_START_MS, rangeStartMs)
+                putExtra(EXTRA_RANGE_END_MS, rangeEndMs)
+                putExtra(EXTRA_LOOP_COUNT, loopCount)
+            }
+            try {
+                context.startService(intent)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to send A-B loop change request")
             }
         }
 
@@ -242,6 +288,19 @@ class AudioPlaybackService : LifecycleService() {
                     handleSeekRequest(videoPath, seekMs)
                 }
             }
+            ACTION_SET_SPEED -> {
+                val speed = intent.getFloatExtra(EXTRA_SPEED, 1.0f)
+                handleSpeedChange(speed)
+            }
+            ACTION_SET_AB_LOOP -> {
+                val videoPath = intent.getStringExtra(EXTRA_VIDEO_PATH)
+                val rangeStartMs = intent.getLongExtra(EXTRA_RANGE_START_MS, 0L)
+                val rangeEndMs = intent.getLongExtra(EXTRA_RANGE_END_MS, -1L)
+                val loopCount = intent.getIntExtra(EXTRA_LOOP_COUNT, 1)
+                if (!videoPath.isNullOrBlank()) {
+                    handleABLoopChange(videoPath, rangeStartMs, rangeEndMs, loopCount)
+                }
+            }
             ACTION_STOP -> stopSelf()
         }
         return START_NOT_STICKY
@@ -282,6 +341,61 @@ class AudioPlaybackService : LifecycleService() {
      * If the requested video matches the currently playing video, just seek.
      * Otherwise, start playback of the requested video and seek to the position.
      */
+    /**
+     * Handle a live speed change request.
+     * Applies immediately to the running ExoPlayer without restarting.
+     */
+    private fun handleSpeedChange(speed: Float) {
+        try {
+            val clampedSpeed = speed.coerceIn(0.25f, 2.0f)
+            exoPlayer?.playbackParameters = androidx.media3.common.PlaybackParameters(clampedSpeed)
+            currentConfig = currentConfig.copy(speed = clampedSpeed)
+            Timber.d("Speed changed to %.2fx during playback", clampedSpeed)
+            updateNotification()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to change speed")
+        }
+    }
+
+    /**
+     * Handle a live A-B loop change request.
+     * Applies immediately to the running playback without restarting.
+     * Seeks to point A if the current position is outside the new range.
+     */
+    private fun handleABLoopChange(videoPath: String, rangeStartMs: Long, rangeEndMs: Long, loopCount: Int) {
+        if (videoPath != currentConfig.videoPath) return
+
+        try {
+            val newConfig = currentConfig.copy(
+                rangeStartMs = rangeStartMs,
+                rangeEndMs = rangeEndMs,
+                loopCount = loopCount
+            )
+            currentConfig = newConfig
+            currentLoopIteration = 0
+            abLoopCompleted = false
+
+            // If A-B loop is set and player is past the range, seek to A
+            if (newConfig.hasABLoop) {
+                val currentPos = exoPlayer?.currentPosition ?: 0L
+                if (currentPos < newConfig.rangeStartMs || currentPos >= newConfig.rangeEndMs) {
+                    exoPlayer?.seekTo(newConfig.rangeStartMs)
+                }
+                scheduleAbCheck()
+            } else {
+                cancelAbMonitor()
+            }
+
+            Timber.d(
+                "A-B loop changed during playback: A=%dms, B=%dms, loop=%d",
+                rangeStartMs, rangeEndMs, loopCount
+            )
+            updateNotification()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to change A-B loop")
+        }
+    }
+
     private fun handleSeekRequest(videoPath: String, positionMs: Long) {
         if (videoPath == currentConfig.videoPath && exoPlayer != null) {
             // Same video — just seek
