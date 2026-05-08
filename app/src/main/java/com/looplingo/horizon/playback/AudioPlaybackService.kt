@@ -100,6 +100,20 @@ class AudioPlaybackService : LifecycleService() {
         var currentVideoPath: String = ""
             private set
 
+        /** Update static playback state — called from the service instance. */
+        fun updateState(playing: Boolean, position: Long, videoPath: String) {
+            isPlaying = playing
+            currentPositionMs = position
+            currentVideoPath = videoPath
+        }
+
+        /** Reset static state when service stops. */
+        fun resetState() {
+            isPlaying = false
+            currentPositionMs = 0L
+            currentVideoPath = ""
+        }
+
         fun startService(context: Context, videoPath: String) {
             val intent = Intent(context, AudioPlaybackService::class.java).apply {
                 action = ACTION_START
@@ -257,9 +271,7 @@ class AudioPlaybackService : LifecycleService() {
             mediaSession = null
             releaseWakeLock()
             // Reset static state
-            isPlaying = false
-            currentPositionMs = 0L
-            currentVideoPath = ""
+            resetState()
         } catch (e: Exception) {
             Timber.e(e, "Error during service cleanup")
         }
@@ -354,10 +366,10 @@ class AudioPlaybackService : LifecycleService() {
             }
         }
 
-        override fun onIsPlayingChanged(isPlaying: Boolean) {
+        override fun onIsPlayingChanged(playing: Boolean) {
             // Update static state for transcript sync
-            this@AudioPlaybackService.isPlaying = isPlaying
-            if (isPlaying) {
+            updateState(playing, currentPositionMs, currentVideoPath)
+            if (playing) {
                 acquireWakeLock()
             } else {
                 // Release WakeLock when paused — saves battery
@@ -396,7 +408,7 @@ class AudioPlaybackService : LifecycleService() {
         Timber.i("Starting playback for: %s", videoPath)
 
         // Update static state for transcript sync
-        currentVideoPath = videoPath
+        updateState(isPlaying, currentPositionMs, videoPath)
 
         currentLoopIteration = 0
         abLoopCompleted = false
@@ -642,9 +654,11 @@ class AudioPlaybackService : LifecycleService() {
         positionUpdateRunnable = object : Runnable {
             override fun run() {
                 try {
-                    currentPositionMs = exoPlayer?.currentPosition ?: 0L
+                    val pos = exoPlayer?.currentPosition ?: 0L
+                    val playing = exoPlayer?.isPlaying == true
+                    updateState(playing, pos, currentVideoPath)
                 } catch (_: Exception) {
-                    currentPositionMs = 0L
+                    // Keep last known state
                 }
                 positionHandler.postDelayed(this, 500L)
             }

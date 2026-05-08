@@ -162,12 +162,14 @@ object SubtitleParser {
             val tsMatch = timestampPattern.find(trimmed) ?: shortTimestampPattern.find(trimmed)
             if (tsMatch != null) {
                 // Save previous cue if any
-                if (currentStartMs != null && currentEndMs != null && currentTextLines.isNotEmpty()) {
+                val prevStart = currentStartMs
+                val prevEnd = currentEndMs
+                if (prevStart != null && prevEnd != null && currentTextLines.isNotEmpty()) {
                     cues.add(
                         SubtitleCue(
                             index = ++currentIndex,
-                            startMs = currentStartMs,
-                            endMs = currentEndMs,
+                            startMs = prevStart,
+                            endMs = prevEnd,
                             text = currentTextLines.joinToString("\n")
                         )
                     )
@@ -182,12 +184,14 @@ object SubtitleParser {
 
             // Blank line = end of current block
             if (trimmed.isBlank()) {
-                if (currentStartMs != null && currentEndMs != null && currentTextLines.isNotEmpty()) {
+                val prevStart = currentStartMs
+                val prevEnd = currentEndMs
+                if (prevStart != null && prevEnd != null && currentTextLines.isNotEmpty()) {
                     cues.add(
                         SubtitleCue(
                             index = ++currentIndex,
-                            startMs = currentStartMs,
-                            endMs = currentEndMs,
+                            startMs = prevStart,
+                            endMs = prevEnd,
                             text = currentTextLines.joinToString("\n")
                         )
                     )
@@ -207,12 +211,14 @@ object SubtitleParser {
         }
 
         // Handle last cue (file might not end with blank line)
-        if (currentStartMs != null && currentEndMs != null && currentTextLines.isNotEmpty()) {
+        val lastStart = currentStartMs
+        val lastEnd = currentEndMs
+        if (lastStart != null && lastEnd != null && currentTextLines.isNotEmpty()) {
             cues.add(
                 SubtitleCue(
                     index = ++currentIndex,
-                    startMs = currentStartMs,
-                    endMs = currentEndMs,
+                    startMs = lastStart,
+                    endMs = lastEnd,
                     text = currentTextLines.joinToString("\n")
                 )
             )
