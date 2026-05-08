@@ -36,12 +36,15 @@
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 
 # ── Timber ─────────────────────────────────────────────────────────────
-# Strip Timber debug/verbose/info logging in release builds.
-# The DebugTree is never planted in release, so these calls are dead code.
+# Strip ALL Timber logging in release builds.
+# DebugTree is never planted in release, so all calls are dead code.
+# Removing w/e prevents string concatenation allocation even in release.
 -assumenosideeffects class timber.log.Timber {
     public static *** d(...);
     public static *** v(...);
     public static *** i(...);
+    public static *** w(...);
+    public static *** e(...);
 }
 
 # ── AndroidX / Lifecycle ───────────────────────────────────────────────
@@ -54,21 +57,22 @@
 # Safe Args generates argument classes; keep NavHostFragment for reflection.
 -keepnames class androidx.navigation.fragment.NavHostFragment
 
-# ── Media3 Session ──────────────────────────────────────────────────
-# Media3 MediaSession uses reflection for IPC and controller binding.
+# ── Media3 Session (narrowed — only what we use) ──────────────────────
 -keep class androidx.media3.session.MediaSession { *; }
--keep class androidx.media3.session.** { *; }
+-keep class androidx.media3.session.MediaSession$* { *; }
+-keep class androidx.media3.session.MediaSession$Callback { *; }
+-keep class androidx.media3.session.MediaSession$ConnectionResult { *; }
+-keep class androidx.media3.session.MediaSession$ControllerInfo { *; }
 
 # ── LoopLingo Entities (Room-managed) ──────────────────────────────────
 # Only keep Entity-annotated classes; Room needs their fields for mapping.
-# Do NOT use model.** — that would keep validator logic, enum helpers, etc.
 -keep @androidx.room.Entity class com.looplingo.horizon.data.entity.** { *; }
 
-# ── General Android Rules ──────────────────────────────────────────────
-# Keep Android components declared in the manifest (reflection by the OS).
--keep public class * extends android.app.Service
--keep public class * extends android.app.Activity
--keep public class * extends android.app.Application
+# ── General Android Rules (narrowed to our app only) ──────────────────
+# Keep only OUR Service/Activity/Application — not every class in the classpath
+-keep public class com.looplingo.horizon.** extends android.app.Service
+-keep public class com.looplingo.horizon.** extends android.app.Activity
+-keep public class com.looplingo.horizon.** extends android.app.Application
 
 # Keep View constructors (used by XML inflation via reflection)
 -keepclassmembers class * extends android.view.View {
@@ -82,4 +86,5 @@
     public static *** d(...);
     public static *** v(...);
     public static *** i(...);
+    public static *** w(...);
 }

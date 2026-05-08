@@ -25,7 +25,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "looplingo-db"
         )
-            .fallbackToDestructiveMigrationFrom(1, 2, 3, 4)
+            .fallbackToDestructiveMigrationFrom(1, 2, 3, 4, 5)
             .build()
     }
 

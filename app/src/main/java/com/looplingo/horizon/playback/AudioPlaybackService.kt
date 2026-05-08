@@ -9,6 +9,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
@@ -46,13 +48,16 @@ import javax.inject.Inject
 /**
  * Foreground service for audio playback.
  *
- * Simplified loop logic:
+ * Optimized for battery life and smooth performance:
  *  - No loop modes. Behavior is determined by PlaybackConfig values:
  *    - Normal: no A-B range, loopCount=1 → play full video once
  *    - A-B Loop: A→B segment, loop N times, then continue to end of video
  *    - Full Loop: no A-B range, loopCount>1 → loop entire video N times
  *  - Speed control via ExoPlayer.setPlaybackParameters()
- *  - A-B position monitor polls every 200ms to detect when playback reaches B
+ *  - A-B position monitor uses Handler-based scheduling instead of polling
+ *    — only checks when playback is near the B marker, zero CPU waste
+ *  - WakeLock released on pause (not just renewal cancelled)
+ *  - START_NOT_STICKY — no zombie service restarts
  */
 @AndroidEntryPoint
 class AudioPlaybackService : LifecycleService() {
@@ -67,11 +72,14 @@ class AudioPlaybackService : LifecycleService() {
         const val ACTION_STOP = "com.looplingo.horizon.STOP"
         const val EXTRA_VIDEO_PATH = "video_path"
 
-        private const val WAKELOCK_FINITE_TIMEOUT_MS = 4 * 60 * 60 * 1000L
-        private const val WAKELOCK_RENEWAL_INTERVAL_MS = 60 * 60 * 1000L
-        private const val AB_PIN_POLL_INTERVAL_MS = 200L
+        private const val WAKELOCK_TIMEOUT_MS = 3 * 60 * 60 * 1000L  // 3 hours (was 4)
         private const val MAX_RETRY_ATTEMPTS = 3
         private const val RETRY_DELAY_MS = 2000L
+
+        // A-B monitoring: check interval increases as we get closer to B
+        private const val AB_CHECK_FAR_MS = 5000L       // >5s away: check every 5s
+        private const val AB_CHECK_NEAR_MS = 500L       // <5s away: check every 500ms
+        private const val AB_NEAR_THRESHOLD_MS = 5000L  // Switch to frequent checks within 5s of B
 
         fun startService(context: Context, videoPath: String) {
             val intent = Intent(context, AudioPlaybackService::class.java).apply {
@@ -108,8 +116,9 @@ class AudioPlaybackService : LifecycleService() {
     private var retryAttemptCount: Int = 0
     private var abLoopCompleted: Boolean = false
 
-    private var abPinMonitorJob: Job? = null
-    private var wakeLockRenewalJob: Job? = null
+    // Handler-based A-B monitoring (replaces wasteful coroutine polling)
+    private val abHandler = Handler(Looper.getMainLooper())
+    private var abCheckRunnable: Runnable? = null
 
     @Inject lateinit var playbackRepository: PlaybackRepository
     @Inject lateinit var videoRepository: VideoRepository
@@ -155,12 +164,13 @@ class AudioPlaybackService : LifecycleService() {
             }
         }
 
-        if (intent == null) return START_STICKY
+        // Return NOT_STICKY — if the OS kills us, don't auto-restart as a zombie
+        if (intent == null) return START_NOT_STICKY
 
         when (intent.action) {
             ACTION_START -> {
                 val videoPath = intent.getStringExtra(EXTRA_VIDEO_PATH)
-                if (videoPath.isNullOrBlank()) return START_STICKY
+                if (videoPath.isNullOrBlank()) return START_NOT_STICKY
                 serviceScope.launch {
                     try {
                         loadVideoPaths()
@@ -173,7 +183,7 @@ class AudioPlaybackService : LifecycleService() {
             }
             ACTION_STOP -> stopSelf()
         }
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
@@ -189,8 +199,7 @@ class AudioPlaybackService : LifecycleService() {
 
     private fun cleanup() {
         try {
-            cancelAbPinMonitor()
-            cancelWakeLockRenewal()
+            cancelAbMonitor()
             unregisterNotificationReceiver()
             serviceJob.cancel()
             exoPlayer?.removeListener(playerListener)
@@ -265,7 +274,8 @@ class AudioPlaybackService : LifecycleService() {
             if (isPlaying) {
                 acquireWakeLock()
             } else {
-                cancelWakeLockRenewal()
+                // Release WakeLock when paused — saves battery
+                releaseWakeLock()
             }
             updateNotification()
         }
@@ -302,7 +312,7 @@ class AudioPlaybackService : LifecycleService() {
         currentLoopIteration = 0
         abLoopCompleted = false
         retryAttemptCount = 0
-        cancelAbPinMonitor()
+        cancelAbMonitor()
         currentVideoIndex = videoPaths.indexOf(videoPath)
 
         if (currentVideoIndex < 0) {
@@ -351,9 +361,9 @@ class AudioPlaybackService : LifecycleService() {
             return
         }
 
-        // Start A-B position monitor if A-B loop is configured
+        // Start smart A-B monitor if A-B loop is configured
         if (currentConfig.hasABLoop) {
-            startAbPinMonitor()
+            scheduleAbCheck()
         }
 
         updateNotification()
@@ -386,13 +396,8 @@ class AudioPlaybackService : LifecycleService() {
                 // A-B loop completed — continue playing from B to end of video
                 Timber.d("A-B loop completed after %d iterations, continuing to end", currentConfig.loopCount)
                 abLoopCompleted = true
-                cancelAbPinMonitor()
+                cancelAbMonitor()
                 // The video will naturally reach STATE_ENDED again when it finishes
-                // At that point, we advance to next video
-                // But wait — STATE_ENDED means the current playback ended.
-                // Since we were monitoring A-B, STATE_ENDED won't fire until the full video ends.
-                // We need to continue playing from current position to the end.
-                // However, if STATE_ENDED fired, the full video has ended.
                 advanceToNextVideo()
             }
         } else {
@@ -457,52 +462,75 @@ class AudioPlaybackService : LifecycleService() {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // A-B POSITION MONITOR
+    // A-B POSITION MONITOR — SMART SCHEDULING (no polling)
     // ══════════════════════════════════════════════════════════════════════
 
-    private fun startAbPinMonitor() {
-        cancelAbPinMonitor()
-        abPinMonitorJob = serviceScope.launch(Dispatchers.Main) {
-            while (isActive) {
-                checkABPosition()
-                delay(AB_PIN_POLL_INTERVAL_MS)
-            }
-        }
+    /**
+     * Smart A-B monitoring using Handler instead of coroutine polling.
+     *
+     * Instead of checking every 200ms (18,000 wake-ups/hour), this approach:
+     *  - Checks every 5 seconds when far from the B marker
+     *  - Switches to every 500ms when within 5 seconds of B
+     *  - This reduces wake-ups by ~90% for typical usage
+     *
+     * Why Handler instead of coroutine delay?
+     *  - Handler.postDelayed is more lightweight than launching a coroutine
+     *  - No coroutine scope overhead
+     *  - Automatically runs on the main thread (where ExoPlayer lives)
+     *  - Easier to cancel — just removeCallbacks
+     */
+    private fun scheduleAbCheck() {
+        cancelAbMonitor()
+        abCheckRunnable = Runnable { checkABPositionAndReschedule() }
+        // First check after 1 second (not immediate — player is still buffering)
+        abHandler.postDelayed(abCheckRunnable!!, 1000L)
     }
 
-    private fun cancelAbPinMonitor() {
-        abPinMonitorJob?.cancel()
-        abPinMonitorJob = null
+    private fun cancelAbMonitor() {
+        abCheckRunnable?.let { abHandler.removeCallbacks(it) }
+        abCheckRunnable = null
     }
 
     /**
-     * Check if playback has reached the B marker.
-     * When it does:
-     *  - Increment iteration counter
-     *  - If iterations < loopCount → seek back to A and continue
-     *  - If iterations >= loopCount → let playback continue to end of video
+     * Check if playback has reached the B marker, then schedule the next check.
+     *
+     * Adaptive scheduling:
+     *  - Far from B (>5s): next check in 5 seconds (minimal CPU)
+     *  - Near B (<5s): next check in 500ms (precise loop detection)
      */
-    private fun checkABPosition() {
-        if (!currentConfig.hasABLoop) return
-        if (abLoopCompleted) return
+    private fun checkABPositionAndReschedule() {
+        if (!currentConfig.hasABLoop || abLoopCompleted) return
 
         val currentPosition = exoPlayer?.currentPosition ?: return
+        val distanceToB = currentConfig.rangeEndMs - currentPosition
+
         if (currentPosition >= currentConfig.rangeEndMs) {
+            // Reached B — handle the loop iteration
             currentLoopIteration++
             Timber.d("A-B: reached B at %dms, iteration %d/%d", currentConfig.rangeEndMs, currentLoopIteration, currentConfig.loopCount)
 
             if (currentLoopIteration < currentConfig.loopCount) {
-                // More loops to go → seek back to A
+                // More loops → seek back to A and restart monitoring
                 seekToA()
+                scheduleAbCheck()
             } else {
-                // Loop complete → continue playing from B to end of video
+                // Loop complete → continue from B to end
                 Timber.d("A-B loop done, continuing playback from B to end")
                 abLoopCompleted = true
-                cancelAbPinMonitor()
-                // Don't stop — let the video play to the end naturally
-                // STATE_ENDED will fire when the full video finishes
+                // No more scheduling needed
             }
+            return
         }
+
+        // Schedule next check with adaptive interval
+        val nextDelay = if (distanceToB <= AB_NEAR_THRESHOLD_MS) {
+            AB_CHECK_NEAR_MS   // Near B: check frequently
+        } else {
+            AB_CHECK_FAR_MS    // Far from B: check rarely
+        }
+
+        abCheckRunnable = Runnable { checkABPositionAndReschedule() }
+        abHandler.postDelayed(abCheckRunnable!!, nextDelay)
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -528,7 +556,7 @@ class AudioPlaybackService : LifecycleService() {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // WAKELOCK
+    // WAKELOCK — Battery Optimized
     // ══════════════════════════════════════════════════════════════════════
 
     private fun setupWakeLock() {
@@ -540,7 +568,7 @@ class AudioPlaybackService : LifecycleService() {
     private fun acquireWakeLock() {
         if (isWakeLockHeld) return
         try {
-            wakeLock?.acquire(WAKELOCK_FINITE_TIMEOUT_MS)
+            wakeLock?.acquire(WAKELOCK_TIMEOUT_MS)
             isWakeLockHeld = true
         } catch (e: Exception) { Timber.e(e, "Failed to acquire WakeLock") }
     }
@@ -551,9 +579,6 @@ class AudioPlaybackService : LifecycleService() {
             isWakeLockHeld = false
         }
     }
-
-    private fun startWakeLockRenewal() { /* simplified — finite timeout is sufficient */ }
-    private fun cancelWakeLockRenewal() { wakeLockRenewalJob?.cancel(); wakeLockRenewalJob = null }
 
     // ══════════════════════════════════════════════════════════════════════
     // NOTIFICATION

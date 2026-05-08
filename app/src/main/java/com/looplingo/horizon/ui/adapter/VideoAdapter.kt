@@ -113,13 +113,16 @@ class VideoAdapter(
             val digitGroups = (Math.log10(sizeBytes.toDouble()) / Math.log10(1024.0)).toInt()
                 .coerceIn(0, units.lastIndex)
             val value = sizeBytes / Math.pow(1024.0, digitGroups.toDouble())
-            return "${DecimalFormat("#,##0.#").format(value)} ${units[digitGroups]}"
+            return "${fileSizeFormat.format(value)} ${units[digitGroups]}"
         }
     }
 
     companion object {
         /** Payload key for badge-only updates (avoids full item rebind). */
         const val PAYLOAD_BADGE_UPDATE = "badge_update"
+
+        // Cached formatter — avoids allocating a new DecimalFormat on every bind call
+        private val fileSizeFormat = DecimalFormat("#,##0.#")
 
         /**
          * DiffUtil callback that compares VideoEntity items by path (unique key)
