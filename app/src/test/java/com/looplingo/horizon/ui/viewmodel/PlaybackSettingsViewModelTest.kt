@@ -1,8 +1,8 @@
 package com.looplingo.horizon.ui.viewmodel
 
-import com.looplingo.horizon.model.LoopMode
+import com.looplingo.horizon.data.dao.SavedTimestampDao
 import com.looplingo.horizon.model.PlaybackConfig
-import com.looplingo.horizon.model.StartAction
+import com.looplingo.horizon.model.SpeedPresets
 import com.looplingo.horizon.repository.PlaybackRepository
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
@@ -16,24 +16,25 @@ import org.junit.Test
 /**
  * Unit tests for [PlaybackSettingsViewModel].
  *
- * Tests cover:
+ * Tests cover the simplified A-B loop system:
  *  - Initial state
  *  - Loading config for a video (saved and default)
- *  - Updating individual config fields
+ *  - Updating individual config fields (range, loop count, speed)
  *  - Saving config (success and failure)
- *  - Validation via validateCurrentConfig()
- *  - Error state management (saveError, clearSaveError, resetSavedState)
+ *  - Error state management (saveError, clearSaveError)
  */
 class PlaybackSettingsViewModelTest {
 
     private lateinit var repository: PlaybackRepository
+    private lateinit var savedTimestampDao: SavedTimestampDao
     private lateinit var viewModel: PlaybackSettingsViewModel
 
     @Before
     fun setUp() {
         kotlinx.coroutines.Dispatchers.setMain(UnconfinedTestDispatcher())
         repository = mockk(relaxed = true)
-        viewModel = PlaybackSettingsViewModel(repository)
+        savedTimestampDao = mockk(relaxed = true)
+        viewModel = PlaybackSettingsViewModel(repository, savedTimestampDao)
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -41,10 +42,13 @@ class PlaybackSettingsViewModelTest {
     // ══════════════════════════════════════════════════════════════════════
 
     @Test
-    fun `initial config has empty videoPath and LOOP_INFINITE`() {
+    fun `initial config has empty videoPath and default values`() {
         val config = viewModel.config.value
         assertThat(config.videoPath).isEmpty()
-        assertThat(config.loopMode).isEqualTo(LoopMode.LOOP_INFINITE)
+        assertThat(config.loopCount).isEqualTo(1)
+        assertThat(config.speed).isEqualTo(1.0f)
+        assertThat(config.rangeEndMs).isEqualTo(-1L)
+        assertThat(config.isNormalPlayback).isTrue()
     }
 
     @Test
@@ -65,17 +69,19 @@ class PlaybackSettingsViewModelTest {
     fun `loadConfigForVideo with saved config updates state`() = runTest {
         val savedConfig = PlaybackConfig(
             videoPath = "/video.mp4",
-            loopMode = LoopMode.LOOP_X_TIMES,
+            rangeStartMs = 5000L,
+            rangeEndMs = 30000L,
             loopCount = 5,
-            autoAdvance = true
+            speed = 0.75f
         )
         coEvery { repository.getConfigForVideo("/video.mp4") } returns savedConfig
 
         viewModel.loadConfigForVideo("/video.mp4")
 
-        assertThat(viewModel.config.value.loopMode).isEqualTo(LoopMode.LOOP_X_TIMES)
+        assertThat(viewModel.config.value.rangeStartMs).isEqualTo(5000L)
+        assertThat(viewModel.config.value.rangeEndMs).isEqualTo(30000L)
         assertThat(viewModel.config.value.loopCount).isEqualTo(5)
-        assertThat(viewModel.config.value.autoAdvance).isTrue()
+        assertThat(viewModel.config.value.speed).isEqualTo(0.75f)
     }
 
     @Test
@@ -85,7 +91,9 @@ class PlaybackSettingsViewModelTest {
         viewModel.loadConfigForVideo("/new.mp4")
 
         assertThat(viewModel.config.value.videoPath).isEqualTo("/new.mp4")
-        assertThat(viewModel.config.value.loopMode).isEqualTo(LoopMode.LOOP_INFINITE)
+        assertThat(viewModel.config.value.loopCount).isEqualTo(1)
+        assertThat(viewModel.config.value.speed).isEqualTo(1.0f)
+        assertThat(viewModel.config.value.isNormalPlayback).isTrue()
     }
 
     @Test
@@ -103,12 +111,11 @@ class PlaybackSettingsViewModelTest {
     // ══════════════════════════════════════════════════════════════════════
 
     @Test
-    fun `updateConfig with loopMode updates only loopMode`() {
-        viewModel.updateConfig(loopMode = LoopMode.FLOW)
+    fun `updateConfig with rangeStartMs and rangeEndMs`() {
+        viewModel.updateConfig(rangeStartMs = 5000L, rangeEndMs = 30000L)
 
-        assertThat(viewModel.config.value.loopMode).isEqualTo(LoopMode.FLOW)
-        // Other fields should remain at their default values
-        assertThat(viewModel.config.value.loopCount).isEqualTo(1)
+        assertThat(viewModel.config.value.rangeStartMs).isEqualTo(5000L)
+        assertThat(viewModel.config.value.rangeEndMs).isEqualTo(30000L)
     }
 
     @Test
@@ -119,35 +126,34 @@ class PlaybackSettingsViewModelTest {
     }
 
     @Test
-    fun `updateConfig with rangeStartMs and rangeEndMs`() {
-        viewModel.updateConfig(rangeStartMs = 5000L, rangeEndMs = 30000L)
+    fun `updateConfig with speed updates only speed`() {
+        viewModel.updateConfig(speed = 0.5f)
 
-        assertThat(viewModel.config.value.rangeStartMs).isEqualTo(5000L)
-        assertThat(viewModel.config.value.rangeEndMs).isEqualTo(30000L)
+        assertThat(viewModel.config.value.speed).isEqualTo(0.5f)
     }
 
     @Test
-    fun `updateConfig with autoAdvance`() {
-        viewModel.updateConfig(autoAdvance = true)
+    fun `updateConfig with 0_25x speed`() {
+        viewModel.updateConfig(speed = 0.25f)
 
-        assertThat(viewModel.config.value.autoAdvance).isTrue()
+        assertThat(viewModel.config.value.speed).isEqualTo(0.25f)
     }
 
     @Test
-    fun `updateConfig with startAction`() {
-        viewModel.updateConfig(startAction = StartAction.WAIT_MANUAL)
+    fun `updateConfig with 2x speed`() {
+        viewModel.updateConfig(speed = 2.0f)
 
-        assertThat(viewModel.config.value.startAction).isEqualTo(StartAction.WAIT_MANUAL)
+        assertThat(viewModel.config.value.speed).isEqualTo(2.0f)
     }
 
     @Test
     fun `updateConfig with null parameters preserves existing values`() {
-        viewModel.updateConfig(loopMode = LoopMode.A_B_PIN, loopCount = 7)
-        viewModel.updateConfig(autoAdvance = true)  // Only update autoAdvance
+        viewModel.updateConfig(rangeStartMs = 5000L, loopCount = 7, speed = 0.75f)
+        viewModel.updateConfig(loopCount = 10)  // Only update loopCount
 
-        assertThat(viewModel.config.value.loopMode).isEqualTo(LoopMode.A_B_PIN)
-        assertThat(viewModel.config.value.loopCount).isEqualTo(7)
-        assertThat(viewModel.config.value.autoAdvance).isTrue()
+        assertThat(viewModel.config.value.rangeStartMs).isEqualTo(5000L)
+        assertThat(viewModel.config.value.loopCount).isEqualTo(10)
+        assertThat(viewModel.config.value.speed).isEqualTo(0.75f)
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -170,7 +176,6 @@ class PlaybackSettingsViewModelTest {
         viewModel.saveConfig()
 
         assertThat(viewModel.saveError.value).isNotNull()
-        assertThat(viewModel.saveError.value).contains("database error")
     }
 
     @Test
@@ -184,48 +189,13 @@ class PlaybackSettingsViewModelTest {
 
     @Test
     fun `saveConfig sanitizes invalid config before saving`() = runTest {
-        viewModel.updateConfig(loopMode = LoopMode.LOOP_X_TIMES, loopCount = 0)
+        viewModel.updateConfig(loopCount = 0)  // Invalid — will be sanitized to 1
         coEvery { repository.saveConfig(any()) } returns true
 
         viewModel.saveConfig()
 
         // The config should be sanitized — loopCount clamped to 1
         assertThat(viewModel.config.value.loopCount).isEqualTo(1)
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // VALIDATE CURRENT CONFIG
-    // ══════════════════════════════════════════════════════════════════════
-
-    @Test
-    fun `validateCurrentConfig returns valid for good config`() = runTest {
-        // Return a valid saved config so videoPath is not blank
-        coEvery { repository.getConfigForVideo("/video.mp4") } returns PlaybackConfig(
-            videoPath = "/video.mp4",
-            loopMode = LoopMode.LOOP_INFINITE
-        )
-        viewModel.loadConfigForVideo("/video.mp4")
-        viewModel.updateConfig(loopMode = LoopMode.LOOP_INFINITE)
-
-        val result = viewModel.validateCurrentConfig()
-        assertThat(result.isValid).isTrue()
-    }
-
-    @Test
-    fun `validateCurrentConfig returns invalid for A_B_PIN without end`() = runTest {
-        coEvery { repository.getConfigForVideo("/video.mp4") } returns PlaybackConfig(
-            videoPath = "/video.mp4",
-            loopMode = LoopMode.A_B_PIN,
-            rangeEndMs = -1L
-        )
-        viewModel.loadConfigForVideo("/video.mp4")
-        viewModel.updateConfig(
-            loopMode = LoopMode.A_B_PIN,
-            rangeEndMs = -1L
-        )
-
-        val result = viewModel.validateCurrentConfig()
-        assertThat(result.isValid).isFalse()
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -243,15 +213,28 @@ class PlaybackSettingsViewModelTest {
         assertThat(viewModel.saveError.value).isNull()
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // DELETE CONFIG
+    // ══════════════════════════════════════════════════════════════════════
+
     @Test
-    fun `resetSavedState clears both isSaved and saveError`() = runTest {
-        coEvery { repository.saveConfig(any()) } returns true
-        viewModel.saveConfig()
-        assertThat(viewModel.isSaved.value).isTrue()
+    fun `deleteConfig resets to default values`() = runTest {
+        coEvery { repository.getConfigForVideo("/video.mp4") } returns PlaybackConfig(
+            videoPath = "/video.mp4",
+            rangeStartMs = 5000L,
+            rangeEndMs = 30000L,
+            loopCount = 5,
+            speed = 0.75f
+        )
+        viewModel.loadConfigForVideo("/video.mp4")
+        assertThat(viewModel.config.value.loopCount).isEqualTo(5)
 
-        viewModel.resetSavedState()
+        coEvery { repository.deleteConfigForVideo("/video.mp4") } returns true
+        viewModel.deleteConfig()
 
-        assertThat(viewModel.isSaved.value).isFalse()
-        assertThat(viewModel.saveError.value).isNull()
+        assertThat(viewModel.config.value.loopCount).isEqualTo(1)
+        assertThat(viewModel.config.value.speed).isEqualTo(1.0f)
+        assertThat(viewModel.config.value.rangeStartMs).isEqualTo(0L)
+        assertThat(viewModel.config.value.rangeEndMs).isEqualTo(-1L)
     }
 }

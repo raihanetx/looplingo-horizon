@@ -27,7 +27,7 @@ class PlaybackRepository constructor(
                         rangeStartMs = it.rangeStartMs.coerceAtLeast(0),
                         rangeEndMs = it.rangeEndMs,
                         loopCount = it.loopCount.coerceAtLeast(1),
-                        speed = it.speed.coerceIn(0.5f, 2.0f)
+                        speed = it.speed.coerceIn(0.25f, 2.0f)
                     )
                     PlaybackConfigValidator.sanitize(config)
                 }

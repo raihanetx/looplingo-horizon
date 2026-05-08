@@ -2,9 +2,7 @@ package com.looplingo.horizon.repository
 
 import com.looplingo.horizon.data.dao.PlaybackRuleDao
 import com.looplingo.horizon.data.entity.PlaybackRuleEntity
-import com.looplingo.horizon.model.LoopMode
 import com.looplingo.horizon.model.PlaybackConfig
-import com.looplingo.horizon.model.StartAction
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -16,11 +14,11 @@ import com.google.common.truth.Truth.assertThat
 /**
  * Unit tests for [PlaybackRepository].
  *
- * Tests cover:
+ * Tests cover the simplified A-B loop system:
  *  - Loading a saved config from Room (happy path)
  *  - Returning null when no config exists for a video
  *  - Handling database errors gracefully (returns null)
- *  - Handling invalid loop mode string from DB (falls back to LOOP_INFINITE)
+ *  - Coercing invalid speed values to valid range
  *  - Saving a valid config
  *  - Saving sanitizes invalid config before persisting
  *  - Handling database save errors (returns false)
@@ -45,12 +43,10 @@ class PlaybackRepositoryTest {
     fun `getConfigForVideo returns config when rule exists`() = runTest {
         val entity = PlaybackRuleEntity(
             videoPath = "/video.mp4",
-            startAction = 0,
             rangeStartMs = 0L,
             rangeEndMs = -1L,
-            loopMode = LoopMode.LOOP_INFINITE.name,  // Stored as enum name string
             loopCount = 1,
-            autoAdvance = false
+            speed = 1.0f
         )
         coEvery { dao.getRuleForVideo("/video.mp4") } returns entity
 
@@ -58,8 +54,8 @@ class PlaybackRepositoryTest {
 
         assertThat(result).isNotNull()
         assertThat(result!!.videoPath).isEqualTo("/video.mp4")
-        assertThat(result.loopMode).isEqualTo(LoopMode.LOOP_INFINITE)
         assertThat(result.loopCount).isEqualTo(1)
+        assertThat(result.speed).isEqualTo(1.0f)
     }
 
     @Test
@@ -81,35 +77,13 @@ class PlaybackRepositoryTest {
     }
 
     @Test
-    fun `getConfigForVideo handles invalid loop mode string gracefully`() = runTest {
-        val entity = PlaybackRuleEntity(
-            videoPath = "/video.mp4",
-            startAction = 0,
-            rangeStartMs = 0L,
-            rangeEndMs = -1L,
-            loopMode = "INVALID_MODE",  // Invalid enum name
-            loopCount = 1,
-            autoAdvance = false
-        )
-        coEvery { dao.getRuleForVideo("/video.mp4") } returns entity
-
-        val result = repository.getConfigForVideo("/video.mp4")
-
-        assertThat(result).isNotNull()
-        // Should fall back to LOOP_INFINITE for invalid mode name
-        assertThat(result!!.loopMode).isEqualTo(LoopMode.LOOP_INFINITE)
-    }
-
-    @Test
     fun `getConfigForVideo coerces negative loopCount to 1`() = runTest {
         val entity = PlaybackRuleEntity(
             videoPath = "/video.mp4",
-            startAction = 0,
             rangeStartMs = 0L,
             rangeEndMs = -1L,
-            loopMode = LoopMode.LOOP_X_TIMES.name,
-            loopCount = -5,  // Invalid
-            autoAdvance = false
+            loopCount = -5,
+            speed = 1.0f
         )
         coEvery { dao.getRuleForVideo("/video.mp4") } returns entity
 
@@ -120,42 +94,71 @@ class PlaybackRepositoryTest {
     }
 
     @Test
-    fun `getConfigForVideo converts startAction to enum`() = runTest {
+    fun `getConfigForVideo coerces speed below minimum to 0_25`() = runTest {
         val entity = PlaybackRuleEntity(
             videoPath = "/video.mp4",
-            startAction = 1,  // WAIT_MANUAL
             rangeStartMs = 0L,
             rangeEndMs = -1L,
-            loopMode = LoopMode.LOOP_INFINITE.name,
             loopCount = 1,
-            autoAdvance = false
+            speed = 0.1f  // Below minimum
         )
         coEvery { dao.getRuleForVideo("/video.mp4") } returns entity
 
         val result = repository.getConfigForVideo("/video.mp4")
 
         assertThat(result).isNotNull()
-        assertThat(result!!.startAction).isEqualTo(StartAction.WAIT_MANUAL)
+        assertThat(result!!.speed).isEqualTo(0.25f)
     }
 
     @Test
-    fun `getConfigForVideo handles out-of-range startAction via fromValue`() = runTest {
+    fun `getConfigForVideo coerces speed above maximum to 2_0`() = runTest {
         val entity = PlaybackRuleEntity(
             videoPath = "/video.mp4",
-            startAction = 99,  // Out of range — fromValue defaults to AUTO_PLAY
             rangeStartMs = 0L,
             rangeEndMs = -1L,
-            loopMode = LoopMode.LOOP_INFINITE.name,
             loopCount = 1,
-            autoAdvance = false
+            speed = 3.0f  // Above maximum
         )
         coEvery { dao.getRuleForVideo("/video.mp4") } returns entity
 
         val result = repository.getConfigForVideo("/video.mp4")
 
         assertThat(result).isNotNull()
-        // StartAction.fromValue(99) defaults to AUTO_PLAY
-        assertThat(result!!.startAction).isEqualTo(StartAction.AUTO_PLAY)
+        assertThat(result!!.speed).isEqualTo(2.0f)
+    }
+
+    @Test
+    fun `getConfigForVideo preserves valid speed values`() = runTest {
+        val entity = PlaybackRuleEntity(
+            videoPath = "/video.mp4",
+            rangeStartMs = 0L,
+            rangeEndMs = -1L,
+            loopCount = 1,
+            speed = 0.75f
+        )
+        coEvery { dao.getRuleForVideo("/video.mp4") } returns entity
+
+        val result = repository.getConfigForVideo("/video.mp4")
+
+        assertThat(result).isNotNull()
+        assertThat(result!!.speed).isEqualTo(0.75f)
+    }
+
+    @Test
+    fun `getConfigForVideo coerces negative rangeStartMs to 0`() = runTest {
+        val entity = PlaybackRuleEntity(
+            videoPath = "/video.mp4",
+            rangeStartMs = -100L,
+            rangeEndMs = -1L,
+            loopCount = 1,
+            speed = 1.0f
+        )
+        coEvery { dao.getRuleForVideo("/video.mp4") } returns entity
+
+        val result = repository.getConfigForVideo("/video.mp4")
+
+        assertThat(result).isNotNull()
+        assertThat(result!!.rangeStartMs).isEqualTo(0L)
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -166,8 +169,8 @@ class PlaybackRepositoryTest {
     fun `saveConfig persists valid config and returns true`() = runTest {
         val config = PlaybackConfig(
             videoPath = "/video.mp4",
-            loopMode = LoopMode.LOOP_X_TIMES,
-            loopCount = 5
+            loopCount = 5,
+            speed = 1.0f
         )
         coEvery { dao.insertRule(any()) } returns Unit
 
@@ -181,8 +184,8 @@ class PlaybackRepositoryTest {
     fun `saveConfig sanitizes invalid config before saving`() = runTest {
         val config = PlaybackConfig(
             videoPath = "/video.mp4",
-            loopMode = LoopMode.LOOP_X_TIMES,
-            loopCount = 0  // Invalid — will be sanitized to 1
+            loopCount = 0,  // Invalid — will be sanitized to 1
+            speed = 1.0f
         )
         coEvery { dao.insertRule(any()) } returns Unit
 
@@ -198,12 +201,10 @@ class PlaybackRepositoryTest {
     }
 
     @Test
-    fun `saveConfig converts StartAction enum to Int for entity`() = runTest {
+    fun `saveConfig preserves speed field in entity`() = runTest {
         val config = PlaybackConfig(
             videoPath = "/video.mp4",
-            startAction = StartAction.WAIT_MANUAL,
-            loopMode = LoopMode.LOOP_INFINITE,
-            loopCount = 1
+            speed = 0.5f
         )
         coEvery { dao.insertRule(any()) } returns Unit
 
@@ -211,7 +212,7 @@ class PlaybackRepositoryTest {
 
         coVerify {
             dao.insertRule(match { entity ->
-                entity.startAction == 1  // WAIT_MANUAL.value
+                entity.speed == 0.5f
             })
         }
     }
@@ -220,8 +221,7 @@ class PlaybackRepositoryTest {
     fun `saveConfig returns false on database error`() = runTest {
         val config = PlaybackConfig(
             videoPath = "/video.mp4",
-            loopMode = LoopMode.LOOP_INFINITE,
-            loopCount = 1
+            speed = 1.0f
         )
         coEvery { dao.insertRule(any()) } throws IllegalStateException("DB error")
 
@@ -251,5 +251,32 @@ class PlaybackRepositoryTest {
         val result = repository.deleteConfigForVideo("/video.mp4")
 
         assertThat(result).isFalse()
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // GET ALL CONFIGURED MODES
+    // ══════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `getAllConfiguredModes returns map of videoPath to displayBadge`() = runTest {
+        val entities = listOf(
+            PlaybackRuleEntity(videoPath = "/a.mp4", rangeStartMs = 0L, rangeEndMs = -1L, loopCount = 1, speed = 1.0f),
+            PlaybackRuleEntity(videoPath = "/b.mp4", rangeStartMs = 5000L, rangeEndMs = 15000L, loopCount = 3, speed = 0.75f)
+        )
+        coEvery { dao.getAllRules() } returns entities
+
+        val result = repository.getAllConfiguredModes()
+
+        assertThat(result["/a.mp4"]).isEmpty()  // Normal playback → empty badge
+        assertThat(result["/b.mp4"]).isEqualTo("AB")  // A-B loop → "AB"
+    }
+
+    @Test
+    fun `getAllConfiguredModes returns empty map on error`() = runTest {
+        coEvery { dao.getAllRules() } throws IllegalStateException("DB error")
+
+        val result = repository.getAllConfiguredModes()
+
+        assertThat(result).isEmpty()
     }
 }

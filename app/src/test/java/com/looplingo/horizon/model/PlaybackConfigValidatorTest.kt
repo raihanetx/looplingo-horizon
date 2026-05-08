@@ -7,14 +7,12 @@ import org.junit.Test
 /**
  * Unit tests for [PlaybackConfigValidator].
  *
- * Tests cover:
+ * Tests cover the simplified A-B loop system:
  *  - Valid configs pass validation
  *  - Invalid loop count (too low, too high)
- *  - Invalid ranges (negative start, end before start)
- *  - A-B Pin specific requirements (requires end, minimum range)
- *  - Invalid start action
+ *  - Invalid ranges (negative start, end before start, too short)
+ *  - Invalid speed values
  *  - Blank video path
- *  - Cross-field consistency warnings
  *  - Sanitization corrects invalid values
  */
 class PlaybackConfigValidatorTest {
@@ -25,12 +23,10 @@ class PlaybackConfigValidatorTest {
     fun setUp() {
         validConfig = PlaybackConfig(
             videoPath = "/storage/emulated/0/video.mp4",
-            startAction = StartAction.AUTO_PLAY,
             rangeStartMs = 0L,
             rangeEndMs = -1L,
-            loopMode = LoopMode.LOOP_INFINITE,
             loopCount = 1,
-            autoAdvance = false
+            speed = 1.0f
         )
     }
 
@@ -39,44 +35,15 @@ class PlaybackConfigValidatorTest {
     // ══════════════════════════════════════════════════════════════════════
 
     @Test
-    fun `valid LOOP_INFINITE config passes validation`() {
+    fun `normal playback config with default values passes validation`() {
         val result = PlaybackConfigValidator.validate(validConfig)
         assertThat(result.isValid).isTrue()
         assertThat(result.errors).isEmpty()
     }
 
     @Test
-    fun `valid PLAY_ONCE config passes validation`() {
-        val config = validConfig.copy(loopMode = LoopMode.PLAY_ONCE)
-        val result = PlaybackConfigValidator.validate(config)
-        assertThat(result.isValid).isTrue()
-    }
-
-    @Test
-    fun `valid LOOP_X_TIMES config passes validation`() {
-        val config = validConfig.copy(loopMode = LoopMode.LOOP_X_TIMES, loopCount = 5)
-        val result = PlaybackConfigValidator.validate(config)
-        assertThat(result.isValid).isTrue()
-    }
-
-    @Test
-    fun `valid FLOW config passes validation`() {
-        val config = validConfig.copy(loopMode = LoopMode.FLOW)
-        val result = PlaybackConfigValidator.validate(config)
-        assertThat(result.isValid).isTrue()
-    }
-
-    @Test
-    fun `valid AUTO_LOOP config passes validation`() {
-        val config = validConfig.copy(loopMode = LoopMode.AUTO_LOOP, loopCount = 3)
-        val result = PlaybackConfigValidator.validate(config)
-        assertThat(result.isValid).isTrue()
-    }
-
-    @Test
-    fun `valid A_B_PIN config passes validation`() {
+    fun `A-B loop config with valid range and loop count passes validation`() {
         val config = validConfig.copy(
-            loopMode = LoopMode.A_B_PIN,
             rangeStartMs = 5000L,
             rangeEndMs = 15000L,
             loopCount = 3
@@ -86,8 +53,29 @@ class PlaybackConfigValidatorTest {
     }
 
     @Test
-    fun `valid config with range start and end`() {
-        val config = validConfig.copy(rangeStartMs = 10000L, rangeEndMs = 30000L)
+    fun `full video loop config with loopCount greater than 1 passes validation`() {
+        val config = validConfig.copy(loopCount = 5)
+        val result = PlaybackConfigValidator.validate(config)
+        assertThat(result.isValid).isTrue()
+    }
+
+    @Test
+    fun `valid config with custom speed passes validation`() {
+        val config = validConfig.copy(speed = 0.75f)
+        val result = PlaybackConfigValidator.validate(config)
+        assertThat(result.isValid).isTrue()
+    }
+
+    @Test
+    fun `valid config with 0_25x speed passes validation`() {
+        val config = validConfig.copy(speed = 0.25f)
+        val result = PlaybackConfigValidator.validate(config)
+        assertThat(result.isValid).isTrue()
+    }
+
+    @Test
+    fun `valid config with 2x speed passes validation`() {
+        val config = validConfig.copy(speed = 2.0f)
         val result = PlaybackConfigValidator.validate(config)
         assertThat(result.isValid).isTrue()
     }
@@ -97,8 +85,8 @@ class PlaybackConfigValidatorTest {
     // ══════════════════════════════════════════════════════════════════════
 
     @Test
-    fun `LOOP_X_TIMES with loopCount 0 fails validation`() {
-        val config = validConfig.copy(loopMode = LoopMode.LOOP_X_TIMES, loopCount = 0)
+    fun `loopCount 0 fails validation`() {
+        val config = validConfig.copy(loopCount = 0)
         val result = PlaybackConfigValidator.validate(config)
         assertThat(result.isValid).isFalse()
         assertThat(result.errors).hasSize(1)
@@ -106,8 +94,8 @@ class PlaybackConfigValidatorTest {
     }
 
     @Test
-    fun `AUTO_LOOP with loopCount exceeding 10000 fails validation`() {
-        val config = validConfig.copy(loopMode = LoopMode.AUTO_LOOP, loopCount = 10001)
+    fun `loopCount exceeding 10000 fails validation`() {
+        val config = validConfig.copy(loopCount = 10001)
         val result = PlaybackConfigValidator.validate(config)
         assertThat(result.isValid).isFalse()
         assertThat(result.errors).hasSize(1)
@@ -115,22 +103,15 @@ class PlaybackConfigValidatorTest {
     }
 
     @Test
-    fun `LOOP_INFINITE with loopCount 0 passes — loopCount not checked for this mode`() {
-        val config = validConfig.copy(loopMode = LoopMode.LOOP_INFINITE, loopCount = 0)
+    fun `loopCount at boundary 1 passes`() {
+        val config = validConfig.copy(loopCount = 1)
         val result = PlaybackConfigValidator.validate(config)
         assertThat(result.isValid).isTrue()
     }
 
     @Test
-    fun `LOOP_X_TIMES with loopCount at boundary 1 passes`() {
-        val config = validConfig.copy(loopMode = LoopMode.LOOP_X_TIMES, loopCount = 1)
-        val result = PlaybackConfigValidator.validate(config)
-        assertThat(result.isValid).isTrue()
-    }
-
-    @Test
-    fun `LOOP_X_TIMES with loopCount at boundary 10000 passes`() {
-        val config = validConfig.copy(loopMode = LoopMode.LOOP_X_TIMES, loopCount = 10000)
+    fun `loopCount at boundary 10000 passes`() {
+        val config = validConfig.copy(loopCount = 10000)
         val result = PlaybackConfigValidator.validate(config)
         assertThat(result.isValid).isTrue()
     }
@@ -179,22 +160,12 @@ class PlaybackConfigValidatorTest {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // VALIDATE — A-B PIN SPECIFIC
+    // VALIDATE — A-B RANGE MINIMUM
     // ══════════════════════════════════════════════════════════════════════
 
     @Test
-    fun `A_B_PIN without end position fails validation`() {
-        val config = validConfig.copy(loopMode = LoopMode.A_B_PIN, rangeEndMs = -1L)
-        val result = PlaybackConfigValidator.validate(config)
-        assertThat(result.isValid).isFalse()
-        assertThat(result.errors).hasSize(1)
-        assertThat(result.errors[0]).contains("end position")
-    }
-
-    @Test
-    fun `A_B_PIN with range less than 1 second fails validation`() {
+    fun `A-B range less than 1 second fails validation`() {
         val config = validConfig.copy(
-            loopMode = LoopMode.A_B_PIN,
             rangeStartMs = 5000L,
             rangeEndMs = 5500L  // 500ms < 1000ms minimum
         )
@@ -204,9 +175,8 @@ class PlaybackConfigValidatorTest {
     }
 
     @Test
-    fun `A_B_PIN with exactly 1 second range passes validation`() {
+    fun `A-B range of exactly 1 second passes validation`() {
         val config = validConfig.copy(
-            loopMode = LoopMode.A_B_PIN,
             rangeStartMs = 5000L,
             rangeEndMs = 6000L  // Exactly 1 second
         )
@@ -215,18 +185,36 @@ class PlaybackConfigValidatorTest {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // VALIDATE — START ACTION & VIDEO PATH
+    // VALIDATE — SPEED
     // ══════════════════════════════════════════════════════════════════════
 
     @Test
-    fun `startAction with unknown value fails validation`() {
-        // Create config with an out-of-range startAction value by direct construction
-        val config = validConfig.copy(startAction = StartAction.fromValue(99))
+    fun `invalid speed value fails validation`() {
+        val config = validConfig.copy(speed = 1.3f)
         val result = PlaybackConfigValidator.validate(config)
-        // StartAction.fromValue(99) defaults to AUTO_PLAY, so it's still valid
-        // This tests that the enum itself prevents invalid values
-        assertThat(result.isValid).isTrue()
+        assertThat(result.isValid).isFalse()
+        assertThat(result.errors.any { it.contains("Invalid speed") }).isTrue()
     }
+
+    @Test
+    fun `speed above maximum 2x fails validation`() {
+        val config = validConfig.copy(speed = 2.5f)
+        val result = PlaybackConfigValidator.validate(config)
+        assertThat(result.isValid).isFalse()
+    }
+
+    @Test
+    fun `all preset speeds pass validation`() {
+        for (preset in SpeedPresets.ALL) {
+            val config = validConfig.copy(speed = preset.speed)
+            val result = PlaybackConfigValidator.validate(config)
+            assertThat(result.isValid).isTrue()
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // VALIDATE — VIDEO PATH
+    // ══════════════════════════════════════════════════════════════════════
 
     @Test
     fun `blank videoPath fails validation`() {
@@ -237,34 +225,6 @@ class PlaybackConfigValidatorTest {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // VALIDATE — CROSS-FIELD WARNINGS
-    // ══════════════════════════════════════════════════════════════════════
-
-    @Test
-    fun `LOOP_INFINITE with autoAdvance produces warning`() {
-        val config = validConfig.copy(loopMode = LoopMode.LOOP_INFINITE, autoAdvance = true)
-        val result = PlaybackConfigValidator.validate(config)
-        assertThat(result.isValid).isTrue()  // Warnings don't block
-        assertThat(result.warnings.any { it.contains("Auto-advance") }).isTrue()
-    }
-
-    @Test
-    fun `PLAY_ONCE with loopCount greater than 1 produces warning`() {
-        val config = validConfig.copy(loopMode = LoopMode.PLAY_ONCE, loopCount = 5)
-        val result = PlaybackConfigValidator.validate(config)
-        assertThat(result.isValid).isTrue()
-        assertThat(result.warnings.any { it.contains("Loop count is ignored") }).isTrue()
-    }
-
-    @Test
-    fun `FLOW with loopCount greater than 1 produces warning`() {
-        val config = validConfig.copy(loopMode = LoopMode.FLOW, loopCount = 3)
-        val result = PlaybackConfigValidator.validate(config)
-        assertThat(result.isValid).isTrue()
-        assertThat(result.warnings.any { it.contains("Loop count is ignored") }).isTrue()
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
     // VALIDATE — MULTIPLE ERRORS
     // ══════════════════════════════════════════════════════════════════════
 
@@ -272,15 +232,14 @@ class PlaybackConfigValidatorTest {
     fun `config with multiple errors reports all of them`() {
         val config = PlaybackConfig(
             videoPath = "",
-            startAction = StartAction.AUTO_PLAY,  // Can't construct invalid StartAction anymore
             rangeStartMs = -100L,
-            rangeEndMs = -1L,
-            loopMode = LoopMode.A_B_PIN,  // Requires valid end
-            loopCount = 0
+            rangeEndMs = 500L,  // end before start (start is negative, but end is positive and start is negative → end > start)
+            loopCount = 0,
+            speed = 99f
         )
         val result = PlaybackConfigValidator.validate(config)
         assertThat(result.isValid).isFalse()
-        // Should have multiple errors: blank path, negative start, no A-B end
+        // Should have multiple errors: blank path, negative start, invalid loop count, invalid speed
         assertThat(result.errors.size).isAtLeast(3)
     }
 
@@ -290,14 +249,14 @@ class PlaybackConfigValidatorTest {
 
     @Test
     fun `sanitize clamps loopCount below 1 to 1`() {
-        val config = validConfig.copy(loopMode = LoopMode.LOOP_X_TIMES, loopCount = 0)
+        val config = validConfig.copy(loopCount = 0)
         val sanitized = PlaybackConfigValidator.sanitize(config)
         assertThat(sanitized.loopCount).isEqualTo(1)
     }
 
     @Test
     fun `sanitize clamps loopCount above 10000 to 10000`() {
-        val config = validConfig.copy(loopMode = LoopMode.LOOP_X_TIMES, loopCount = 99999)
+        val config = validConfig.copy(loopCount = 99999)
         val sanitized = PlaybackConfigValidator.sanitize(config)
         assertThat(sanitized.loopCount).isEqualTo(10000)
     }
@@ -317,43 +276,27 @@ class PlaybackConfigValidatorTest {
     }
 
     @Test
-    fun `sanitize A_B_PIN without valid end falls back to LOOP_INFINITE`() {
-        val config = validConfig.copy(loopMode = LoopMode.A_B_PIN, rangeEndMs = -1L)
-        val sanitized = PlaybackConfigValidator.sanitize(config)
-        assertThat(sanitized.loopMode).isEqualTo(LoopMode.LOOP_INFINITE)
-    }
-
-    @Test
-    fun `sanitize A_B_PIN with too short range extends end to minimum`() {
+    fun `sanitize fixes too short A-B range by extending end to minimum`() {
         val config = validConfig.copy(
-            loopMode = LoopMode.A_B_PIN,
             rangeStartMs = 5000L,
             rangeEndMs = 5500L  // 500ms, too short
         )
         val sanitized = PlaybackConfigValidator.sanitize(config)
-        assertThat(sanitized.loopMode).isEqualTo(LoopMode.A_B_PIN)
         assertThat(sanitized.rangeEndMs).isEqualTo(5000L + 1000L)  // Start + 1 second
     }
 
     @Test
-    fun `sanitize fixes invalid startAction to AUTO_PLAY`() {
-        val config = validConfig.copy(startAction = StartAction.AUTO_PLAY)  // Can't construct invalid
+    fun `sanitize resets invalid speed to default`() {
+        val config = validConfig.copy(speed = 1.3f)
         val sanitized = PlaybackConfigValidator.sanitize(config)
-        assertThat(sanitized.startAction).isEqualTo(StartAction.AUTO_PLAY)
+        assertThat(sanitized.speed).isEqualTo(SpeedPresets.DEFAULT.speed)
     }
 
     @Test
     fun `sanitize does not modify already valid config`() {
-        val config = validConfig.copy(loopMode = LoopMode.LOOP_X_TIMES, loopCount = 5)
+        val config = validConfig.copy(loopCount = 5, speed = 0.75f)
         val sanitized = PlaybackConfigValidator.sanitize(config)
         assertThat(sanitized).isEqualTo(config)
-    }
-
-    @Test
-    fun `sanitize disables autoAdvance for LOOP_INFINITE`() {
-        val config = validConfig.copy(loopMode = LoopMode.LOOP_INFINITE, autoAdvance = true)
-        val sanitized = PlaybackConfigValidator.sanitize(config)
-        assertThat(sanitized.autoAdvance).isFalse()
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -367,38 +310,103 @@ class PlaybackConfigValidatorTest {
 
     @Test
     fun `isValid returns false for invalid config`() {
-        val config = validConfig.copy(loopMode = LoopMode.A_B_PIN, rangeEndMs = -1L)
+        val config = validConfig.copy(loopCount = 0)
         assertThat(PlaybackConfigValidator.isValid(config)).isFalse()
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // LOOPMODE PROPERTIES
+    // PLAYBACKCONFIG COMPUTED PROPERTIES
     // ══════════════════════════════════════════════════════════════════════
 
     @Test
-    fun `LoopMode usesLoopCount is true for LOOP_X_TIMES, AUTO_LOOP, and A_B_PIN`() {
-        assertThat(LoopMode.LOOP_X_TIMES.usesLoopCount).isTrue()
-        assertThat(LoopMode.AUTO_LOOP.usesLoopCount).isTrue()
-        assertThat(LoopMode.A_B_PIN.usesLoopCount).isTrue()
-        assertThat(LoopMode.PLAY_ONCE.usesLoopCount).isFalse()
-        assertThat(LoopMode.LOOP_INFINITE.usesLoopCount).isFalse()
-        assertThat(LoopMode.FLOW.usesLoopCount).isFalse()
+    fun `hasABLoop is true when rangeEndMs is positive and greater than rangeStartMs`() {
+        val config = validConfig.copy(rangeStartMs = 5000L, rangeEndMs = 15000L)
+        assertThat(config.hasABLoop).isTrue()
     }
 
     @Test
-    fun `LoopMode isLooping is false for PLAY_ONCE and FLOW`() {
-        assertThat(LoopMode.PLAY_ONCE.isLooping).isFalse()
-        assertThat(LoopMode.FLOW.isLooping).isFalse()
-        assertThat(LoopMode.LOOP_X_TIMES.isLooping).isTrue()
-        assertThat(LoopMode.LOOP_INFINITE.isLooping).isTrue()
-        assertThat(LoopMode.AUTO_LOOP.isLooping).isTrue()
-        assertThat(LoopMode.A_B_PIN.isLooping).isTrue()
+    fun `hasABLoop is false when rangeEndMs is negative`() {
+        val config = validConfig.copy(rangeStartMs = 0L, rangeEndMs = -1L)
+        assertThat(config.hasABLoop).isFalse()
     }
 
     @Test
-    fun `StartAction fromValue returns correct enum`() {
-        assertThat(StartAction.fromValue(0)).isEqualTo(StartAction.AUTO_PLAY)
-        assertThat(StartAction.fromValue(1)).isEqualTo(StartAction.WAIT_MANUAL)
-        assertThat(StartAction.fromValue(99)).isEqualTo(StartAction.AUTO_PLAY)  // Default
+    fun `willLoop is true when hasABLoop is true`() {
+        val config = validConfig.copy(rangeStartMs = 5000L, rangeEndMs = 15000L, loopCount = 1)
+        assertThat(config.willLoop).isTrue()
+    }
+
+    @Test
+    fun `willLoop is true when loopCount is greater than 1`() {
+        val config = validConfig.copy(loopCount = 3)
+        assertThat(config.willLoop).isTrue()
+    }
+
+    @Test
+    fun `isNormalPlayback is true when no loop and loopCount is 1`() {
+        val config = validConfig.copy(rangeEndMs = -1L, loopCount = 1)
+        assertThat(config.isNormalPlayback).isTrue()
+    }
+
+    @Test
+    fun `isNormalPlayback is false when A-B loop is set`() {
+        val config = validConfig.copy(rangeStartMs = 5000L, rangeEndMs = 15000L, loopCount = 1)
+        assertThat(config.isNormalPlayback).isFalse()
+    }
+
+    @Test
+    fun `displayBadge returns empty for normal playback`() {
+        val config = validConfig.copy(rangeEndMs = -1L, loopCount = 1)
+        assertThat(config.displayBadge).isEmpty()
+    }
+
+    @Test
+    fun `displayBadge returns AB for A-B loop`() {
+        val config = validConfig.copy(rangeStartMs = 5000L, rangeEndMs = 15000L, loopCount = 1)
+        assertThat(config.displayBadge).isEqualTo("AB")
+    }
+
+    @Test
+    fun `displayBadge returns loop count for full video loop`() {
+        val config = validConfig.copy(loopCount = 5)
+        assertThat(config.displayBadge).isEqualTo("x5")
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SPEED PRESETS
+    // ══════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `SpeedPresets ALL contains expected values`() {
+        val speeds = SpeedPresets.ALL.map { it.speed }
+        assertThat(speeds).containsExactly(0.25f, 0.5f, 0.75f, 0.9f, 1.0f, 1.25f, 1.5f, 2.0f)
+    }
+
+    @Test
+    fun `SpeedPresets closestTo returns exact match when available`() {
+        assertThat(SpeedPresets.closestTo(0.75f).speed).isEqualTo(0.75f)
+    }
+
+    @Test
+    fun `SpeedPresets closestTo returns nearest preset for non-preset value`() {
+        val result = SpeedPresets.closestTo(0.8f)
+        assertThat(result.speed).isEqualTo(0.75f)  // 0.75 is closer than 0.9
+    }
+
+    @Test
+    fun `SpeedPresets DEFAULT is 1x`() {
+        assertThat(SpeedPresets.DEFAULT.speed).isEqualTo(1.0f)
+    }
+
+    @Test
+    fun `SpeedPresets maximum is 2x`() {
+        val maxSpeed = SpeedPresets.ALL.maxOf { it.speed }
+        assertThat(maxSpeed).isEqualTo(2.0f)
+    }
+
+    @Test
+    fun `SpeedPresets minimum is 0_25x`() {
+        val minSpeed = SpeedPresets.ALL.minOf { it.speed }
+        assertThat(minSpeed).isEqualTo(0.25f)
     }
 }

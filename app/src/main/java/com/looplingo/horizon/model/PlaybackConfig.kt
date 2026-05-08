@@ -10,8 +10,8 @@ package com.looplingo.horizon.model
  *      then continue playing the rest of the video
  *    - If rangeEndMs <= 0 AND loopCount > 1 → loop the entire video N times
  *
- * Speed presets available: 0.5x, 0.75x, 0.9x, 1.0x, 1.25x, 1.5x, 2.0x
- * Default speed is 1.0x (normal).
+ * Speed presets available: 0.25x, 0.5x, 0.75x, 0.9x, 1.0x, 1.25x, 1.5x, 2.0x
+ * Default speed is 1.0x (normal). Maximum speed is 2.0x.
  */
 data class PlaybackConfig(
     val videoPath: String,
@@ -50,6 +50,7 @@ object SpeedPresets {
     data class Preset(val label: String, val speed: Float)
 
     val ALL = listOf(
+        Preset("0.25x", 0.25f),
         Preset("0.5x", 0.5f),
         Preset("0.75x", 0.75f),
         Preset("0.9x", 0.9f),
