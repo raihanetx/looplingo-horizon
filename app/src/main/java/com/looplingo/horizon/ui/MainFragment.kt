@@ -220,8 +220,11 @@ class MainFragment : Fragment() {
     // MINI PLAYER
     // ══════════════════════════════════════════════════════════════════════
 
+    private fun getMiniPlayerView(): View =
+        binding.root.findViewById(R.id.mini_player_card)
+
     private fun setupMiniPlayer() {
-        val miniPlayer = binding.miniPlayer.root
+        val miniPlayer = getMiniPlayerView()
 
         // Play/Pause toggle
         miniPlayer.findViewById<View>(R.id.iv_mini_play_pause).setOnClickListener {
@@ -341,7 +344,7 @@ class MainFragment : Fragment() {
     }
 
     private fun updateMiniABIndicator() {
-        val indicator = binding.miniPlayer.root.findViewById<TextView>(R.id.tv_mini_ab_indicator)
+        val indicator = getMiniPlayerView().findViewById<TextView>(R.id.tv_mini_ab_indicator)
         if (miniABEndMs > 0 && miniABEndMs > miniABStartMs) {
             indicator.visibility = View.VISIBLE
             indicator.text = "AB"
@@ -362,7 +365,7 @@ class MainFragment : Fragment() {
                     val currentPath = AudioPlaybackService.currentVideoPath
                     val position = AudioPlaybackService.currentPositionMs
 
-                    val miniPlayer = binding.miniPlayer.root
+                    val miniPlayer = getMiniPlayerView()
                     if (currentPath.isNotBlank()) {
                         miniPlayer.visibility = View.VISIBLE
 
