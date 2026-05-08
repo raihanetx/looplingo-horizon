@@ -220,11 +220,19 @@ class MainFragment : Fragment() {
     // MINI PLAYER
     // ══════════════════════════════════════════════════════════════════════
 
-    private fun getMiniPlayerView(): View =
-        binding.root.findViewById(R.id.mini_player_card)
+    /**
+     * Returns the mini player root view, or null if not present in the current layout.
+     * The include tag uses @+id/mini_player which overrides the root's @+id/mini_player_card,
+     * so we must look up by mini_player.
+     */
+    private fun getMiniPlayerView(): View? =
+        binding.root.findViewById(R.id.mini_player)
 
     private fun setupMiniPlayer() {
-        val miniPlayer = getMiniPlayerView()
+        val miniPlayer = getMiniPlayerView() ?: run {
+            Timber.w("Mini player view not available in this layout configuration")
+            return
+        }
 
         // Play/Pause toggle
         miniPlayer.findViewById<View>(R.id.iv_mini_play_pause).setOnClickListener {
@@ -344,7 +352,8 @@ class MainFragment : Fragment() {
     }
 
     private fun updateMiniABIndicator() {
-        val indicator = getMiniPlayerView().findViewById<TextView>(R.id.tv_mini_ab_indicator)
+        val miniPlayer = getMiniPlayerView() ?: return
+        val indicator = miniPlayer.findViewById<TextView>(R.id.tv_mini_ab_indicator)
         if (miniABEndMs > 0 && miniABEndMs > miniABStartMs) {
             indicator.visibility = View.VISIBLE
             indicator.text = "AB"
@@ -361,11 +370,16 @@ class MainFragment : Fragment() {
         miniPlayerPollingRunnable = object : Runnable {
             override fun run() {
                 try {
+                    val miniPlayer = getMiniPlayerView()
+                    if (miniPlayer == null) {
+                        miniPlayerHandler.postDelayed(this, 2000L)
+                        return
+                    }
+
                     val isPlaying = AudioPlaybackService.isPlaying
                     val currentPath = AudioPlaybackService.currentVideoPath
                     val position = AudioPlaybackService.currentPositionMs
 
-                    val miniPlayer = getMiniPlayerView()
                     if (currentPath.isNotBlank()) {
                         miniPlayer.visibility = View.VISIBLE
 

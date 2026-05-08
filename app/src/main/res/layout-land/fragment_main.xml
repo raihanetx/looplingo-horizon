@@ -30,23 +30,40 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Pull-to-refresh wrapper -->
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/swipe_refresh"
+    <!-- Main content area with mini player + video list -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:orientation="vertical"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_video_list"
+        <!-- Mini Player — only visible when audio is playing -->
+        <include
+            android:id="@+id/mini_player"
+            layout="@layout/mini_player"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingTop="@dimen/space_xs"
-            android:paddingBottom="@dimen/space_lg"
-            tools:listitem="@layout/video_item" />
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
 
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+        <!-- Pull-to-refresh wrapper -->
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipe_refresh"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_video_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingTop="@dimen/space_xs"
+                android:paddingBottom="@dimen/space_lg"
+                tools:listitem="@layout/video_item" />
+
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    </LinearLayout>
 
     <!-- Loading indicator -->
     <ProgressBar
