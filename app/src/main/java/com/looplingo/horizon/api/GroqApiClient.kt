@@ -138,7 +138,7 @@ class GroqApiClient {
 
         try {
             if (!sourceFile.exists() || sourceFile.length() == 0L) {
-                throw SubtitleException("Cannot read file: ${source.name}. " +
+                throw SubtitleException("Cannot read file: ${sourceFile.name}. " +
                     "Try selecting the file again or check storage permissions.")
             }
 
@@ -166,7 +166,7 @@ class GroqApiClient {
                 sourceFile
             } else {
                 onProgress?.onProgress("Extracting audio from video…")
-                val extracted = extractAudioTrack(context, sourceFile, filePath)
+                val extracted = extractAudioTrack(sourceFile)
                 if (extracted == null) {
                     Timber.w("Failed to extract audio, trying raw file")
                     if (sourceFile.length() <= GROQ_MAX_FILE_SIZE) {
@@ -201,7 +201,7 @@ class GroqApiClient {
 
             // ── Step 4: Split into format-aware chunks and transcribe each ──
             onProgress?.onProgress("Splitting audio into 30s chunks…")
-            val chunks = splitAudioIntoTimedChunks(context, audioFile, filePath)
+            val chunks = splitAudioIntoTimedChunks(audioFile)
             if (chunks.isEmpty()) {
                 Timber.w("Format-aware split failed, trying byte-level split")
                 val byteChunks = splitAudioByBytes(audioFile)
@@ -464,22 +464,15 @@ class GroqApiClient {
      * Extract the audio track from a video file using MediaExtractor + MediaMuxer.
      * Returns a temporary M4A file, or null if extraction fails.
      *
-     * @param context Context for content:// URI access
-     * @param videoFile The video file to extract audio from
-     * @param originalPath Original path (may be content:// URI) for MediaExtractor
+     * @param videoFile The video file to extract audio from (always a readable file)
      */
-    private fun extractAudioTrack(context: Context, videoFile: File, originalPath: String): File? {
+    private fun extractAudioTrack(videoFile: File): File? {
         val extractor = MediaExtractor()
         var muxer: MediaMuxer? = null
-        val outputFile = File.createTempFile("looplingo_audio_", ".m4a", context.cacheDir)
+        val outputFile = File.createTempFile("looplingo_audio_", ".m4a", videoFile.parentFile ?: File(System.getProperty("java.io.tmpdir")!!))
 
         try {
-            // Use content:// URI if available, otherwise use file path
-            if (originalPath.startsWith("content://")) {
-                extractor.setDataSource(context, Uri.parse(originalPath))
-            } else {
-                extractor.setDataSource(videoFile.absolutePath)
-            }
+            extractor.setDataSource(videoFile.absolutePath)
 
             // Find the first audio track
             var audioTrackIndex = -1
@@ -569,7 +562,7 @@ class GroqApiClient {
      *
      * Each chunk is approximately CHUNK_DURATION_US (30s) long.
      */
-    private fun splitAudioIntoTimedChunks(context: Context, audioFile: File, originalPath: String): List<AudioChunk> {
+    private fun splitAudioIntoTimedChunks(audioFile: File): List<AudioChunk> {
         if (audioFile.length() <= GROQ_MAX_FILE_SIZE) {
             return listOf(AudioChunk(audioFile, 0.0))
         }
@@ -578,12 +571,7 @@ class GroqApiClient {
         val chunks = mutableListOf<AudioChunk>()
 
         try {
-            // Use content:// URI if available for scoped storage compatibility
-            if (originalPath.startsWith("content://")) {
-                extractor.setDataSource(context, Uri.parse(originalPath))
-            } else {
-                extractor.setDataSource(audioFile.absolutePath)
-            }
+            extractor.setDataSource(audioFile.absolutePath)
 
             // Find the audio track
             var audioTrackIndex = -1
@@ -677,8 +665,9 @@ class GroqApiClient {
 
                 if (chunkSamples.isEmpty()) continue
 
-                // Create the chunk file in cache dir (always writable)
-                val chunkFile = File.createTempFile("looplingo_chunk_${chunkIndex}_", ext, context.cacheDir)
+                // Create the chunk file in a writable location
+                val chunkFile = File.createTempFile("looplingo_chunk_${chunkIndex}_", ext,
+                    audioFile.parentFile ?: File(System.getProperty("java.io.tmpdir")!!))
                 var muxer: MediaMuxer? = null
 
                 try {
