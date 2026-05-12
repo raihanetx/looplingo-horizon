@@ -402,11 +402,6 @@ class AudioPlaybackService : LifecycleService() {
     }
 
     /**
-     * Handle a seek request from the transcript UI.
-     * If the requested video matches the currently playing video, just seek.
-     * Otherwise, start playback of the requested video and seek to the position.
-     */
-    /**
      * Handle a live speed change request.
      * Applies immediately to the running ExoPlayer without restarting.
      */

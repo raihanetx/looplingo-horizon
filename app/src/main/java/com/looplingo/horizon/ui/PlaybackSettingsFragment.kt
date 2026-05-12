@@ -573,8 +573,8 @@ class PlaybackSettingsFragment : Fragment() {
         private var selectedPos = -1
 
         inner class DialogueViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-            val tvTime: TextView = view.findViewById(R.id.tv_subtitle_time)
-            val tvText: TextView = view.findViewById(R.id.tv_subtitle_text)
+            val tvTime: TextView = view.findViewById(R.id.tv_cue_timestamp)
+            val tvText: TextView = view.findViewById(R.id.tv_cue_text)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DialogueViewHolder {
