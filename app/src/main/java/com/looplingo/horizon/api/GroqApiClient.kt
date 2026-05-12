@@ -1,8 +1,10 @@
 package com.looplingo.horizon.api
 
+import android.content.Context
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.net.Uri
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
@@ -23,12 +25,18 @@ import java.util.concurrent.TimeUnit
  * Client for the Groq Whisper API — speech-to-text transcription.
  *
  * Smart pipeline for handling large audio/video files:
- *  1. If file is audio-only and under 25MB → send directly
- *  2. If file is a video → extract audio track as M4A
- *  3. If audio is still over 25MB → split into ~30s chunks using MediaExtractor+MediaMuxer
+ *  1. Resolve the file path — handle both file:// and content:// URIs
+ *     (content:// URIs are copied to a temp file via ContentResolver)
+ *  2. If file is audio-only and under 25MB → send directly
+ *  3. If file is a video → extract audio track as M4A
+ *  4. If audio is still over 25MB → split into ~30s chunks using MediaExtractor+MediaMuxer
  *     (format-aware splitting that produces valid playable audio)
- *  4. Send each chunk to Groq Whisper with progress updates
- *  5. Merge all segments with proper time offsets
+ *  5. Send each chunk to Groq Whisper with progress updates
+ *  6. Merge all segments with proper time offsets
+ *
+ * IMPORTANT: This class requires a [Context] for scoped storage access.
+ * On Android 10+ (API 29+), raw file paths may be inaccessible via java.io.File,
+ * but content:// URIs work fine through ContentResolver.
  */
 class GroqApiClient {
 
@@ -66,6 +74,12 @@ class GroqApiClient {
         fun onProgress(step: String)
     }
 
+    /**
+     * Thrown when subtitle generation fails with a specific reason.
+     * The fragment can show this message to the user.
+     */
+    class SubtitleException(message: String) : Exception(message)
+
     // ── JSON response models ──────────────────────────────────────────
 
     private data class TranscriptionResponse(
@@ -90,35 +104,47 @@ class GroqApiClient {
      * Transcribe an audio/video file using the Groq Whisper API.
      *
      * Smart pipeline:
-     *  - Audio files under 25MB → send directly
-     *  - Video files → extract audio track → send audio only
-     *  - Audio still over 25MB → split into 30s chunks using format-aware splitting
-     *    → transcribe each → merge with time offsets
+     *  1. Resolve the file — handle both file:// and content:// URIs
+     *  2. Audio files under 25MB → send directly
+     *  3. Video files → extract audio track → send audio only
+     *  4. Audio still over 25MB → split into 30s chunks
+     *     → transcribe each → merge with time offsets
      *
+     * @param context Android context for ContentResolver access
      * @param apiKey Groq API key
-     * @param filePath Path to the audio/video file
+     * @param filePath File path or content:// URI to the audio/video file
      * @param onProgress Callback for UI progress updates
      * @return List of timed segments with absolute timestamps
+     * @throws SubtitleException if transcription fails with a known reason
      */
     suspend fun transcribeAudio(
+        context: Context,
         apiKey: String,
         filePath: String,
         onProgress: ProgressCallback? = null
     ): List<Segment> = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) {
-            Timber.w("Groq API key is blank — cannot transcribe")
-            return@withContext emptyList()
+            throw SubtitleException("Groq API key is blank — enter your API key first")
         }
 
-        val sourceFile = File(filePath)
-        if (!sourceFile.exists()) {
-            Timber.w("File not found: %s", filePath)
-            return@withContext emptyList()
+        if (filePath.isBlank()) {
+            throw SubtitleException("No file selected — go back and pick an audio/video file")
         }
 
-        Timber.i("Starting transcription: %s (%.1fMB)", sourceFile.name, sourceFile.length() / (1024.0 * 1024.0))
+        // ── Step 0: Resolve to a readable file ────────────────────────
+        // Handles both file:// paths and content:// URIs (scoped storage)
+        onProgress?.onProgress("Preparing audio file…")
+        val (sourceFile, cleanupSource) = resolveToReadableFile(context, filePath)
 
         try {
+            if (!sourceFile.exists() || sourceFile.length() == 0L) {
+                throw SubtitleException("Cannot read file: ${source.name}. " +
+                    "Try selecting the file again or check storage permissions.")
+            }
+
+            Timber.i("Starting transcription: %s (%.1fMB)",
+                sourceFile.name, sourceFile.length() / (1024.0 * 1024.0))
+
             val ext = sourceFile.extension.lowercase()
             val isAudioOnly = ext in setOf("mp3", "m4a", "wav", "ogg", "flac", "aac", "opus", "wma", "3gp")
 
@@ -127,6 +153,11 @@ class GroqApiClient {
                 onProgress?.onProgress("Sending audio to Groq Whisper…")
                 val segments = callWhisperApi(apiKey, sourceFile)
                 Timber.i("Direct transcription: %d segments", segments.size)
+
+                if (segments.isEmpty()) {
+                    throw SubtitleException("No speech detected in this audio. " +
+                        "Make sure the file contains clear speech.")
+                }
                 return@withContext segments
             }
 
@@ -135,15 +166,20 @@ class GroqApiClient {
                 sourceFile
             } else {
                 onProgress?.onProgress("Extracting audio from video…")
-                val extracted = extractAudioTrack(sourceFile)
+                val extracted = extractAudioTrack(context, sourceFile, filePath)
                 if (extracted == null) {
                     Timber.w("Failed to extract audio, trying raw file")
                     if (sourceFile.length() <= GROQ_MAX_FILE_SIZE) {
                         onProgress?.onProgress("Sending file to Groq Whisper…")
-                        return@withContext callWhisperApi(apiKey, sourceFile)
+                        val segments = callWhisperApi(apiKey, sourceFile)
+                        if (segments.isEmpty()) {
+                            throw SubtitleException("No speech detected. Make sure the audio has clear speech.")
+                        }
+                        return@withContext segments
                     } else {
-                        Timber.e("File too large and audio extraction failed")
-                        return@withContext emptyList()
+                        throw SubtitleException("Audio extraction failed and file is too large " +
+                            "(${String.format("%.1f", sourceFile.length() / (1024.0 * 1024.0))}MB). " +
+                            "Try a shorter video.")
                     }
                 }
                 extracted
@@ -155,28 +191,167 @@ class GroqApiClient {
                 val segments = callWhisperApi(apiKey, audioFile)
                 cleanupTempFile(audioFile, sourceFile)
                 Timber.i("Audio transcription: %d segments", segments.size)
+
+                if (segments.isEmpty()) {
+                    throw SubtitleException("No speech detected in this audio. " +
+                        "Make sure the file contains clear speech.")
+                }
                 return@withContext segments
             }
 
             // ── Step 4: Split into format-aware chunks and transcribe each ──
             onProgress?.onProgress("Splitting audio into 30s chunks…")
-            val chunks = splitAudioIntoTimedChunks(audioFile)
+            val chunks = splitAudioIntoTimedChunks(context, audioFile, filePath)
             if (chunks.isEmpty()) {
                 Timber.w("Format-aware split failed, trying byte-level split")
                 val byteChunks = splitAudioByBytes(audioFile)
                 if (byteChunks.isEmpty()) {
-                    Timber.e("All splitting methods failed")
                     cleanupTempFile(audioFile, sourceFile)
-                    return@withContext emptyList()
+                    throw SubtitleException("Failed to split audio file. " +
+                        "File may be corrupted or in an unsupported format.")
                 }
                 return@withContext transcribeChunks(apiKey, byteChunks, audioFile, sourceFile, onProgress)
             }
 
             val result = transcribeChunks(apiKey, chunks, audioFile, sourceFile, onProgress)
+            if (result.isEmpty()) {
+                throw SubtitleException("No speech detected across all audio chunks. " +
+                    "Make sure the file contains clear speech.")
+            }
             result
+        } finally {
+            // Clean up the resolved temp file if it was copied from content://
+            cleanupSource()
+        }
+    }
+
+    /**
+     * Resolve a file path or content:// URI to a readable File.
+     *
+     * On Android 10+ (scoped storage), raw file paths from MediaStore.DATA
+     * may not be accessible via java.io.File. This method:
+     *  - If the path is a content:// URI → copies the content to a temp file via ContentResolver
+     *  - If the file exists and is readable → uses it directly
+     *  - If the file doesn't exist via File API → tries to guess the content URI and copy
+     *
+     * Returns the File and a cleanup function to delete the temp file when done.
+     */
+    private fun resolveToReadableFile(context: Context, filePath: String): Pair<File, () -> Unit> {
+        // Case 1: It's a content:// URI — copy to temp file
+        if (filePath.startsWith("content://")) {
+            Timber.i("Resolving content:// URI to temp file")
+            val tempFile = copyContentUriToTempFile(context, filePath)
+            return Pair(tempFile) { tempFile.delete() }
+        }
+
+        // Case 2: It's a file path that we can access directly
+        val directFile = File(filePath)
+        if (directFile.exists() && directFile.canRead()) {
+            Timber.i("Using file path directly: %s", filePath)
+            return Pair(directFile) { /* no cleanup needed */ }
+        }
+
+        // Case 3: File path is not accessible (scoped storage) — try to resolve via MediaStore
+        Timber.w("File not accessible via File API, trying content resolver: %s", filePath)
+        try {
+            val contentUri = resolvePathToContentUri(context, filePath)
+            if (contentUri != null) {
+                val tempFile = copyContentUriToTempFile(context, contentUri)
+                return Pair(tempFile) { tempFile.delete() }
+            }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to transcribe audio via Groq API")
-            emptyList()
+            Timber.e(e, "Failed to resolve path to content URI")
+        }
+
+        // Case 4: Last resort — return the File anyway (will fail with a clear error message)
+        Timber.w("Could not resolve file: %s", filePath)
+        return Pair(directFile) { /* nothing to clean up */ }
+    }
+
+    /**
+     * Copy content from a content:// URI to a temporary file.
+     */
+    private fun copyContentUriToTempFile(context: Context, contentUri: String): File {
+        val uri = Uri.parse(contentUri)
+        val tempFile = File.createTempFile("looplingo_input_", ".mp4", context.cacheDir)
+
+        try {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    input.copyTo(output, 64 * 1024)
+                }
+            } ?: throw SubtitleException("Cannot open content URI: $contentUri")
+        } catch (e: SubtitleException) {
+            tempFile.delete()
+            throw e
+        } catch (e: Exception) {
+            tempFile.delete()
+            throw SubtitleException("Failed to read file from storage: ${e.message}")
+        }
+
+        Timber.i("Copied content URI to temp file: %.1fKB", tempFile.length() / 1024.0)
+
+        // Try to guess the actual extension from the URI and rename
+        val guessedExt = guessExtensionFromUri(context, uri)
+        if (guessedExt != null && guessedExt != "mp4") {
+            val renamedFile = File(tempFile.parent, tempFile.nameWithoutExtension + ".$guessedExt")
+            if (tempFile.renameTo(renamedFile)) {
+                return renamedFile
+            }
+        }
+
+        return tempFile
+    }
+
+    /**
+     * Try to guess the file extension from a content URI using ContentResolver.
+     */
+    private fun guessExtensionFromUri(context: Context, uri: Uri): String? {
+        return try {
+            val mimeType = context.contentResolver.getType(uri)
+            when {
+                mimeType == null -> null
+                mimeType.startsWith("audio/mpeg") -> "mp3"
+                mimeType.startsWith("audio/mp4") || mimeType.startsWith("audio/aac") -> "m4a"
+                mimeType.startsWith("audio/ogg") || mimeType.startsWith("audio/opus") -> "ogg"
+                mimeType.startsWith("audio/wav") -> "wav"
+                mimeType.startsWith("audio/flac") -> "flac"
+                mimeType.startsWith("audio/webm") -> "webm"
+                mimeType.startsWith("video/mp4") -> "mp4"
+                mimeType.startsWith("video/3gpp") -> "3gp"
+                mimeType.startsWith("video/webm") -> "webm"
+                else -> mimeType.substringAfterLast('/')
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Try to resolve a raw file path to a content:// URI using MediaStore.
+     */
+    private fun resolvePathToContentUri(context: Context, filePath: String): String? {
+        return try {
+            val projection = arrayOf(android.provider.MediaStore.Video.Media._ID)
+            val selection = "${android.provider.MediaStore.Video.Media.DATA} = ?"
+            val selectionArgs = arrayOf(filePath)
+
+            context.contentResolver.query(
+                android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                projection, selection, selectionArgs, null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Video.Media._ID)
+                    val id = cursor.getLong(idColumn)
+                    "${android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI}/$id"
+                } else {
+                    // Try audio MediaStore too
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to query MediaStore for path: %s", filePath)
+            null
         }
     }
 
@@ -288,14 +463,23 @@ class GroqApiClient {
     /**
      * Extract the audio track from a video file using MediaExtractor + MediaMuxer.
      * Returns a temporary M4A file, or null if extraction fails.
+     *
+     * @param context Context for content:// URI access
+     * @param videoFile The video file to extract audio from
+     * @param originalPath Original path (may be content:// URI) for MediaExtractor
      */
-    private fun extractAudioTrack(videoFile: File): File? {
+    private fun extractAudioTrack(context: Context, videoFile: File, originalPath: String): File? {
         val extractor = MediaExtractor()
         var muxer: MediaMuxer? = null
-        val outputFile = File.createTempFile("looplingo_audio_", ".m4a", videoFile.parentFile)
+        val outputFile = File.createTempFile("looplingo_audio_", ".m4a", context.cacheDir)
 
         try {
-            extractor.setDataSource(videoFile.absolutePath)
+            // Use content:// URI if available, otherwise use file path
+            if (originalPath.startsWith("content://")) {
+                extractor.setDataSource(context, Uri.parse(originalPath))
+            } else {
+                extractor.setDataSource(videoFile.absolutePath)
+            }
 
             // Find the first audio track
             var audioTrackIndex = -1
@@ -385,7 +569,7 @@ class GroqApiClient {
      *
      * Each chunk is approximately CHUNK_DURATION_US (30s) long.
      */
-    private fun splitAudioIntoTimedChunks(audioFile: File): List<AudioChunk> {
+    private fun splitAudioIntoTimedChunks(context: Context, audioFile: File, originalPath: String): List<AudioChunk> {
         if (audioFile.length() <= GROQ_MAX_FILE_SIZE) {
             return listOf(AudioChunk(audioFile, 0.0))
         }
@@ -394,7 +578,12 @@ class GroqApiClient {
         val chunks = mutableListOf<AudioChunk>()
 
         try {
-            extractor.setDataSource(audioFile.absolutePath)
+            // Use content:// URI if available for scoped storage compatibility
+            if (originalPath.startsWith("content://")) {
+                extractor.setDataSource(context, Uri.parse(originalPath))
+            } else {
+                extractor.setDataSource(audioFile.absolutePath)
+            }
 
             // Find the audio track
             var audioTrackIndex = -1
@@ -479,7 +668,6 @@ class GroqApiClient {
                 val chunkStartUs = chunkIndex * CHUNK_DURATION_US
                 val chunkEndUs = (chunkIndex + 1) * CHUNK_DURATION_US
 
-                // Find samples that fall within this chunk's time range
                 // Include a small overlap before chunk start for context (up to 500ms before)
                 val contextStartUs = (chunkStartUs - 500_000).coerceAtLeast(0)
 
@@ -489,8 +677,8 @@ class GroqApiClient {
 
                 if (chunkSamples.isEmpty()) continue
 
-                // Create the chunk file
-                val chunkFile = File.createTempFile("looplingo_chunk_${chunkIndex}_", ext, audioFile.parentFile)
+                // Create the chunk file in cache dir (always writable)
+                val chunkFile = File.createTempFile("looplingo_chunk_${chunkIndex}_", ext, context.cacheDir)
                 var muxer: MediaMuxer? = null
 
                 try {
@@ -592,7 +780,8 @@ class GroqApiClient {
                 if (remaining <= 0) break
 
                 val thisChunkSize = minOf(chunkSize, remaining)
-                val chunkFile = File.createTempFile("looplingo_chunk_${i}_", ".m4a", audioFile.parentFile)
+                val chunkFile = File.createTempFile("looplingo_chunk_${i}_", ".m4a",
+                    audioFile.parentFile ?: File(System.getProperty("java.io.tmpdir")!!))
 
                 val fos = FileOutputStream(chunkFile)
                 val transferBuffer = ByteArray(64 * 1024)

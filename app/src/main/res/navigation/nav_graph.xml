@@ -22,6 +22,10 @@
         <argument
             android:name="videoPath"
             app:argType="string" />
+        <argument
+            android:name="contentUri"
+            app:argType="string"
+            android:defaultValue="" />
     </fragment>
 
 </navigation>

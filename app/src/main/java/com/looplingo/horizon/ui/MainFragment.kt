@@ -204,7 +204,7 @@ class MainFragment : Fragment() {
     private fun setupSettingsButton() {
         videoAdapter.onVideoLongClick = { video ->
             try {
-                val action = MainFragmentDirections.actionMainToPlaybackSettings(video.path)
+                val action = MainFragmentDirections.actionMainToPlaybackSettings(video.path, video.contentUri)
                 findNavController().navigate(action)
             } catch (e: Exception) {
                 Timber.e(e, "Failed to navigate to settings for: %s", video.title)

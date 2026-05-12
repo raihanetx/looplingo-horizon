@@ -23,6 +23,7 @@ import com.looplingo.horizon.BuildConfig
 import com.looplingo.horizon.R
 import com.looplingo.horizon.api.GroqApiClient
 import com.looplingo.horizon.api.GroqApiClient.Segment
+import com.looplingo.horizon.api.GroqApiClient.SubtitleException
 import com.looplingo.horizon.databinding.FragmentPlaybackSettingsBinding
 import com.looplingo.horizon.model.SpeedPresets
 import com.looplingo.horizon.playback.AudioPlaybackService
@@ -292,6 +293,9 @@ class PlaybackSettingsFragment : Fragment() {
             }
 
             val videoPath = args.videoPath
+            val contentUri = args.contentUri
+            // Use contentUri if available (scoped storage), otherwise use file path
+            val effectivePath = if (contentUri.isNotBlank()) contentUri else videoPath
             if (videoPath.isBlank()) {
                 showSnackbar(getString(R.string.error_invalid_video_path))
                 return@setOnClickListener
@@ -306,7 +310,7 @@ class PlaybackSettingsFragment : Fragment() {
             lifecycleScope.launch {
                 try {
                     val segments = withContext(Dispatchers.IO) {
-                        groqApiClient.transcribeAudio(apiKey, videoPath) { step ->
+                        groqApiClient.transcribeAudio(requireContext(), apiKey, effectivePath) { step ->
                             // Update progress on main thread
                             lifecycleScope.launch(Dispatchers.Main) {
                                 binding.tvSubtitleStatus.text = step
@@ -324,6 +328,12 @@ class PlaybackSettingsFragment : Fragment() {
                         binding.tvSubtitleStatus.text = getString(R.string.subtitle_generated, segments.size)
                         showDialogueList(segments)
                     }
+                } catch (e: SubtitleException) {
+                    Timber.e(e, "Subtitle generation failed")
+                    isGeneratingSubtitles = false
+                    binding.progressSubtitles.visibility = View.GONE
+                    binding.tvSubtitleStatus.text = e.message ?: getString(R.string.subtitle_error_short)
+                    showSnackbar(e.message ?: getString(R.string.subtitle_error_short))
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to generate subtitles")
                     isGeneratingSubtitles = false
