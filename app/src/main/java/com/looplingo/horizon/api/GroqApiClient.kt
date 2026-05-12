@@ -303,9 +303,10 @@ class GroqApiClient {
             muxer.start()
 
             val buffer = android.media.MediaCodec.BufferInfo()
-            val inputBuffer = ByteArray(256 * 1024)  // 256KB buffer
+            val inputBuffer = java.nio.ByteBuffer.allocate(256 * 1024)  // 256KB buffer
 
             while (true) {
+                inputBuffer.clear()
                 val sampleSize = extractor.readSampleData(inputBuffer, 0)
                 if (sampleSize < 0) break
 
@@ -314,7 +315,9 @@ class GroqApiClient {
                 buffer.flags = extractor.sampleFlags
                 buffer.presentationTimeUs = extractor.sampleTime
 
-                muxer.writeSampleData(muxerTrackIndex, java.nio.ByteBuffer.wrap(inputBuffer, 0, sampleSize), buffer)
+                inputBuffer.position(0)
+                inputBuffer.limit(sampleSize)
+                muxer.writeSampleData(muxerTrackIndex, inputBuffer, buffer)
                 extractor.advance()
             }
 
