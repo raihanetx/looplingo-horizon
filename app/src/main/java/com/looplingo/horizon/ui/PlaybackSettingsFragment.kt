@@ -110,8 +110,8 @@ class PlaybackSettingsFragment : Fragment() {
             AudioPlaybackService.seekBackward(requireContext(), 5000L)
         }
 
-        binding.ivForward10.setOnClickListener {
-            AudioPlaybackService.seekForward(requireContext(), 10000L)
+        binding.ivForward5.setOnClickListener {
+            AudioPlaybackService.seekForward(requireContext(), 5000L)
         }
     }
 
@@ -238,7 +238,9 @@ class PlaybackSettingsFragment : Fragment() {
         if (savedKey.isNotBlank()) {
             binding.etGroqApiKey.setText(savedKey)
         } else if (BuildConfig.GROQ_API_KEY.isNotBlank()) {
+            // Pre-fill from BuildConfig so user doesn't have to type it
             binding.etGroqApiKey.setText(BuildConfig.GROQ_API_KEY)
+            saveGroqApiKey(BuildConfig.GROQ_API_KEY)
         }
     }
 
@@ -251,12 +253,24 @@ class PlaybackSettingsFragment : Fragment() {
         loadSavedApiKey()
         updateApiKeyBanner()
 
+        // Save API key button — explicit save action
+        binding.btnSaveApiKey.setOnClickListener {
+            val key = binding.etGroqApiKey.text.toString().trim()
+            if (key.isNotBlank()) {
+                saveGroqApiKey(key)
+                updateApiKeyBanner()
+                showSnackbar(getString(R.string.groq_api_key_saved))
+            } else {
+                showSnackbar(getString(R.string.error_no_api_key))
+            }
+        }
+
+        // Also save on focus lost
         binding.etGroqApiKey.setOnFocusChangeListener { _, hasFocus ->
             if (!hasFocus) {
                 val key = binding.etGroqApiKey.text.toString().trim()
                 if (key.isNotBlank()) {
                     saveGroqApiKey(key)
-                    showSnackbar(getString(R.string.groq_api_key_saved))
                     updateApiKeyBanner()
                 }
             }
@@ -592,6 +606,9 @@ class PlaybackSettingsFragment : Fragment() {
     private fun showSnackbar(message: String, action: (() -> Unit)? = null) {
         view?.let { rootView ->
             val snackbar = Snackbar.make(rootView, message, Snackbar.LENGTH_LONG)
+            snackbar.setBackgroundTint(resources.getColor(R.color.colorInverseSurface, null))
+            snackbar.setTextColor(resources.getColor(R.color.colorInverseOnSurface, null))
+            snackbar.setActionTextColor(resources.getColor(R.color.colorInversePrimary, null))
             if (action != null) {
                 snackbar.setAction(getString(R.string.retry)) { action() }
             }

@@ -92,7 +92,7 @@
 
                     </LinearLayout>
 
-                    <!-- Row 2: Transport controls (rewind 5s, play/pause, stop, forward 10s) -->
+                    <!-- Row 2: Transport controls (rewind 5s, play/pause, stop, forward 5s) -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -102,8 +102,8 @@
 
                         <ImageView
                             android:id="@+id/iv_rewind_5"
-                            android:layout_width="44dp"
-                            android:layout_height="44dp"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:contentDescription="@string/content_desc_rewind_5"
                             android:scaleType="centerInside"
@@ -112,8 +112,8 @@
 
                         <ImageView
                             android:id="@+id/iv_play_pause"
-                            android:layout_width="52dp"
-                            android:layout_height="52dp"
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
                             android:layout_marginHorizontal="@dimen/space_md"
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:contentDescription="@string/content_desc_play_pause"
@@ -123,8 +123,8 @@
 
                         <ImageView
                             android:id="@+id/iv_stop"
-                            android:layout_width="44dp"
-                            android:layout_height="44dp"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:contentDescription="@string/content_desc_stop"
                             android:scaleType="centerInside"
@@ -132,14 +132,14 @@
                             app:tint="@color/colorOnPrimaryContainer" />
 
                         <ImageView
-                            android:id="@+id/iv_forward_10"
-                            android:layout_width="44dp"
-                            android:layout_height="44dp"
+                            android:id="@+id/iv_forward_5"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
                             android:layout_marginStart="@dimen/space_md"
                             android:background="?attr/selectableItemBackgroundBorderless"
-                            android:contentDescription="@string/content_desc_forward_10"
+                            android:contentDescription="@string/content_desc_forward_5"
                             android:scaleType="centerInside"
-                            app:srcCompat="@drawable/ic_forward_10"
+                            app:srcCompat="@drawable/ic_forward_5"
                             app:tint="@color/colorOnPrimaryContainer" />
 
                     </LinearLayout>
@@ -359,29 +359,31 @@
                     android:orientation="vertical"
                     android:padding="@dimen/space_md">
 
-                    <!-- API Key banner — eye-catching so user knows to enter credentials -->
+                    <!-- API Key banner — prominent warning when no key is set -->
                     <TextView
                         android:id="@+id/tv_api_key_banner"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/api_key_required_banner"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
-                        android:textColor="@color/colorOnSecondaryContainer"
-                        android:background="@color/colorSecondaryContainer"
+                        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                        android:textColor="@color/colorOnErrorContainer"
+                        android:background="@color/colorErrorContainer"
                         android:paddingHorizontal="@dimen/space_md"
-                        android:paddingVertical="@dimen/space_sm"
-                        android:layout_marginBottom="@dimen/space_md" />
+                        android:paddingVertical="@dimen/space_md"
+                        android:layout_marginBottom="@dimen/space_md"
+                        android:visibility="gone" />
 
-                    <!-- Groq API Key input -->
+                    <!-- Groq API Key input — always visible and prominent -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/til_groq_api_key"
-                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                        style="@style/Widget.Horizon.TextInputLayout.Filled"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="@string/hint_groq_api_key"
                         app:helperText="@string/groq_api_key_helper"
                         app:helperTextEnabled="true"
-                        app:endIconMode="password_toggle">
+                        app:endIconMode="password_toggle"
+                        app:startIconDrawable="@drawable/ic_key">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/et_groq_api_key"
@@ -391,6 +393,19 @@
                             android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
 
                     </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Save API key button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_save_api_key"
+                        style="@style/Widget.Horizon.Button.Outlined"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="end"
+                        android:layout_marginTop="@dimen/space_sm"
+                        android:text="@string/btn_save_api_key"
+                        android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                        app:icon="@drawable/ic_check"
+                        app:iconGravity="textStart" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_generate_subtitles"

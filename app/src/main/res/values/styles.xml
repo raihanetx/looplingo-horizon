@@ -189,9 +189,11 @@
 
     <style name="Widget.Horizon.Snackbar" parent="Widget.Material3.Snackbar">
         <item name="actionTextColorAlpha">1.0</item>
+        <item name="android:backgroundTint">@color/colorInverseSurface</item>
     </style>
 
-    <style name="Widget.Horizon.Snackbar.TextView" parent="Widget.Material3.Snackbar">
+    <style name="Widget.Horizon.Snackbar.TextView" parent="Widget.Material3.Snackbar.TextView">
         <item name="android:textAppearance">@style/TextAppearance.Horizon.BodyMedium</item>
+        <item name="android:textColor">@color/colorInverseOnSurface</item>
     </style>
 </resources>

@@ -603,6 +603,9 @@ class MainFragment : Fragment() {
     private fun showSnackbarWithRetry(message: String) {
         view?.let { rootView ->
             Snackbar.make(rootView, message, Snackbar.LENGTH_LONG)
+                .setBackgroundTint(resources.getColor(R.color.colorInverseSurface, null))
+                .setTextColor(resources.getColor(R.color.colorInverseOnSurface, null))
+                .setActionTextColor(resources.getColor(R.color.colorInversePrimary, null))
                 .setAction(getString(R.string.retry)) {
                     viewModel.refreshVideos()
                 }
@@ -613,6 +616,9 @@ class MainFragment : Fragment() {
     private fun showSnackbar(message: String, actionLabel: String? = null, action: (() -> Unit)? = null) {
         view?.let { rootView ->
             val snackbar = Snackbar.make(rootView, message, Snackbar.LENGTH_LONG)
+            snackbar.setBackgroundTint(resources.getColor(R.color.colorInverseSurface, null))
+            snackbar.setTextColor(resources.getColor(R.color.colorInverseOnSurface, null))
+            snackbar.setActionTextColor(resources.getColor(R.color.colorInversePrimary, null))
             if (actionLabel != null && action != null) {
                 snackbar.setAction(actionLabel) { action() }
             }
