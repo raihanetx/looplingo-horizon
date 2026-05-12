@@ -1,5 +1,6 @@
 package com.looplingo.horizon.ui
 
+import android.content.Context
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -43,7 +44,7 @@ import java.util.concurrent.TimeUnit
  *  - "Save" button commits the settings to the database
  *  - AI Subtitles: generate transcript from audio using Groq Whisper API
  *  - Dialogue looping: tap a dialogue line to loop it N times
- *  - Now playing indicator when the current video is active
+ *  - Now playing indicator with transport controls (play/pause, stop, skip)
  */
 @AndroidEntryPoint
 class PlaybackSettingsFragment : Fragment() {
@@ -66,6 +67,10 @@ class PlaybackSettingsFragment : Fragment() {
     private var dialogueLoopCount: Int = 3
     private var isGeneratingSubtitles: Boolean = false
 
+    // SharedPreferences for Groq API key
+    private val prefsName = "looplingo_prefs"
+    private val keyGroqApiKey = "groq_api_key"
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPlaybackSettingsBinding.inflate(inflater, container, false)
         return binding.root
@@ -82,6 +87,7 @@ class PlaybackSettingsFragment : Fragment() {
 
         viewModel.loadConfigForVideo(videoPath)
         setupToolbar()
+        setupTransportControls()
         setupSpeedChips()
         setupTryLoopButton()
         setupApplyButton()
@@ -94,6 +100,72 @@ class PlaybackSettingsFragment : Fragment() {
 
     private fun setupToolbar() {
         binding.toolbar.setNavigationOnClickListener { findNavController().navigateUp() }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // TRANSPORT CONTROLS — Play/Pause, Stop, Skip Forward/Backward
+    // ══════════════════════════════════════════════════════════════════════
+
+    private fun setupTransportControls() {
+        // Play/Pause button
+        binding.ivPlayPause.setOnClickListener {
+            val isCurrentlyPlaying = AudioPlaybackService.isPlaying &&
+                AudioPlaybackService.currentVideoPath == args.videoPath
+
+            if (isCurrentlyPlaying) {
+                // Toggle pause/play
+                AudioPlaybackService.togglePlayback(requireContext())
+            } else {
+                // Start playback
+                AudioPlaybackService.startService(requireContext(), args.videoPath)
+            }
+        }
+
+        // Stop button
+        binding.ivStop.setOnClickListener {
+            AudioPlaybackService.stopService(requireContext())
+        }
+
+        // Rewind 10s
+        binding.ivRewind10.setOnClickListener {
+            AudioPlaybackService.seekBackward(requireContext(), 10000L)
+        }
+
+        // Rewind 5s
+        binding.ivRewind5.setOnClickListener {
+            AudioPlaybackService.seekBackward(requireContext(), 5000L)
+        }
+
+        // Forward 5s
+        binding.ivForward5.setOnClickListener {
+            AudioPlaybackService.seekForward(requireContext(), 5000L)
+        }
+
+        // Forward 10s
+        binding.ivForward10.setOnClickListener {
+            AudioPlaybackService.seekForward(requireContext(), 10000L)
+        }
+    }
+
+    private fun updateTransportControlState() {
+        val isCurrentlyPlaying = AudioPlaybackService.isPlaying &&
+            AudioPlaybackService.currentVideoPath == args.videoPath
+
+        // Update play/pause icon
+        binding.ivPlayPause.setImageResource(
+            if (isCurrentlyPlaying) R.drawable.ic_pause else R.drawable.ic_play
+        )
+
+        // Update now playing info
+        if (isCurrentlyPlaying) {
+            val title = AudioPlaybackService.currentVideoPath.substringAfterLast("/").substringBeforeLast(".")
+            binding.tvNowPlayingTitle.text = title
+            binding.tvNowPlayingPosition.text = formatMsToTime(AudioPlaybackService.currentPositionMs)
+        } else if (AudioPlaybackService.currentVideoPath.isBlank()) {
+            // Service not running at all
+            binding.tvNowPlayingTitle.text = args.videoPath.substringAfterLast("/").substringBeforeLast(".")
+            binding.tvNowPlayingPosition.text = getString(R.string.now_playing_idle)
+        }
     }
 
     private fun setupSpeedChips() {
@@ -197,17 +269,67 @@ class PlaybackSettingsFragment : Fragment() {
     // ══════════════════════════════════════════════════════════════════════
 
     /**
-     * Get the Groq API key from BuildConfig, which reads from
-     * GROQ_API_KEY environment variable or local.properties.
-     * No hardcoded API keys.
+     * Get the Groq API key. Priority:
+     * 1. User-entered key in the API key field (SharedPreferences)
+     * 2. BuildConfig key (from local.properties / env var at build time)
      */
     private fun getGroqApiKey(): String {
+        // First check SharedPreferences for user-entered key
+        val prefs = requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        val savedKey = prefs.getString(keyGroqApiKey, "") ?: ""
+        if (savedKey.isNotBlank()) return savedKey
+
+        // Fallback to BuildConfig (build-time key)
         return BuildConfig.GROQ_API_KEY
     }
 
+    /**
+     * Save the Groq API key to SharedPreferences.
+     */
+    private fun saveGroqApiKey(apiKey: String) {
+        requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+            .edit()
+            .putString(keyGroqApiKey, apiKey.trim())
+            .apply()
+    }
+
+    /**
+     * Load the saved API key into the input field.
+     */
+    private fun loadSavedApiKey() {
+        val prefs = requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        val savedKey = prefs.getString(keyGroqApiKey, "") ?: ""
+        if (savedKey.isNotBlank()) {
+            binding.etGroqApiKey.setText(savedKey)
+        } else if (BuildConfig.GROQ_API_KEY.isNotBlank()) {
+            // Show the build-time key as pre-filled value
+            binding.etGroqApiKey.setText(BuildConfig.GROQ_API_KEY)
+        }
+    }
+
     private fun setupSubtitleGeneration() {
+        // Load saved API key
+        loadSavedApiKey()
+
+        // Save API key on text change (debounced via focus change)
+        binding.etGroqApiKey.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                val key = binding.etGroqApiKey.text.toString().trim()
+                if (key.isNotBlank()) {
+                    saveGroqApiKey(key)
+                    showSnackbar(getString(R.string.groq_api_key_saved))
+                }
+            }
+        }
+
         binding.btnGenerateSubtitles.setOnClickListener {
             if (isGeneratingSubtitles) return@setOnClickListener
+
+            // Save API key before using it
+            val enteredKey = binding.etGroqApiKey.text.toString().trim()
+            if (enteredKey.isNotBlank()) {
+                saveGroqApiKey(enteredKey)
+            }
 
             val apiKey = getGroqApiKey()
             if (apiKey.isBlank()) {
@@ -349,6 +471,9 @@ class PlaybackSettingsFragment : Fragment() {
     // ══════════════════════════════════════════════════════════════════════
 
     private fun setupNowPlayingCard() {
+        // Show video title immediately
+        binding.tvNowPlayingTitle.text = args.videoPath.substringAfterLast("/").substringBeforeLast(".")
+        binding.tvNowPlayingPosition.text = getString(R.string.now_playing_idle)
         startPositionPolling()
     }
 
@@ -357,18 +482,7 @@ class PlaybackSettingsFragment : Fragment() {
         positionPollingRunnable = object : Runnable {
             override fun run() {
                 try {
-                    val isPlaying = AudioPlaybackService.isPlaying
-                    val currentPath = AudioPlaybackService.currentVideoPath
-                    val position = AudioPlaybackService.currentPositionMs
-
-                    if (isPlaying && currentPath == args.videoPath) {
-                        binding.cardNowPlaying.visibility = View.VISIBLE
-                        val title = currentPath.substringAfterLast("/").substringBeforeLast(".")
-                        binding.tvNowPlayingTitle.text = title
-                        binding.tvNowPlayingPosition.text = formatMsToTime(position)
-                    } else {
-                        binding.cardNowPlaying.visibility = View.GONE
-                    }
+                    updateTransportControlState()
                 } catch (e: Exception) {
                     Timber.w(e, "Position polling error")
                 }
