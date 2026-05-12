@@ -69,6 +69,30 @@
     <string name="sort_by_duration">Duration (longest first)</string>
     <string name="sort_by_size">File size (largest first)</string>
 
+    <!-- Transport Controls -->
+    <string name="content_desc_seek_bar">Seek to position</string>
+    <string name="content_desc_rewind_5">Rewind 5 seconds</string>
+    <string name="content_desc_rewind_10">Rewind 10 seconds</string>
+    <string name="content_desc_forward_5">Forward 5 seconds</string>
+    <string name="content_desc_forward_10">Forward 10 seconds</string>
+
+    <!-- AI Subtitles -->
+    <string name="section_ai_subtitles">AI Subtitles</string>
+    <string name="btn_generate_subtitles">Generate Subtitles</string>
+    <string name="subtitle_generating">Generating subtitles…</string>
+    <string name="subtitle_generated">%d dialogue segments found</string>
+    <string name="subtitle_no_segments">No dialogue segments detected</string>
+    <string name="subtitle_error">Subtitle error: %s</string>
+    <string name="subtitle_error_short">Failed to generate subtitles</string>
+    <string name="error_no_api_key">Groq API key not configured. Set GROQ_API_KEY in local.properties.</string>
+
+    <!-- Dialogue Looping -->
+    <string name="dialogue_loop_count_label">Loop count:</string>
+    <string name="btn_loop_dialogue">Loop</string>
+    <string name="dialogue_selected">Selected: %s…</string>
+    <string name="dialogue_loop_active">Looping x%d: %s…</string>
+    <string name="error_no_dialogue_selected">Select a dialogue line first</string>
+
     <!-- Accessibility -->
     <string name="content_desc_video_icon">Audio track icon</string>
     <string name="content_desc_loop_badge">Loop mode badge</string>

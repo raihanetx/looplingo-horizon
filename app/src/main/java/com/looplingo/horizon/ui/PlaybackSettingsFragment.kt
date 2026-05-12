@@ -14,26 +14,35 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.chip.Chip
 import com.google.android.material.snackbar.Snackbar
+import com.looplingo.horizon.BuildConfig
 import com.looplingo.horizon.R
+import com.looplingo.horizon.api.GroqApiClient
+import com.looplingo.horizon.api.GroqApiClient.Segment
 import com.looplingo.horizon.databinding.FragmentPlaybackSettingsBinding
 import com.looplingo.horizon.model.SpeedPresets
 import com.looplingo.horizon.playback.AudioPlaybackService
 import com.looplingo.horizon.ui.viewmodel.PlaybackSettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
 /**
- * Playback settings with A-B loop, speed control (instant apply), and try-before-save.
+ * Playback settings with A-B loop, speed control (instant apply), try-before-save,
+ * AI subtitle generation via Groq STT, and dialogue looping.
  *
  * Key UX improvements:
  *  - Speed changes apply instantly to playing audio (no save needed)
  *  - "Try Loop" button previews the A-B loop before saving
  *  - "Save" button commits the settings to the database
- *  - Transcript/subtitle section removed for simpler, focused UX
+ *  - AI Subtitles: generate transcript from audio using Groq Whisper API
+ *  - Dialogue looping: tap a dialogue line to loop it N times
  *  - Now playing indicator when the current video is active
  */
 @AndroidEntryPoint
@@ -49,6 +58,13 @@ class PlaybackSettingsFragment : Fragment() {
     private val positionHandler = Handler(Looper.getMainLooper())
     private var positionPollingRunnable: Runnable? = null
     private val POSITION_POLL_INTERVAL_MS = 500L
+
+    // AI Subtitle state
+    private val groqApiClient = GroqApiClient()
+    private var dialogueSegments: List<Segment> = emptyList()
+    private var selectedSegmentIndex: Int = -1
+    private var dialogueLoopCount: Int = 3
+    private var isGeneratingSubtitles: Boolean = false
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPlaybackSettingsBinding.inflate(inflater, container, false)
@@ -71,6 +87,8 @@ class PlaybackSettingsFragment : Fragment() {
         setupApplyButton()
         setupClearButton()
         setupNowPlayingCard()
+        setupSubtitleGeneration()
+        setupDialogueLoopControls()
         setupObservers()
     }
 
@@ -171,6 +189,158 @@ class PlaybackSettingsFragment : Fragment() {
                 }, 1000)
                 showSnackbar(getString(R.string.loop_preview_active))
             }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // AI SUBTITLES — Groq STT Integration
+    // ══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Get the Groq API key from BuildConfig, which reads from
+     * GROQ_API_KEY environment variable or local.properties.
+     * No hardcoded API keys.
+     */
+    private fun getGroqApiKey(): String {
+        return BuildConfig.GROQ_API_KEY
+    }
+
+    private fun setupSubtitleGeneration() {
+        binding.btnGenerateSubtitles.setOnClickListener {
+            if (isGeneratingSubtitles) return@setOnClickListener
+
+            val apiKey = getGroqApiKey()
+            if (apiKey.isBlank()) {
+                showSnackbar(getString(R.string.error_no_api_key))
+                return@setOnClickListener
+            }
+
+            val videoPath = args.videoPath
+            if (videoPath.isBlank()) {
+                showSnackbar(getString(R.string.error_invalid_video_path))
+                return@setOnClickListener
+            }
+
+            isGeneratingSubtitles = true
+            binding.progressSubtitles.visibility = View.VISIBLE
+            binding.tvSubtitleStatus.visibility = View.VISIBLE
+            binding.tvSubtitleStatus.text = getString(R.string.subtitle_generating)
+            binding.btnGenerateSubtitles.isEnabled = false
+
+            lifecycleScope.launch {
+                try {
+                    val segments = withContext(Dispatchers.IO) {
+                        groqApiClient.transcribeAudio(apiKey, videoPath)
+                    }
+
+                    dialogueSegments = segments
+                    isGeneratingSubtitles = false
+                    binding.progressSubtitles.visibility = View.GONE
+
+                    if (segments.isEmpty()) {
+                        binding.tvSubtitleStatus.text = getString(R.string.subtitle_no_segments)
+                    } else {
+                        binding.tvSubtitleStatus.text = getString(R.string.subtitle_generated, segments.size)
+                        showDialogueList(segments)
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to generate subtitles")
+                    isGeneratingSubtitles = false
+                    binding.progressSubtitles.visibility = View.GONE
+                    binding.tvSubtitleStatus.text = getString(R.string.subtitle_error, e.message ?: "Unknown")
+                    showSnackbar(getString(R.string.subtitle_error_short))
+                } finally {
+                    binding.btnGenerateSubtitles.isEnabled = true
+                }
+            }
+        }
+    }
+
+    private fun showDialogueList(segments: List<Segment>) {
+        binding.rvDialogueList.visibility = View.VISIBLE
+        binding.layoutDialogueLoopControls.visibility = View.VISIBLE
+
+        binding.rvDialogueList.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = DialogueAdapter(segments) { segment, index ->
+                selectedSegmentIndex = index
+                onDialogueSegmentSelected(segment)
+            }
+        }
+    }
+
+    private fun onDialogueSegmentSelected(segment: Segment) {
+        // Fill the A-B range with the segment's start/end times
+        binding.etRangeStart.setText(formatMsToTime(segment.startMs))
+        binding.etRangeEnd.setText(formatMsToTime(segment.endMs))
+
+        // If currently playing, seek to the segment start
+        val isCurrentlyPlaying = AudioPlaybackService.isPlaying &&
+            AudioPlaybackService.currentVideoPath == args.videoPath
+
+        if (isCurrentlyPlaying) {
+            AudioPlaybackService.seekToPosition(requireContext(), args.videoPath, segment.startMs)
+        }
+
+        showSnackbar(getString(R.string.dialogue_selected, segment.text.take(30)))
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // DIALOGUE LOOP CONTROLS
+    // ══════════════════════════════════════════════════════════════════════
+
+    private fun setupDialogueLoopControls() {
+        binding.tvDialogueLoopCount.text = dialogueLoopCount.toString()
+
+        binding.btnDialogueLoopMinus.setOnClickListener {
+            if (dialogueLoopCount > 1) {
+                dialogueLoopCount--
+                binding.tvDialogueLoopCount.text = dialogueLoopCount.toString()
+            }
+        }
+
+        binding.btnDialogueLoopPlus.setOnClickListener {
+            if (dialogueLoopCount < 100) {
+                dialogueLoopCount++
+                binding.tvDialogueLoopCount.text = dialogueLoopCount.toString()
+            }
+        }
+
+        binding.btnLoopDialogue.setOnClickListener {
+            if (selectedSegmentIndex < 0 || selectedSegmentIndex >= dialogueSegments.size) {
+                showSnackbar(getString(R.string.error_no_dialogue_selected))
+                return@setOnClickListener
+            }
+
+            val segment = dialogueSegments[selectedSegmentIndex]
+            val loopCount = dialogueLoopCount
+
+            // Apply the dialogue loop as an A-B loop
+            val isCurrentlyPlaying = AudioPlaybackService.isPlaying &&
+                AudioPlaybackService.currentVideoPath == args.videoPath
+
+            if (isCurrentlyPlaying) {
+                AudioPlaybackService.setABLoop(
+                    requireContext(),
+                    args.videoPath,
+                    segment.startMs,
+                    segment.endMs,
+                    loopCount
+                )
+            } else {
+                AudioPlaybackService.startService(requireContext(), args.videoPath)
+                positionHandler.postDelayed({
+                    AudioPlaybackService.setABLoop(
+                        requireContext(),
+                        args.videoPath,
+                        segment.startMs,
+                        segment.endMs,
+                        loopCount
+                    )
+                }, 1000)
+            }
+
+            showSnackbar(getString(R.string.dialogue_loop_active, loopCount, segment.text.take(20)))
         }
     }
 
@@ -389,5 +559,43 @@ class PlaybackSettingsFragment : Fragment() {
         super.onDestroyView()
         stopPositionPolling()
         _binding = null
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // DIALOGUE ADAPTER — RecyclerView for subtitle segments
+    // ══════════════════════════════════════════════════════════════════════
+
+    private inner class DialogueAdapter(
+        private val segments: List<Segment>,
+        private val onSegmentClick: (Segment, Int) -> Unit
+    ) : RecyclerView.Adapter<DialogueAdapter.DialogueViewHolder>() {
+
+        private var selectedPos = -1
+
+        inner class DialogueViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val tvTime: TextView = view.findViewById(R.id.tv_subtitle_time)
+            val tvText: TextView = view.findViewById(R.id.tv_subtitle_text)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DialogueViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_subtitle_cue, parent, false)
+            return DialogueViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: DialogueViewHolder, position: Int) {
+            val segment = segments[position]
+            holder.tvTime.text = "${formatMsToTime(segment.startMs)} → ${formatMsToTime(segment.endMs)}"
+            holder.tvText.text = segment.text
+
+            holder.itemView.isSelected = (position == selectedPos)
+            holder.itemView.setOnClickListener {
+                selectedPos = position
+                notifyDataSetChanged()
+                onSegmentClick(segment, position)
+            }
+        }
+
+        override fun getItemCount() = segments.size
     }
 }

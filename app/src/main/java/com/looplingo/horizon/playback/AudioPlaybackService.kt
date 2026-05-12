@@ -73,8 +73,11 @@ class AudioPlaybackService : LifecycleService() {
         const val ACTION_SEEK_TO = "com.looplingo.horizon.SEEK_TO"
         const val ACTION_SET_SPEED = "com.looplingo.horizon.SET_SPEED"
         const val ACTION_SET_AB_LOOP = "com.looplingo.horizon.SET_AB_LOOP"
+        const val ACTION_SEEK_FORWARD = "com.looplingo.horizon.SEEK_FORWARD"
+        const val ACTION_SEEK_BACKWARD = "com.looplingo.horizon.SEEK_BACKWARD"
         const val EXTRA_VIDEO_PATH = "video_path"
         const val EXTRA_SEEK_POSITION_MS = "seek_position_ms"
+        const val EXTRA_SEEK_OFFSET_MS = "seek_offset_ms"
         const val EXTRA_SPEED = "speed"
         const val EXTRA_RANGE_START_MS = "range_start_ms"
         const val EXTRA_RANGE_END_MS = "range_end_ms"
@@ -106,11 +109,16 @@ class AudioPlaybackService : LifecycleService() {
         var currentVideoPath: String = ""
             private set
 
+        @Volatile
+        var durationMs: Long = 0L
+            private set
+
         /** Update static playback state — called from the service instance. */
-        fun updateState(playing: Boolean, position: Long, videoPath: String) {
+        fun updateState(playing: Boolean, position: Long, videoPath: String, duration: Long = durationMs) {
             isPlaying = playing
             currentPositionMs = position
             currentVideoPath = videoPath
+            durationMs = duration
         }
 
         /** Reset static state when service stops. */
@@ -118,6 +126,7 @@ class AudioPlaybackService : LifecycleService() {
             isPlaying = false
             currentPositionMs = 0L
             currentVideoPath = ""
+            durationMs = 0L
         }
 
         fun startService(context: Context, videoPath: String) {
@@ -194,6 +203,53 @@ class AudioPlaybackService : LifecycleService() {
                 action = ACTION_STOP
             }
             context.startService(intent)
+        }
+
+        /**
+         * Seek forward by the given offset in milliseconds.
+         * Used by the transport controls in the mini player.
+         */
+        fun seekForward(context: Context, offsetMs: Long = 5000L) {
+            val intent = Intent(context, AudioPlaybackService::class.java).apply {
+                action = ACTION_SEEK_FORWARD
+                putExtra(EXTRA_SEEK_OFFSET_MS, offsetMs)
+            }
+            try {
+                context.startService(intent)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to send seek forward request")
+            }
+        }
+
+        /**
+         * Seek backward by the given offset in milliseconds.
+         * Used by the transport controls in the mini player.
+         */
+        fun seekBackward(context: Context, offsetMs: Long = 5000L) {
+            val intent = Intent(context, AudioPlaybackService::class.java).apply {
+                action = ACTION_SEEK_BACKWARD
+                putExtra(EXTRA_SEEK_OFFSET_MS, offsetMs)
+            }
+            try {
+                context.startService(intent)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to send seek backward request")
+            }
+        }
+
+        /**
+         * Toggle play/pause — static helper for UI components.
+         * Sends a toggle broadcast intent to the running service.
+         */
+        fun togglePlayback(context: Context) {
+            val intent = Intent(context, AudioPlaybackService::class.java).apply {
+                action = ACTION_TOGGLE_PLAYBACK
+            }
+            try {
+                context.startService(intent)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to send toggle playback request")
+            }
         }
     }
 
@@ -301,6 +357,15 @@ class AudioPlaybackService : LifecycleService() {
                     handleABLoopChange(videoPath, rangeStartMs, rangeEndMs, loopCount)
                 }
             }
+            ACTION_SEEK_FORWARD -> {
+                val offsetMs = intent.getLongExtra(EXTRA_SEEK_OFFSET_MS, 5000L)
+                handleSeekForward(offsetMs)
+            }
+            ACTION_SEEK_BACKWARD -> {
+                val offsetMs = intent.getLongExtra(EXTRA_SEEK_OFFSET_MS, 5000L)
+                handleSeekBackward(offsetMs)
+            }
+            ACTION_TOGGLE_PLAYBACK -> togglePlayback()
             ACTION_STOP -> stopSelf()
         }
         return START_NOT_STICKY
@@ -592,12 +657,15 @@ class AudioPlaybackService : LifecycleService() {
      *
      * Decision tree:
      *  - Normal playback (no loop): play next video or stop
-     *  - A-B Loop: if iterations < loopCount → restart at A; else continue from B to end
+     *  - A-B Loop (already completed via monitor): continue from B to end, then advance
+     *  - A-B Loop (STATE_ENDED before monitor caught B): increment, restart at A or continue
      *  - Full Loop (no A-B, loopCount>1): if iterations < loopCount → restart from 0; else next/stop
+     *
+     * Bug fix: no longer double-counts iterations. The A-B monitor already increments
+     * currentLoopIteration when it catches position >= B, so we only increment here
+     * when the A-B monitor hasn't already handled it.
      */
     private fun handlePlaybackEnded() {
-        currentLoopIteration++
-
         if (currentConfig.isNormalPlayback) {
             // No looping configured — just play next or stop
             advanceToNextVideo()
@@ -605,21 +673,30 @@ class AudioPlaybackService : LifecycleService() {
         }
 
         if (currentConfig.hasABLoop) {
-            // A-B Loop mode
-            if (currentLoopIteration < currentConfig.loopCount) {
-                // Still looping the A-B segment
-                Timber.d("A-B loop iteration %d/%d", currentLoopIteration, currentConfig.loopCount)
-                seekToA()
-            } else {
-                // A-B loop completed — continue playing from B to end of video
-                Timber.d("A-B loop completed after %d iterations, continuing to end", currentConfig.loopCount)
-                abLoopCompleted = true
-                cancelAbMonitor()
-                // The video will naturally reach STATE_ENDED again when it finishes
+            if (abLoopCompleted) {
+                // A-B loop was already completed by the monitor, and the video has now
+                // played from B to the actual end — advance to next video
+                Timber.d("A-B loop done, video played from B to end — advancing")
                 advanceToNextVideo()
+            } else {
+                // STATE_ENDED fired before A-B monitor caught B (e.g. short video or overshoot)
+                currentLoopIteration++
+                if (currentLoopIteration < currentConfig.loopCount) {
+                    Timber.d("A-B loop iteration %d/%d (via STATE_ENDED)", currentLoopIteration, currentConfig.loopCount)
+                    seekToA()
+                    scheduleAbCheck()
+                } else {
+                    // Loop count reached — seek to B and continue to end instead of skipping
+                    Timber.d("A-B loop completed after %d iterations, continuing from B to end", currentConfig.loopCount)
+                    abLoopCompleted = true
+                    cancelAbMonitor()
+                    exoPlayer?.seekTo(currentConfig.rangeEndMs)
+                    exoPlayer?.play()
+                }
             }
         } else {
             // Full video loop (no A-B range)
+            currentLoopIteration++
             if (currentLoopIteration < currentConfig.loopCount) {
                 Timber.d("Full loop iteration %d/%d", currentLoopIteration, currentConfig.loopCount)
                 exoPlayer?.seekTo(0)
@@ -677,6 +754,37 @@ class AudioPlaybackService : LifecycleService() {
             Timber.e(e, "Failed to toggle playback")
         }
         updateNotification()
+    }
+
+    /**
+     * Handle a seek-forward request from transport controls.
+     * Seeks forward by the given offset, clamped to the video duration.
+     */
+    private fun handleSeekForward(offsetMs: Long) {
+        try {
+            val currentPos = exoPlayer?.currentPosition ?: 0L
+            val duration = exoPlayer?.duration ?: 0L
+            val newPos = (currentPos + offsetMs).coerceAtMost(if (duration > 0) duration else Long.MAX_VALUE)
+            exoPlayer?.seekTo(newPos)
+            Timber.d("Seek forward %dms → %dms", offsetMs, newPos)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to seek forward")
+        }
+    }
+
+    /**
+     * Handle a seek-backward request from transport controls.
+     * Seeks backward by the given offset, clamped to position 0.
+     */
+    private fun handleSeekBackward(offsetMs: Long) {
+        try {
+            val currentPos = exoPlayer?.currentPosition ?: 0L
+            val newPos = (currentPos - offsetMs).coerceAtLeast(0L)
+            exoPlayer?.seekTo(newPos)
+            Timber.d("Seek backward %dms → %dms", offsetMs, newPos)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to seek backward")
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -769,8 +877,9 @@ class AudioPlaybackService : LifecycleService() {
             override fun run() {
                 try {
                     val pos = exoPlayer?.currentPosition ?: 0L
+                    val dur = exoPlayer?.duration ?: 0L
                     val playing = exoPlayer?.isPlaying == true
-                    updateState(playing, pos, currentVideoPath)
+                    updateState(playing, pos, currentVideoPath, dur)
                 } catch (_: Exception) {
                     // Keep last known state
                 }

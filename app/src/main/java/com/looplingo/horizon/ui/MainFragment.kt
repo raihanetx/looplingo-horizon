@@ -13,6 +13,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -228,25 +229,18 @@ class MainFragment : Fragment() {
     private fun getMiniPlayerView(): View? =
         binding.root.findViewById(R.id.mini_player)
 
+    private var isSeekBarTracking: Boolean = false
+
     private fun setupMiniPlayer() {
         val miniPlayer = getMiniPlayerView() ?: run {
             Timber.w("Mini player view not available in this layout configuration")
             return
         }
 
-        // Play/Pause toggle
+        // Play/Pause toggle — uses static togglePlayback()
         miniPlayer.findViewById<View>(R.id.iv_mini_play_pause).setOnClickListener {
             try {
-                val isPlaying = AudioPlaybackService.isPlaying
-                if (isPlaying) {
-                    AudioPlaybackService.stopService(requireContext())
-                } else {
-                    // Restart the last video — for simplicity, use the service's current path
-                    val lastPath = AudioPlaybackService.currentVideoPath
-                    if (lastPath.isNotBlank()) {
-                        AudioPlaybackService.startService(requireContext(), lastPath)
-                    }
-                }
+                AudioPlaybackService.togglePlayback(requireContext())
             } catch (e: Exception) {
                 Timber.e(e, "Failed to toggle playback from mini player")
             }
@@ -255,6 +249,63 @@ class MainFragment : Fragment() {
         // Close/Stop button
         miniPlayer.findViewById<View>(R.id.iv_mini_close).setOnClickListener {
             AudioPlaybackService.stopService(requireContext())
+        }
+
+        // Transport controls — seek forward/backward
+        miniPlayer.findViewById<View>(R.id.iv_mini_rewind_5).setOnClickListener {
+            AudioPlaybackService.seekBackward(requireContext(), 5000L)
+        }
+        miniPlayer.findViewById<View>(R.id.iv_mini_rewind_10).setOnClickListener {
+            AudioPlaybackService.seekBackward(requireContext(), 10000L)
+        }
+        miniPlayer.findViewById<View>(R.id.iv_mini_forward_5).setOnClickListener {
+            AudioPlaybackService.seekForward(requireContext(), 5000L)
+        }
+        miniPlayer.findViewById<View>(R.id.iv_mini_forward_10).setOnClickListener {
+            AudioPlaybackService.seekForward(requireContext(), 10000L)
+        }
+
+        // Seek bar — drag to seek, update position on progress
+        miniPlayer.findViewById<SeekBar>(R.id.seek_bar_mini).setOnSeekBarChangeListener(
+            object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        val duration = AudioPlaybackService.durationMs
+                        if (duration > 0) {
+                            val newPos = (progress.toLong() * duration) / 1000
+                            miniPlayer.findViewById<TextView>(R.id.tv_mini_position).text = formatMsToTime(newPos)
+                        }
+                    }
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                    isSeekBarTracking = true
+                }
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                    isSeekBarTracking = false
+                    val duration = AudioPlaybackService.durationMs
+                    if (duration > 0 && seekBar != null) {
+                        val newPos = (seekBar.progress.toLong() * duration) / 1000
+                        val videoPath = AudioPlaybackService.currentVideoPath
+                        if (videoPath.isNotBlank()) {
+                            AudioPlaybackService.seekToPosition(requireContext(), videoPath, newPos)
+                        }
+                    }
+                }
+            }
+        )
+
+        // Loop count stepper
+        miniPlayer.findViewById<View>(R.id.btn_mini_loop_minus).setOnClickListener {
+            if (miniABLoopCount > 1) {
+                miniABLoopCount--
+                miniPlayer.findViewById<TextView>(R.id.tv_mini_loop_count).text = miniABLoopCount.toString()
+            }
+        }
+        miniPlayer.findViewById<View>(R.id.btn_mini_loop_plus).setOnClickListener {
+            if (miniABLoopCount < 100) {
+                miniABLoopCount++
+                miniPlayer.findViewById<TextView>(R.id.tv_mini_loop_count).text = miniABLoopCount.toString()
+            }
         }
 
         // Speed chips — instant apply
@@ -379,6 +430,7 @@ class MainFragment : Fragment() {
                     val isPlaying = AudioPlaybackService.isPlaying
                     val currentPath = AudioPlaybackService.currentVideoPath
                     val position = AudioPlaybackService.currentPositionMs
+                    val duration = AudioPlaybackService.durationMs
 
                     if (currentPath.isNotBlank()) {
                         miniPlayer.visibility = View.VISIBLE
@@ -387,12 +439,24 @@ class MainFragment : Fragment() {
                         val title = currentPath.substringAfterLast("/").substringBeforeLast(".")
                         miniPlayer.findViewById<TextView>(R.id.tv_mini_title).text = title
 
-                        // Update position
-                        miniPlayer.findViewById<TextView>(R.id.tv_mini_position).text = formatMsToTime(position)
+                        // Update position / duration
+                        val posText = if (duration > 0) "${formatMsToTime(position)} / ${formatMsToTime(duration)}" else formatMsToTime(position)
+                        miniPlayer.findViewById<TextView>(R.id.tv_mini_position).text = posText
+
+                        // Update seek bar (only if user is not dragging)
+                        if (!isSeekBarTracking && duration > 0) {
+                            val seekProgress = ((position * 1000) / duration).toInt().coerceIn(0, 1000)
+                            miniPlayer.findViewById<SeekBar>(R.id.seek_bar_mini).progress = seekProgress
+                        }
 
                         // Update play/pause icon
                         val playPauseIcon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
                         miniPlayer.findViewById<ImageView>(R.id.iv_mini_play_pause).setImageResource(playPauseIcon)
+
+                        // Show loop stepper when A-B controls are visible
+                        miniPlayer.findViewById<View>(R.id.layout_mini_loop_stepper).visibility =
+                            if (isABControlsVisible) View.VISIBLE else View.GONE
+                        miniPlayer.findViewById<TextView>(R.id.tv_mini_loop_count).text = miniABLoopCount.toString()
                     } else {
                         miniPlayer.visibility = View.GONE
                     }

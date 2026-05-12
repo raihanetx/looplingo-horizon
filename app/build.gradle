@@ -14,14 +14,19 @@ android {
         applicationId "com.looplingo.horizon"
         minSdk 26
         targetSdk 34
-        versionCode 6
-        versionName "1.5.0"
+        versionCode 7
+        versionName "1.6.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Export Room schemas for migration verification (KSP version)
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
         }
+
+        // Groq API key — read from GROQ_API_KEY env var or local.properties
+        // NEVER hardcode API keys in source code
+        def groqApiKey = System.getenv("GROQ_API_KEY") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("GROQ_API_KEY", "") : "" }
+        buildConfigField "String", "GROQ_API_KEY", "\"${groqApiKey}\""
     }
 
     signingConfigs {
@@ -133,6 +138,10 @@ dependencies {
 
     // Logging
     implementation libs.timber
+
+    // Networking — OkHttp + Gson for Groq API
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.google.code.gson:gson:2.10.1'
 
     // LeakCanary (debug only — memory leak detection)
     debugImplementation libs.leakcanary

@@ -275,6 +275,128 @@
 
             </LinearLayout>
 
+            <!-- ════════ AI Subtitles ════════ -->
+            <TextView
+                style="@style/Widget.Horizon.SectionHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/section_ai_subtitles" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Horizon.CardView.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/space_lg">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/space_md">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_generate_subtitles"
+                        style="@style/Widget.Horizon.Button.Tonal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_generate_subtitles"
+                        app:icon="@drawable/ic_audio_track"
+                        app:iconGravity="textStart" />
+
+                    <ProgressBar
+                        android:id="@+id/progress_subtitles"
+                        style="?android:attr/progressBarStyleSmall"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="@dimen/space_sm"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tv_subtitle_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_sm"
+                        android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                        android:textColor="@color/colorOnSurfaceVariant"
+                        android:visibility="gone" />
+
+                    <!-- Dialogue list -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_dialogue_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_md"
+                        android:maxHeight="240dp"
+                        android:nestedScrollingEnabled="true"
+                        android:visibility="gone" />
+
+                    <!-- Dialogue loop controls -->
+                    <LinearLayout
+                        android:id="@+id/layout_dialogue_loop_controls"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_md"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/dialogue_loop_count_label"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                            android:textColor="@color/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_dialogue_loop_minus"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minWidth="36dp"
+                            android:padding="0dp"
+                            android:text="−"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
+
+                        <TextView
+                            android:id="@+id/tv_dialogue_loop_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="8dp"
+                            android:text="3"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                            android:textColor="@color/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_dialogue_loop_plus"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minWidth="36dp"
+                            android:padding="0dp"
+                            android:text="+"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_loop_dialogue"
+                            style="@style/Widget.Horizon.Button.Tonal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/space_sm"
+                            android:text="@string/btn_loop_dialogue"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- ════════ Buttons ════════ -->
             <LinearLayout
                 android:layout_width="match_parent"
