@@ -131,7 +131,7 @@ object SubtitleParser {
         // Timestamp pattern: 00:01:23,456 --> 00:01:45,789 (SRT)
         //                    00:01:23.456 --> 00:01:45.789 (VTT)
         // Also handles mm:ss format without hours
-        val separator = if (isVtt) "." else ","
+        val separator = if (isVtt) "\\." else ","
         val timestampPattern = Regex(
             """(\d{1,2}:\d{2}:\d{2}$separator\d{1,3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}$separator\d{1,3})"""
         )

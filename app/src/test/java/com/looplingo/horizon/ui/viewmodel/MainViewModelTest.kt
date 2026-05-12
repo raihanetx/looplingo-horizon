@@ -11,7 +11,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
@@ -54,6 +56,11 @@ class MainViewModelTest {
         // Default: return empty flows for reactive collection in init
         every { videoRepository.getVideos() } returns flowOf(emptyList())
         every { playbackRepository.getAllConfiguredModesFlow() } returns flowOf(emptyMap())
+    }
+
+    @After
+    fun tearDown() {
+        kotlinx.coroutines.Dispatchers.resetMain()
     }
 
     private fun createViewModel(): MainViewModel {
