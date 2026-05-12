@@ -79,15 +79,17 @@
     <!-- AI Subtitles -->
     <string name="section_ai_subtitles">AI Subtitles</string>
     <string name="btn_generate_subtitles">Generate Subtitles</string>
+    <string name="subtitle_step_preparing">Preparing audio for transcription…</string>
     <string name="subtitle_generating">Generating subtitles…</string>
     <string name="subtitle_generated">%d dialogue segments found</string>
-    <string name="subtitle_no_segments">No dialogue segments detected</string>
-    <string name="subtitle_error">Subtitle error: %s</string>
+    <string name="subtitle_no_segments">No dialogue detected. Make sure the audio has clear speech.</string>
+    <string name="subtitle_error">Error: %s</string>
     <string name="subtitle_error_short">Failed to generate subtitles</string>
-    <string name="error_no_api_key">Groq API key not configured. Enter your API key above.</string>
+    <string name="error_no_api_key">Enter your Groq API key above first</string>
     <string name="hint_groq_api_key">Groq API Key</string>
-    <string name="groq_api_key_helper">Get your key from console.groq.com</string>
+    <string name="groq_api_key_helper">Get your free key at console.groq.com</string>
     <string name="groq_api_key_saved">API key saved</string>
+    <string name="api_key_required_banner">Enter your Groq API key below to generate subtitles</string>
 
     <!-- Dialogue Looping -->
     <string name="dialogue_loop_count_label">Loop count:</string>
