@@ -728,15 +728,9 @@ class GroqApiClient {
                 if (srcDurationUs > 0) srcDurationUs / 1_000_000.0 else -1.0)
 
             // Create and configure decoder
+            // MediaCodec decoders output 16-bit PCM by default — no special format needed.
+            // We just configure with the source format and the decoder handles the rest.
             decoder = MediaCodec.createDecoderByType(mime)
-
-            // Create output format with explicit PCM configuration
-            // This ensures MediaCodec outputs 16-bit PCM
-            val outputFormat = MediaFormat.createAudioFormat(
-                MediaFormat.MIMETYPE_AUDIO_RAW, srcSampleRate, srcChannels
-            )
-            outputFormat.setInteger(MediaFormat.KEY_PCM_ENCODING, MediaFormat.ENCODING_PCM_16BIT)
-
             decoder.configure(inputFormat, null, null, 0)
             decoder.start()
 
