@@ -68,6 +68,7 @@ class GroqApiClient {
         private const val CHUNK_DURATION_SEC = 30.0  // 30s per chunk for muxer-based splitting
 
         private const val GROQ_API_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
+        private const val GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models"
 
         // WAV format constants (fallback only)
         private const val WAV_BITS_PER_SAMPLE = 16
@@ -140,6 +141,9 @@ class GroqApiClient {
 
     class SubtitleException(message: String) : Exception(message)
 
+    /** Thrown when the API key is invalid/expired — no point retrying other steps */
+    class ApiKeyException(message: String) : SubtitleException(message)
+
     // ── JSON response models ──────────────────────────────────────────
 
     private data class TranscriptionResponse(
@@ -190,11 +194,22 @@ class GroqApiClient {
             throw SubtitleException("No file selected — go back and pick an audio/video file")
         }
 
-        Timber.i("═══ STARTING TRANSCRIPTION PIPELINE v1.17.0 ═══")
+        Timber.i("═══ STARTING TRANSCRIPTION PIPELINE v1.18.0 ═══")
         Timber.i("Input: %s", filePath.take(100))
         Timber.i("Language: %s", language)
 
-        // ── Step 0: Resolve to a readable file ────────────────────────
+        // ── Step 0a: Validate API key before doing any work ───────────
+        onProgress?.onProgress("[Step 0] Checking API key…")
+        try {
+            validateApiKey(apiKey)
+            onProgress?.onProgress("[Step 0] API key is valid ✓")
+        } catch (e: Exception) {
+            val errMsg = e.message ?: "API key check failed"
+            onProgress?.onProgress("[Step 0] ✗ API KEY INVALID: $errMsg")
+            throw ApiKeyException(errMsg)
+        }
+
+        // ── Step 0b: Resolve to a readable file ────────────────────────
         onProgress?.onProgress("[Step 0] Resolving file path…")
         val (sourceFile, cleanupSource) = resolveToReadableFile(context, filePath)
 
@@ -205,30 +220,38 @@ class GroqApiClient {
             }
 
             val sourceSizeMB = sourceFile.length() / (1024.0 * 1024.0)
-            onProgress?.onProgress("[Step 0] File ready: ${sourceFile.name} (%.2fMB)".format(sourceSizeMB))
-            Timber.i("Source file: %s (%.2fMB)", sourceFile.name, sourceSizeMB)
+            val isAudio = isAudioFile(sourceFile)
+            onProgress?.onProgress("[Step 0] File ready: ${sourceFile.name} (%.2fMB, %s)".format(
+                sourceSizeMB, if (isAudio) "AUDIO" else "VIDEO"))
+            Timber.i("Source file: %s (%.2fMB, isAudio=%b)", sourceFile.name, sourceSizeMB, isAudio)
             logFileDiagnostics(sourceFile)
 
             // ── Step 1: ALREADY AUDIO? Send directly ──────────────────
-            if (isAudioFile(sourceFile) && sourceFile.length() <= GROQ_MAX_FILE_SIZE) {
-                onProgress?.onProgress("[Step 1] Audio file detected — sending directly (%.2fMB)…".format(sourceSizeMB))
-                Timber.i("Step 1: File is already audio — sending directly (%.2fMB)", sourceSizeMB)
+            if (isAudio && sourceFile.length() <= GROQ_MAX_FILE_SIZE) {
+                val mediaType = guessAudioMediaType(sourceFile.name)
+                onProgress?.onProgress("[Step 1] Audio file — sending directly as $mediaType (%.2fMB)…".format(sourceSizeMB))
+                Timber.i("Step 1: File is already audio (%s, %s) — sending directly (%.2fMB)",
+                    sourceFile.extension, mediaType, sourceSizeMB)
 
                 try {
                     val result = callWhisperApi(apiKey, sourceFile, language)
                     if (result.isNotEmpty()) {
-                        onProgress?.onProgress("[Step 1] SUCCESS! %d segments from direct audio".format(result.size))
+                        onProgress?.onProgress("[Step 1] ✓ SUCCESS! %d segments from direct audio".format(result.size))
                         Timber.i("═══ SUCCESS: %d segments from direct audio! ═══", result.size)
                         return@withContext result
                     }
-                    onProgress?.onProgress("[Step 1] No speech detected in direct audio, trying extraction…")
+                    onProgress?.onProgress("[Step 1] Whisper returned no speech — trying extraction…")
                     Timber.w("Direct audio: no speech detected, trying extraction")
+                } catch (e: ApiKeyException) {
+                    // API key issue — don't try other steps, fail immediately
+                    onProgress?.onProgress("[Step 1] ✗ API KEY ERROR: ${e.message}")
+                    throw e
                 } catch (e: Exception) {
-                    onProgress?.onProgress("[Step 1] Failed: ${e.message?.take(80)} — trying extraction…")
+                    onProgress?.onProgress("[Step 1] Failed: ${e.message?.take(100)}")
                     Timber.w(e, "Direct audio failed, trying extraction")
                 }
-            } else if (!isAudioFile(sourceFile)) {
-                onProgress?.onProgress("[Step 1] Video file detected — need to extract audio")
+            } else if (!isAudio) {
+                onProgress?.onProgress("[Step 1] Video file detected — need to extract audio track")
             } else {
                 onProgress?.onProgress("[Step 1] Audio too large (%.2fMB > 25MB) — will chunk".format(sourceSizeMB))
             }
@@ -245,19 +268,23 @@ class GroqApiClient {
 
                 if (extractedAudio.length() <= GROQ_MAX_FILE_SIZE) {
                     // Audio fits in one request — send it all at once
-                    onProgress?.onProgress("[Step 2] Sending extracted audio to Whisper (%.1fKB)…".format(extractedKB))
+                    val sendMediaType = guessAudioMediaType(extractedAudio.name)
+                    onProgress?.onProgress("[Step 2] Sending to Whisper as $sendMediaType (%.1fKB)…".format(extractedKB))
                     try {
                         val result = callWhisperApi(apiKey, extractedAudio, language)
                         if (result.isNotEmpty()) {
-                            onProgress?.onProgress("[Step 2] SUCCESS! %d segments from extracted audio".format(result.size))
+                            onProgress?.onProgress("[Step 2] ✓ SUCCESS! %d segments from extracted audio".format(result.size))
                             Timber.i("═══ SUCCESS: %d segments from extracted audio! ═══", result.size)
                             extractedAudio.delete()
                             return@withContext result
                         }
                         onProgress?.onProgress("[Step 2] No speech detected — trying chunks…")
                         Timber.w("Extracted audio: no speech detected, trying with chunks")
+                    } catch (e: ApiKeyException) {
+                        extractedAudio.delete()
+                        throw e  // Don't retry with bad API key
                     } catch (e: Exception) {
-                        onProgress?.onProgress("[Step 2] API error: ${e.message?.take(80)} — trying chunks…")
+                        onProgress?.onProgress("[Step 2] API error: ${e.message?.take(100)}")
                         Timber.w(e, "Full extracted audio failed, trying chunks")
                     }
                 }
@@ -270,11 +297,11 @@ class GroqApiClient {
                     val result = transcribeChunks(apiKey, chunks, language, onProgress)
                     extractedAudio.delete()
                     if (result.isNotEmpty()) {
-                        onProgress?.onProgress("[Step 2b] SUCCESS! %d segments from %d chunks".format(result.size, chunks.size))
+                        onProgress?.onProgress("[Step 2b] ✓ SUCCESS! %d segments from %d chunks".format(result.size, chunks.size))
                         Timber.i("═══ SUCCESS: %d segments from %d chunks! ═══", result.size, chunks.size)
                         return@withContext result
                     }
-                    onProgress?.onProgress("[Step 2b] No speech in any chunk")
+                    onProgress?.onProgress("[Step 2b] No speech detected in any chunk")
                     Timber.w("Chunks: no speech detected in any chunk")
                 }
                 extractedAudio.delete()
@@ -1306,6 +1333,54 @@ class GroqApiClient {
     }
 
     // ══════════════════════════════════════════════════════════════════
+    // API KEY VALIDATION
+    // ══════════════════════════════════════════════════════════════════
+
+    /**
+     * Quick check if the API key is valid by hitting the /models endpoint.
+     * This avoids wasting time extracting audio only to discover the key is dead.
+     */
+    private fun validateApiKey(apiKey: String) {
+        Timber.i("Validating API key: %s...%s", apiKey.take(8), apiKey.takeLast(4))
+
+        val request = Request.Builder()
+            .url(GROQ_MODELS_URL)
+            .addHeader("Authorization", "Bearer $apiKey")
+            .get()
+            .build()
+
+        try {
+            val response = client.newCall(request).execute()
+            val body = response.body?.string()?.take(200) ?: ""
+
+            if (response.code == 401) {
+                throw ApiKeyException(
+                    "API key is INVALID (HTTP 401). The key was rejected.\n" +
+                    "Fix: Go to console.groq.com → API Keys → Create new key."
+                )
+            }
+            if (response.code == 403) {
+                throw ApiKeyException(
+                    "API key is FORBIDDEN/EXPIRED (HTTP 403). This key no longer works.\n" +
+                    "Fix: Go to console.groq.com → API Keys → Create new key.\n" +
+                    "Response: $body"
+                )
+            }
+            if (!response.isSuccessful) {
+                Timber.w("API key check got HTTP %d: %s", response.code, body)
+                // Don't throw for other errors — key might be fine, server issue
+            } else {
+                Timber.i("API key is valid (HTTP %d)", response.code)
+            }
+        } catch (e: ApiKeyException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "Could not validate API key (network issue?)")
+            // Don't block — might be a temporary network issue
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
     // WHISPER API CALL
     // ══════════════════════════════════════════════════════════════════
 
@@ -1341,13 +1416,19 @@ class GroqApiClient {
             val errorDetail = responseBody?.take(500) ?: "No response body"
             Timber.e("← Whisper API error: HTTP %d — %s", response.code, errorDetail)
 
-            // User-friendly error messages for common API issues
+            // Specific exception types for API key issues — these should NOT be retried
             val userMessage = when (response.code) {
-                401 -> "API key is invalid. Please check your Groq API key in settings."
-                403 -> "API key is forbidden or expired. Get a new key from console.groq.com"
-                429 -> "Rate limit exceeded. Wait a moment and try again."
-                413 -> "Audio file too large for Groq API (max 25MB)."
-                else -> "Groq API error ${response.code}: ${responseBody?.take(200) ?: "No response"}"
+                401 -> "API key is INVALID (HTTP 401). The server rejected your key.\n" +
+                    "Fix: Go to console.groq.com → API Keys → Create a new key."
+                403 -> "API key is FORBIDDEN/EXPIRED (HTTP 403). This key no longer works.\n" +
+                    "Fix: Go to console.groq.com → API Keys → Create a new key.\n" +
+                    "Server response: $errorDetail"
+                429 -> "Rate limit exceeded (HTTP 429). Wait a moment and try again."
+                413 -> "Audio file too large for Groq API (max 25MB). File: ${audioFile.name} (%.1fKB)".format(audioFile.length() / 1024.0)
+                else -> "Groq API error HTTP ${response.code}: $errorDetail"
+            }
+            if (response.code == 401 || response.code == 403) {
+                throw ApiKeyException(userMessage)
             }
             throw RuntimeException(userMessage)
         }

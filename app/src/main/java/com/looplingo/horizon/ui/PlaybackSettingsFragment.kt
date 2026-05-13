@@ -24,6 +24,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.looplingo.horizon.BuildConfig
 import com.looplingo.horizon.R
 import com.looplingo.horizon.api.GroqApiClient
+import com.looplingo.horizon.api.GroqApiClient.ApiKeyException
 import com.looplingo.horizon.api.GroqApiClient.Segment
 import com.looplingo.horizon.api.GroqApiClient.SubtitleException
 import com.looplingo.horizon.databinding.FragmentPlaybackSettingsBinding
@@ -383,6 +384,24 @@ class PlaybackSettingsFragment : Fragment() {
                         if (segments.size > 5) appendDebugLog("  ... and ${segments.size - 5} more")
                         showDialogueList(segments)
                     }
+                } catch (e: ApiKeyException) {
+                    // API key is dead — show clear message, no retry
+                    Timber.e(e, "API key is invalid/forbidden")
+                    isGeneratingSubtitles = false
+                    binding.progressSubtitles.visibility = View.GONE
+                    val errorMsg = e.message ?: "API key error"
+                    binding.tvSubtitleStatus.text = "✗ API KEY ERROR"
+                    appendDebugLog("")
+                    appendDebugLog("═══ API KEY ERROR ═══")
+                    appendDebugLog(errorMsg)
+                    appendDebugLog("")
+                    appendDebugLog("WHAT TO DO:")
+                    appendDebugLog("1. Go to console.groq.com")
+                    appendDebugLog("2. Click 'API Keys'")
+                    appendDebugLog("3. Create a new key")
+                    appendDebugLog("4. Paste it in the API key field above")
+                    appendDebugLog("5. Click 'Save API Key'")
+                    showSnackbar("API key is invalid — check the debug log for details")
                 } catch (e: SubtitleException) {
                     Timber.e(e, "Subtitle generation failed")
                     isGeneratingSubtitles = false
@@ -391,7 +410,6 @@ class PlaybackSettingsFragment : Fragment() {
                     binding.tvSubtitleStatus.text = errorMsg
                     appendDebugLog("FAILED: $errorMsg")
                     appendDebugLog("Exception type: ${e.javaClass.simpleName}")
-                    appendDebugLog("Stack: ${e.stackTraceToString().take(200)}")
                     showSnackbar(errorMsg)
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to generate subtitles")
@@ -402,22 +420,9 @@ class PlaybackSettingsFragment : Fragment() {
                     appendDebugLog("ERROR: $errorMsg")
                     appendDebugLog("Exception: ${e.javaClass.simpleName}")
                     // Show full stack trace for debugging
-                    val stackLines = e.stackTraceToString().lines().take(8)
+                    val stackLines = e.stackTraceToString().lines().take(5)
                     for (line in stackLines) {
                         appendDebugLog("  $line")
-                    }
-                    // If it's an API error, show the HTTP details
-                    if (errorMsg.contains("403")) {
-                        appendDebugLog("")
-                        appendDebugLog("*** API KEY IS FORBIDDEN/EXPIRED ***")
-                        appendDebugLog("Your Groq API key is rejected.")
-                        appendDebugLog("Fix: Go to console.groq.com")
-                        appendDebugLog("Create a new API key and enter it above.")
-                    } else if (errorMsg.contains("401")) {
-                        appendDebugLog("")
-                        appendDebugLog("*** API KEY IS INVALID ***")
-                        appendDebugLog("The key format is wrong or incomplete.")
-                        appendDebugLog("Fix: Copy the full key from console.groq.com")
                     }
                     showSnackbar(getString(R.string.subtitle_error_short))
                 } finally {
