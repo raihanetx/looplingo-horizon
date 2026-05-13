@@ -628,7 +628,6 @@ class PlaybackSettingsFragment : Fragment() {
                 } finally {
                     binding.btnGenerateSubtitles.isEnabled = true
                 }
-            }
         }
     }
 
