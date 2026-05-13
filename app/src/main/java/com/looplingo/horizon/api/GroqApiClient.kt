@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import android.media.MediaMuxer
 import android.net.Uri
 import android.os.Environment
 import com.google.gson.Gson
@@ -18,48 +19,73 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import timber.log.Timber
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 
 /**
  * Client for the Groq Whisper API — speech-to-text transcription.
  *
- * Architecture (v1.16.0 — Normalize + Language + Test Mode):
+ * Architecture (v1.17.0 — Simple Pipeline):
  *
- *   The KEY insight from v1.14.0 debugging:
- *   - PCM stats: meanAbs=515, range=[-7668..8596], nonZero=49.1%
- *   - Audio IS being extracted correctly!
- *   - But the audio is TOO QUIET for Whisper's voice activity detection
- *   - Movie content has quiet intros + dialogue — low average volume
+ *   PREVIOUS APPROACH (v1.10–v1.16) was overcomplicated:
+ *   Video → MediaCodec → PCM → WAV → Normalize → Send to Whisper
+ *   This decoded to raw PCM, created huge WAV files, and was slow.
  *
- *   v1.16.0 fixes:
- *   1. PCM NORMALIZATION — amplify quiet audio to ~90% of max range
- *      before sending to Whisper. A meanAbs of 515 becomes ~5500
- *   2. LANGUAGE PARAMETER — tell Whisper what language to listen for
- *      (Bengali, Japanese, English, auto-detect, etc.)
- *   3. Probe-first: send raw file, then WAV chunks with normalization
- *   4. MAX_CHUNKS = 5 for testing — only 5 chunks sent to verify fix works
+ *   ENGINEERING INSIGHT: Why not just extract the audio track as-is?
+ *   - Groq Whisper accepts: mp3, mp4, m4a, wav, ogg, flac, webm
+ *   - No need to decode to PCM! Just pull the audio track out of the video.
+ *   - MediaMuxer can extract audio WITHOUT re-encoding (just demuxing).
+ *   - Result: 10-50x smaller files, 5-10x faster, simpler code.
+ *
+ *   NEW PIPELINE (3 steps, try each in order):
+ *
+ *   Step 1: ALREADY AUDIO? → Send directly to Whisper
+ *     If the input file is already an audio file (MP3, M4A, etc.) and
+ *     under 25MB, just send it. No processing needed.
+ *
+ *   Step 2: VIDEO? → Extract audio track as M4A/MP3 → Send to Whisper
+ *     Use MediaMuxer to pull out just the audio track. No re-encoding.
+ *     The audio stays in its original compressed format (AAC/MP3).
+ *     Most audio tracks are well under 25MB.
+ *     If too large, split into time-based chunks using seek+extract.
+ *
+ *   Step 3 (FALLBACK): PCM NORMALIZATION → WAV → Send to Whisper
+ *     Only if the above fails (quiet audio that Whisper can't detect).
+ *     Decode to PCM, amplify, write WAV. This is the nuclear option.
+ *
+ *   Why this is better:
+ *   - Whisper's own FFmpeg decoder is battle-tested and handles volume
+ *     normalization internally much better than our MediaCodec pipeline
+ *   - Compressed audio (M4A) is 10-50x smaller than WAV — faster uploads
+ *   - No quality loss from re-encoding
+ *   - Simpler code = fewer bugs
  */
 class GroqApiClient {
 
     companion object {
         private const val GROQ_MAX_FILE_SIZE = 25L * 1024 * 1024
-        private const val CHUNK_DURATION_SEC = 15.0
-        private const val MAX_CHUNKS = 5  // Testing: only 5 chunks to verify normalization works
+        private const val MAX_CHUNKS = 5  // For testing: only process 5 chunks
+        private const val CHUNK_DURATION_SEC = 30.0  // 30s per chunk for muxer-based splitting
 
         private const val GROQ_API_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 
-        // WAV format constants
+        // WAV format constants (fallback only)
         private const val WAV_BITS_PER_SAMPLE = 16
         private const val WAV_AUDIO_FORMAT_PCM = 1
 
-        // PCM normalization: target peak as fraction of max 16-bit range (32767)
-        private const val NORMALIZATION_TARGET = 0.9   // 90% of max range
-        private const val MIN_PEAK_FOR_NORMALIZATION = 500  // Don't normalize already-loud audio
+        // PCM normalization (fallback only)
+        private const val NORMALIZATION_TARGET = 0.9
+        private const val MIN_PEAK_FOR_NORMALIZATION = 500
 
-        // MediaCodec timeout
+        // MediaCodec timeout (fallback only)
         private const val CODEC_TIMEOUT_US = 10_000L
+
+        /** Audio MIME types that Whisper accepts directly */
+        private val WHISPER_AUDIO_MIMES = setOf(
+            "audio/mpeg", "audio/mp4", "audio/aac", "audio/ogg",
+            "audio/opus", "audio/wav", "audio/flac", "audio/webm",
+            "audio/3gpp", "audio/x-matroska"
+        )
 
         /** Supported languages for Whisper transcription. */
         val SUPPORTED_LANGUAGES = listOf(
@@ -164,11 +190,11 @@ class GroqApiClient {
             throw SubtitleException("No file selected — go back and pick an audio/video file")
         }
 
-        Timber.i("═══ STARTING TRANSCRIPTION PIPELINE v1.16.0 ═══")
+        Timber.i("═══ STARTING TRANSCRIPTION PIPELINE v1.17.0 ═══")
         Timber.i("Input: %s", filePath.take(100))
         Timber.i("Language: %s", language)
 
-        // ── Step 1: Resolve to a readable file ────────────────────────
+        // ── Step 0: Resolve to a readable file ────────────────────────
         onProgress?.onProgress("Preparing audio file…")
         val (sourceFile, cleanupSource) = resolveToReadableFile(context, filePath)
 
@@ -179,108 +205,120 @@ class GroqApiClient {
             }
 
             val sourceSizeMB = sourceFile.length() / (1024.0 * 1024.0)
-            Timber.i("Step 1: source file = %s (%.2fMB)", sourceFile.name, sourceSizeMB)
+            Timber.i("Source file: %s (%.2fMB)", sourceFile.name, sourceSizeMB)
             logFileDiagnostics(sourceFile)
 
-            // ── Step 2: PROBE — Try sending raw source file directly ───
-            if (sourceFile.length() <= GROQ_MAX_FILE_SIZE) {
-                onProgress?.onProgress("Testing: sending file directly to Whisper…")
-                Timber.i("Step 2: PROBE — sending raw file directly (%.2fMB)", sourceSizeMB)
+            // ── Step 1: ALREADY AUDIO? Send directly ──────────────────
+            if (isAudioFile(sourceFile) && sourceFile.length() <= GROQ_MAX_FILE_SIZE) {
+                onProgress?.onProgress("Sending audio directly to Whisper…")
+                Timber.i("Step 1: File is already audio — sending directly (%.2fMB)", sourceSizeMB)
 
                 try {
-                    val probeResult = callWhisperApi(apiKey, sourceFile, language)
-                    if (probeResult.isNotEmpty()) {
-                        Timber.i("═══ PROBE SUCCESS: %d segments from raw file! ═══", probeResult.size)
-                        return@withContext probeResult
-                    } else {
-                        Timber.w("Probe: raw file accepted but no speech detected — will try WAV with normalization")
+                    val result = callWhisperApi(apiKey, sourceFile, language)
+                    if (result.isNotEmpty()) {
+                        Timber.i("═══ SUCCESS: %d segments from direct audio! ═══", result.size)
+                        return@withContext result
                     }
+                    Timber.w("Direct audio: no speech detected, trying extraction")
                 } catch (e: Exception) {
-                    Timber.w(e, "Probe: raw file failed — will try WAV extraction with normalization")
+                    Timber.w(e, "Direct audio failed, trying extraction")
                 }
             }
 
-            // ── Step 3: WAV extraction + NORMALIZATION ─────────────────
-            onProgress?.onProgress("Extracting and normalizing audio…")
-            Timber.i("Step 3: Decoding audio to PCM/WAV with normalization")
+            // ── Step 2: EXTRACT AUDIO TRACK (no re-encode) ────────────
+            onProgress?.onProgress("Extracting audio from file…")
+            Timber.i("Step 2: Extracting audio track with MediaMuxer (no re-encoding)")
 
-            val chunks = decodeAndCreateWavChunks(context, sourceFile)
-            if (chunks.isEmpty()) {
+            val extractedAudio = extractAudioTrack(context, sourceFile)
+            if (extractedAudio != null) {
+                Timber.i("Extracted audio: %s (%.2fKB)", extractedAudio.name, extractedAudio.length() / 1024.0)
+
+                if (extractedAudio.length() <= GROQ_MAX_FILE_SIZE) {
+                    // Audio fits in one request — send it all at once
+                    onProgress?.onProgress("Sending extracted audio to Whisper…")
+                    try {
+                        val result = callWhisperApi(apiKey, extractedAudio, language)
+                        if (result.isNotEmpty()) {
+                            Timber.i("═══ SUCCESS: %d segments from extracted audio! ═══", result.size)
+                            extractedAudio.delete()
+                            return@withContext result
+                        }
+                        Timber.w("Extracted audio: no speech detected, trying with chunks")
+                    } catch (e: Exception) {
+                        Timber.w(e, "Full extracted audio failed, trying chunks")
+                    }
+                }
+
+                // Audio too large or single request failed — split into time-based chunks
+                onProgress?.onProgress("Splitting audio into chunks…")
+                val chunks = splitAudioIntoChunks(context, sourceFile)
+                if (chunks.isNotEmpty()) {
+                    val result = transcribeChunks(apiKey, chunks, language, onProgress)
+                    extractedAudio.delete()
+                    if (result.isNotEmpty()) {
+                        Timber.i("═══ SUCCESS: %d segments from %d chunks! ═══", result.size, chunks.size)
+                        return@withContext result
+                    }
+                    Timber.w("Chunks: no speech detected in any chunk")
+                }
+                extractedAudio.delete()
+            }
+
+            // ── Step 3 (FALLBACK): PCM NORMALIZATION ──────────────────
+            onProgress?.onProgress("Trying with audio normalization (fallback)…")
+            Timber.i("Step 3: FALLBACK — decoding to PCM with normalization")
+
+            val wavChunks = decodeAndCreateWavChunks(context, sourceFile)
+            if (wavChunks.isEmpty()) {
                 throw SubtitleException(
                     "Could not decode audio from this file. " +
                     "The audio format may not be supported. Try an MP3, M4A, or MP4 file."
                 )
             }
 
-            // Limit chunks
-            val limitedChunks = if (chunks.size > MAX_CHUNKS) {
-                Timber.w("Too many chunks (%d), limiting to %d", chunks.size, MAX_CHUNKS)
-                chunks.dropLast(chunks.size - MAX_CHUNKS).also {
-                    chunks.drop(MAX_CHUNKS).forEach { c -> c.file.delete() }
-                }
-            } else {
-                chunks
-            }
+            val limitedChunks = wavChunks.take(MAX_CHUNKS)
+            wavChunks.drop(MAX_CHUNKS).forEach { it.file.delete() }
 
-            Timber.i("Created %d WAV chunks (before normalization)", limitedChunks.size)
+            Timber.i("Created %d WAV chunks for normalization fallback", limitedChunks.size)
 
-            // ── Step 3a: Analyze and NORMALIZE each chunk ──────────────
+            // Normalize each chunk
             onProgress?.onProgress("Normalizing audio volume…")
             val normalizedChunks = mutableListOf<AudioChunk>()
             for (chunk in limitedChunks) {
                 val stats = analyzeWavPcm(chunk.file)
-                Timber.d("Chunk pre-norm: meanAbs=%.1f, peak=%d, %s",
-                    stats.meanAbsSample, maxOf(kotlin.math.abs(stats.minSample), kotlin.math.abs(stats.maxSample)),
-                    stats.summary())
+                Timber.d("Chunk pre-norm: %s", stats.summary())
 
                 if (stats.meanAbsSample < 10 && stats.nonZeroPercent < 1.0) {
-                    // Truly silent chunk — skip it
                     Timber.d("Chunk at %.1fs is silent, skipping", chunk.startTimeSec)
                     chunk.file.delete()
                     continue
                 }
 
-                // Normalize: amplify quiet audio so Whisper can detect speech
                 val normalizedFile = normalizeWavFile(chunk.file, stats)
-                if (normalizedFile != null) {
-                    // Delete the un-normalized file
-                    if (normalizedFile != chunk.file) chunk.file.delete()
-                    normalizedChunks.add(chunk.copy(file = normalizedFile))
-                } else {
-                    normalizedChunks.add(chunk)
+                if (normalizedFile != null && normalizedFile != chunk.file) {
+                    chunk.file.delete()
                 }
+                normalizedChunks.add(chunk.copy(file = normalizedFile ?: chunk.file))
             }
 
             if (normalizedChunks.isEmpty()) {
                 throw SubtitleException(
-                    "All audio chunks were silent after extraction. " +
-                    "This file may not contain audible speech."
+                    "All audio chunks were silent. This file may not contain audible speech."
                 )
             }
 
-            // Log normalized stats
-            val firstNorm = normalizedChunks.first()
-            val normStats = analyzeWavPcm(firstNorm.file)
-            Timber.i("After normalization: %s", normStats.summary())
+            // Save debug WAV
+            saveDebugFile(context, normalizedChunks.first().file, "looplingo_debug_normalized.wav")
 
-            // ── Step 4: Save debug WAV for user verification ───────────
-            saveDebugWavToDownloads(context, firstNorm.file)
-
-            // ── Step 5: Transcribe all normalized chunks ───────────────
             val result = transcribeChunks(apiKey, normalizedChunks, language, onProgress)
-
             if (result.isEmpty()) {
                 throw SubtitleException(
                     "No speech detected even after normalization. " +
-                    "PCM before: meanAbs=%.0f, after: meanAbs=%.0f. ".format(
-                        analyzeWavPcm(limitedChunks.first().file).meanAbsSample,
-                        normStats.meanAbsSample) +
-                    "Try selecting the language manually " +
-                    "(Bengali, Japanese, etc.) instead of Auto-detect."
+                    "Try selecting the language manually (Bengali, Japanese, etc.) instead of Auto-detect."
                 )
             }
 
-            Timber.i("═══ TRANSCRIPTION COMPLETE: %d segments ═══", result.size)
+            Timber.i("═══ TRANSCRIPTION COMPLETE (fallback): %d segments ═══", result.size)
             result
 
         } finally {
@@ -289,61 +327,556 @@ class GroqApiClient {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // PCM NORMALIZATION — The key fix for quiet audio
+    // STEP 1 CHECK: Is this already an audio file?
+    // ══════════════════════════════════════════════════════════════════
+
+    private fun isAudioFile(file: File): Boolean {
+        val ext = file.extension.lowercase()
+        if (ext in listOf("mp3", "m4a", "aac", "ogg", "opus", "wav", "flac", "wma", "3gp")) {
+            return true
+        }
+
+        // Check by probing the file format
+        return try {
+            val bytes = file.inputStream().use { it.readNBytes(12) }
+            when {
+                bytes.size >= 3 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFB.toByte() -> true  // MP3
+                bytes.size >= 3 && bytes[0] == 0x49.toByte() && bytes[1] == 0x44.toByte() && bytes[2] == 0x33.toByte() -> true  // MP3 ID3
+                bytes.size >= 4 && String(bytes, 0, 4) == "OggS" -> true  // OGG
+                bytes.size >= 4 && String(bytes, 0, 4) == "fLaC" -> true  // FLAC
+                bytes.size >= 4 && String(bytes, 0, 4) == "RIFF" -> true  // WAV
+                // MP4/M4A: check for "ftyp" at offset 4
+                bytes.size >= 8 && String(bytes, 4, 4) == "ftyp" -> {
+                    // It's an MP4 container — could be audio-only or video
+                    // Check with MediaExtractor if it has video tracks
+                    !hasVideoTrack(file)
+                }
+                else -> false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun hasVideoTrack(file: File): Boolean {
+        return try {
+            val extractor = MediaExtractor()
+            extractor.setDataSource(file.absolutePath)
+            for (i in 0 until extractor.trackCount) {
+                val mime = extractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME) ?: continue
+                if (mime.startsWith("video/")) {
+                    extractor.release()
+                    return true
+                }
+            }
+            extractor.release()
+            false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // STEP 2: EXTRACT AUDIO TRACK using MediaMuxer (no re-encoding)
     // ══════════════════════════════════════════════════════════════════
 
     /**
-     * Normalize a WAV file by amplifying the audio so the peak reaches
-     * ~90% of the 16-bit range (32767 * 0.9 ≈ 29490).
+     * Extract just the audio track from a video file using MediaMuxer.
      *
-     * This is the KEY fix for the "No speech detected" problem.
-     * Movie audio has quiet intros and dialogue — the overall volume
-     * is low (meanAbs=515 in our test) but speech IS present.
-     * By amplifying the audio, Whisper's voice activity detection
-     * can properly identify speech segments.
+     * This is the SMART way: no re-encoding, just demuxing.
+     * The audio stays in its original compressed format (AAC, MP3, etc.)
+     * and gets written to an M4A container.
      *
-     * How it works:
-     * 1. Read the WAV file
-     * 2. Find the peak absolute sample value
-     * 3. Calculate gain: targetPeak / currentPeak
-     * 4. Multiply all samples by gain, clamping to [-32768, 32767]
-     * 5. Write back the amplified data
-     *
-     * Returns the normalized WAV file (may be the same file modified in-place,
-     * or a new file if the original was too large to read into memory).
+     * Why this works:
+     * - MediaMuxer reads compressed frames directly from the source
+     * - No decoding/encoding = no quality loss, 10-50x faster than PCM
+     * - Result is a small compressed file (M4A) that Whisper accepts
+     * - A typical 30-min video's audio track is only ~15-30MB in AAC
      */
+    private fun extractAudioTrack(context: Context, sourceFile: File): File? {
+        val extractor = MediaExtractor()
+        var muxer: MediaMuxer? = null
+
+        try {
+            extractor.setDataSource(sourceFile.absolutePath)
+
+            // Find the audio track
+            var audioTrackIndex = -1
+            var audioFormat: MediaFormat? = null
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
+                if (mime.startsWith("audio/")) {
+                    audioTrackIndex = i
+                    audioFormat = format
+                    Timber.i("Found audio track %d: %s", i, mime)
+                    break
+                }
+            }
+
+            if (audioTrackIndex < 0 || audioFormat == null) {
+                Timber.w("No audio track found in: %s", sourceFile.name)
+                return null
+            }
+
+            val audioMime = audioFormat.getString(MediaFormat.KEY_MIME) ?: return null
+            extractor.selectTrack(audioTrackIndex)
+
+            // Determine output format based on audio codec
+            val outputFormat = when {
+                audioMime.contains("aac") || audioMime.contains("mp4a") -> MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
+                audioMime.contains("mpeg") || audioMime.contains("mp3") -> MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
+                audioMime.contains("ogg") || audioMime.contains("opus") -> MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG
+                audioMime.contains("amr") -> MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP
+                else -> MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4  // Default to MP4 container
+            }
+
+            val outputExt = when (outputFormat) {
+                MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4 -> "m4a"
+                MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG -> "ogg"
+                MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP -> "3gp"
+                else -> "m4a"
+            }
+
+            val outputFile = File.createTempFile("looplingo_audio_", ".$outputExt", context.cacheDir)
+
+            muxer = MediaMuxer(outputFile.absolutePath, outputFormat)
+            val muxerTrackIndex = muxer.addTrack(audioFormat)
+            muxer.start()
+
+            // Copy all audio samples from extractor to muxer
+            val buffer = ByteBuffer.allocate(256 * 1024)  // 256KB buffer
+            val bufferInfo = MediaCodec.BufferInfo()
+            var sampleCount = 0
+
+            while (true) {
+                val sampleSize = extractor.readSampleData(buffer, 0)
+                if (sampleSize < 0) break
+
+                bufferInfo.offset = 0
+                bufferInfo.size = sampleSize
+                bufferInfo.flags = extractor.sampleFlags
+                bufferInfo.presentationTimeUs = extractor.sampleTime
+
+                muxer.writeSampleData(muxerTrackIndex, buffer, bufferInfo)
+                sampleCount++
+                extractor.advance()
+            }
+
+            muxer.stop()
+
+            val durationSec = try {
+                audioFormat.getLong(MediaFormat.KEY_DURATION) / 1_000_000.0
+            } catch (_: Exception) { -1.0 }
+
+            Timber.i("Extracted audio: %d samples, %.1fs, %s → %s (%.2fKB)",
+                sampleCount, durationSec, audioMime, outputFile.name, outputFile.length() / 1024.0)
+
+            if (outputFile.length() == 0L) {
+                outputFile.delete()
+                return null
+            }
+
+            // Save debug copy of extracted audio
+            saveDebugFile(context, outputFile, "looplingo_debug_extracted.$outputExt")
+
+            return outputFile
+
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to extract audio track with MediaMuxer")
+            muxer?.let { try { it.release() } catch (_: Exception) {} }
+            return null
+        } finally {
+            try { extractor.release() } catch (_: Exception) {}
+            try { muxer?.release() } catch (_: Exception) {}
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // STEP 2b: SPLIT AUDIO INTO CHUNKS using seek + MediaMuxer
+    // ══════════════════════════════════════════════════════════════════
+
+    /**
+     * Split audio into time-based chunks for files over 25MB.
+     * Uses MediaExtractor seek to jump to each chunk's start time,
+     * then MediaMuxer to write compressed frames for that duration.
+     *
+     * No re-encoding — just extracting portions of the compressed stream.
+     */
+    private fun splitAudioIntoChunks(
+        context: Context,
+        sourceFile: File,
+        chunkDurationSec: Double = CHUNK_DURATION_SEC
+    ): List<AudioChunk> {
+        val extractor = MediaExtractor()
+        val chunks = mutableListOf<AudioChunk>()
+
+        try {
+            extractor.setDataSource(sourceFile.absolutePath)
+
+            var audioTrackIndex = -1
+            var audioFormat: MediaFormat? = null
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
+                if (mime.startsWith("audio/")) {
+                    audioTrackIndex = i
+                    audioFormat = format
+                    break
+                }
+            }
+
+            if (audioTrackIndex < 0 || audioFormat == null) return emptyList()
+
+            val audioMime = audioFormat.getString(MediaFormat.KEY_MIME) ?: return emptyList()
+            extractor.selectTrack(audioTrackIndex)
+
+            val totalDurationUs = try {
+                audioFormat.getLong(MediaFormat.KEY_DURATION)
+            } catch (_: Exception) { -1L }
+
+            if (totalDurationUs <= 0) {
+                Timber.w("Cannot determine audio duration for chunking")
+                return emptyList()
+            }
+
+            val chunkDurationUs = (chunkDurationSec * 1_000_000).toLong()
+            val numChunks = ((totalDurationUs + chunkDurationUs - 1) / chunkDurationUs).toInt()
+            val actualChunks = minOf(numChunks, MAX_CHUNKS)
+
+            Timber.i("Splitting: total=%.1fs, chunk=%.0fs, %d chunks (limit %d)",
+                totalDurationUs / 1_000_000.0, chunkDurationSec, numChunks, actualChunks)
+
+            val outputFormat = when {
+                audioMime.contains("aac") || audioMime.contains("mp4a") -> MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
+                audioMime.contains("mpeg") || audioMime.contains("mp3") -> MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
+                audioMime.contains("ogg") || audioMime.contains("opus") -> MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG
+                else -> MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
+            }
+
+            val outputExt = when (outputFormat) {
+                MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4 -> "m4a"
+                MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG -> "ogg"
+                else -> "m4a"
+            }
+
+            val buffer = ByteBuffer.allocate(256 * 1024)
+            val bufferInfo = MediaCodec.BufferInfo()
+
+            for (chunkIdx in 0 until actualChunks) {
+                val chunkStartUs = chunkIdx.toLong() * chunkDurationUs
+                val chunkEndUs = minOf(chunkStartUs + chunkDurationUs, totalDurationUs)
+
+                // Seek to the start of this chunk
+                extractor.seekTo(chunkStartUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+
+                val chunkFile = File.createTempFile("looplingo_chunk_${chunkIdx}_", ".$outputExt", context.cacheDir)
+                var muxer: MediaMuxer? = null
+
+                try {
+                    muxer = MediaMuxer(chunkFile.absolutePath, outputFormat)
+                    val muxerTrackIndex = muxer.addTrack(audioFormat!!)
+                    muxer.start()
+
+                    var sampleCount = 0
+                    var lastPts = chunkStartUs
+
+                    while (true) {
+                        val sampleSize = extractor.readSampleData(buffer, 0)
+                        if (sampleSize < 0) break  // End of stream
+
+                        val pts = extractor.sampleTime
+                        if (pts >= chunkEndUs) break  // Past this chunk's boundary
+
+                        bufferInfo.offset = 0
+                        bufferInfo.size = sampleSize
+                        bufferInfo.flags = extractor.sampleFlags
+                        bufferInfo.presentationTimeUs = pts
+
+                        muxer.writeSampleData(muxerTrackIndex, buffer, bufferInfo)
+                        sampleCount++
+                        lastPts = pts
+                        extractor.advance()
+                    }
+
+                    muxer.stop()
+
+                    val chunkDuration = (lastPts - chunkStartUs) / 1_000_000.0
+                    chunks.add(AudioChunk(
+                        file = chunkFile,
+                        startTimeSec = chunkStartUs / 1_000_000.0,
+                        durationSec = if (chunkDuration > 0) chunkDuration else chunkDurationSec
+                    ))
+
+                    Timber.d("Chunk %d/%d: %.1fs-%.1fs, %d samples, %.1fKB",
+                        chunkIdx + 1, actualChunks,
+                        chunkStartUs / 1_000_000.0, chunkEndUs / 1_000_000.0,
+                        sampleCount, chunkFile.length() / 1024.0)
+
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to create chunk %d", chunkIdx)
+                    chunkFile.delete()
+                } finally {
+                    try { muxer?.release() } catch (_: Exception) {}
+                }
+            }
+
+            Timber.i("Created %d audio chunks via MediaMuxer", chunks.size)
+            return chunks
+
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to split audio into chunks")
+            chunks.forEach { it.file.delete() }
+            return emptyList()
+        } finally {
+            try { extractor.release() } catch (_: Exception) {}
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // STEP 3 (FALLBACK): PCM DECODE + NORMALIZE + WAV
+    // ══════════════════════════════════════════════════════════════════
+
+    private fun decodeAndCreateWavChunks(
+        context: Context,
+        sourceFile: File,
+        chunkDurationSec: Double = CHUNK_DURATION_SEC
+    ): List<AudioChunk> {
+        val extractor = MediaExtractor()
+        var decoder: MediaCodec? = null
+        val chunks = mutableListOf<AudioChunk>()
+
+        try {
+            extractor.setDataSource(sourceFile.absolutePath)
+
+            var audioTrackIndex = -1
+            var inputFormat: MediaFormat? = null
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
+                if (mime.startsWith("audio/")) {
+                    audioTrackIndex = i
+                    inputFormat = format
+                    break
+                }
+            }
+
+            if (audioTrackIndex < 0 || inputFormat == null) return emptyList()
+
+            val mime = inputFormat.getString(MediaFormat.KEY_MIME) ?: return emptyList()
+            extractor.selectTrack(audioTrackIndex)
+
+            val srcSampleRate = inputFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            val srcChannels = inputFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+
+            decoder = MediaCodec.createDecoderByType(mime)
+            decoder.configure(inputFormat, null, null, 0)
+            decoder.start()
+
+            var outputSampleRate = srcSampleRate
+            var outputChannels = srcChannels
+            var outputFormatChecked = false
+
+            val chunkBuffer = mutableListOf<ByteArray>()
+            var chunkBufferSize = 0L
+            val bytesPerSecond = srcSampleRate.toLong() * srcChannels * 2
+            val chunkSizeBytes = (bytesPerSecond * chunkDurationSec).toLong()
+            var chunkIndex = 0
+            var totalPcmBytesDecoded = 0L
+            var chunkStartTimeBytes = 0L
+
+            var inputDone = false
+            var outputDone = false
+            val bufferInfo = MediaCodec.BufferInfo()
+
+            while (!outputDone) {
+                if (!inputDone) {
+                    val inputBufferIndex = decoder.dequeueInputBuffer(CODEC_TIMEOUT_US)
+                    if (inputBufferIndex >= 0) {
+                        val inputBuffer = decoder.getInputBuffer(inputBufferIndex)
+                        if (inputBuffer != null) {
+                            val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                            if (sampleSize < 0) {
+                                decoder.queueInputBuffer(inputBufferIndex, 0, 0, 0,
+                                    MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                                inputDone = true
+                            } else {
+                                decoder.queueInputBuffer(inputBufferIndex, 0, sampleSize,
+                                    extractor.sampleTime, 0)
+                                extractor.advance()
+                            }
+                        }
+                    }
+                }
+
+                val outputBufferIndex = decoder.dequeueOutputBuffer(bufferInfo, CODEC_TIMEOUT_US)
+
+                when {
+                    outputBufferIndex >= 0 -> {
+                        if (!outputFormatChecked) {
+                            val outFormat = decoder.outputFormat
+                            try { outputSampleRate = outFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE) } catch (_: Exception) {}
+                            try { outputChannels = outFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT) } catch (_: Exception) {}
+                            outputFormatChecked = true
+                        }
+
+                        if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                            outputDone = true
+                        }
+
+                        if (bufferInfo.size > 0) {
+                            val outputBuffer = decoder.getOutputBuffer(outputBufferIndex)
+                            if (outputBuffer != null) {
+                                val pcmData = ByteArray(bufferInfo.size)
+                                outputBuffer.position(bufferInfo.offset)
+                                outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
+                                outputBuffer.get(pcmData)
+
+                                chunkBuffer.add(pcmData)
+                                chunkBufferSize += pcmData.size
+                                totalPcmBytesDecoded += pcmData.size
+
+                                if (chunkBufferSize >= chunkSizeBytes) {
+                                    val startTimeSec = chunkStartTimeBytes.toDouble() / bytesPerSecond
+                                    val durationSec = chunkBufferSize.toDouble() / bytesPerSecond
+
+                                    val chunkFile = writeWavFile(
+                                        chunkBuffer, outputSampleRate, outputChannels, context, chunkIndex
+                                    )
+                                    chunks.add(AudioChunk(chunkFile, startTimeSec, durationSec))
+
+                                    chunkStartTimeBytes += chunkBufferSize
+                                    chunkIndex++
+                                    chunkBuffer.clear()
+                                    chunkBufferSize = 0L
+
+                                    if (chunks.size >= MAX_CHUNKS) break
+                                }
+                            }
+                        }
+
+                        decoder.releaseOutputBuffer(outputBufferIndex, false)
+                    }
+                    outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                        val outFormat = decoder.outputFormat
+                        try { outputSampleRate = outFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE) } catch (_: Exception) {}
+                        try { outputChannels = outFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT) } catch (_: Exception) {}
+                        outputFormatChecked = true
+                    }
+                    outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> { /* wait */ }
+                }
+            }
+
+            // Drain remaining PCM
+            if (chunkBuffer.isNotEmpty() && chunkBufferSize > 0 && chunks.size < MAX_CHUNKS) {
+                val startTimeSec = chunkStartTimeBytes.toDouble() / bytesPerSecond
+                val durationSec = chunkBufferSize.toDouble() / bytesPerSecond
+                if (durationSec >= 0.5) {
+                    val chunkFile = writeWavFile(
+                        chunkBuffer, outputSampleRate, outputChannels, context, chunkIndex
+                    )
+                    chunks.add(AudioChunk(chunkFile, startTimeSec, durationSec))
+                }
+            }
+
+            Timber.i("PCM decode: %d chunks, %d bytes", chunks.size, totalPcmBytesDecoded)
+            return chunks
+
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to decode audio to PCM")
+            chunks.forEach { it.file.delete() }
+            return emptyList()
+        } finally {
+            try { extractor.release() } catch (_: Exception) {}
+            try { decoder?.stop() } catch (_: Exception) {}
+            try { decoder?.release() } catch (_: Exception) {}
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // WAV FILE WRITER (fallback only)
+    // ══════════════════════════════════════════════════════════════════
+
+    private fun writeWavFile(
+        pcmChunks: List<ByteArray>,
+        sampleRate: Int,
+        channels: Int,
+        context: Context,
+        chunkIndex: Int
+    ): File {
+        val dataSize = pcmChunks.sumOf { it.size }
+        val byteRate = sampleRate * channels * WAV_BITS_PER_SAMPLE / 8
+        val blockAlign = channels * WAV_BITS_PER_SAMPLE / 8
+        val fileSize = 36 + dataSize
+
+        val outputFile = File.createTempFile("looplingo_wav_${chunkIndex}_", ".wav", context.cacheDir)
+
+        FileOutputStream(outputFile).use { fos ->
+            val out = java.io.BufferedOutputStream(fos, 32 * 1024)
+
+            out.write("RIFF".toByteArray(Charsets.US_ASCII))
+            out.write(intToLittleEndian(fileSize))
+            out.write("WAVE".toByteArray(Charsets.US_ASCII))
+
+            out.write("fmt ".toByteArray(Charsets.US_ASCII))
+            out.write(intToLittleEndian(16))
+            out.write(shortToLittleEndian(WAV_AUDIO_FORMAT_PCM))
+            out.write(shortToLittleEndian(channels))
+            out.write(intToLittleEndian(sampleRate))
+            out.write(intToLittleEndian(byteRate))
+            out.write(shortToLittleEndian(blockAlign))
+            out.write(shortToLittleEndian(WAV_BITS_PER_SAMPLE))
+
+            out.write("data".toByteArray(Charsets.US_ASCII))
+            out.write(intToLittleEndian(dataSize))
+
+            for (chunk in pcmChunks) {
+                out.write(chunk)
+            }
+
+            out.flush()
+        }
+
+        return outputFile
+    }
+
+    private fun intToLittleEndian(value: Int): ByteArray {
+        return byteArrayOf(
+            (value and 0xFF).toByte(),
+            ((value shr 8) and 0xFF).toByte(),
+            ((value shr 16) and 0xFF).toByte(),
+            ((value shr 24) and 0xFF).toByte()
+        )
+    }
+
+    private fun shortToLittleEndian(value: Int): ByteArray {
+        return byteArrayOf(
+            (value and 0xFF).toByte(),
+            ((value shr 8) and 0xFF).toByte()
+        )
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // PCM NORMALIZATION (fallback only)
+    // ══════════════════════════════════════════════════════════════════
+
     private fun normalizeWavFile(wavFile: File, stats: PcmAnalysisResult): File? {
         try {
-            // Don't normalize if audio is already loud enough
             val currentPeak = maxOf(kotlin.math.abs(stats.minSample), kotlin.math.abs(stats.maxSample))
             if (currentPeak >= 20000) {
                 Timber.i("Audio already loud (peak=%d), no normalization needed", currentPeak)
-                return wavFile  // Already loud enough
+                return wavFile
             }
 
-            if (currentPeak < MIN_PEAK_FOR_NORMALIZATION) {
-                // Very quiet — might be just noise floor, amplify carefully
-                Timber.i("Very quiet audio (peak=%d), will normalize with caution", currentPeak)
-            }
-
-            // Calculate amplification gain
-            val targetPeak = (32767 * NORMALIZATION_TARGET).toInt()  // ~29490
-            val gain = targetPeak.toDouble() / currentPeak.toDouble()
+            val targetPeak = (32767 * NORMALIZATION_TARGET).toInt()
+            val gain = targetPeak.toDouble() / maxOf(currentPeak.toDouble(), 1.0)
             Timber.i("Normalizing: peak=%d → target=%d, gain=%.2fx", currentPeak, targetPeak, gain)
 
-            // Read the WAV file
             val data = wavFile.readBytes()
             if (data.size < 44) return null
 
-            // Parse WAV header
-            val channels = littleEndianToShort(data, 22)
-            val sampleRate = littleEndianToInt(data, 24)
             val bitsPerSample = littleEndianToShort(data, 34)
-
-            if (bitsPerSample != 16) {
-                Timber.w("Only 16-bit WAV supported for normalization, got %d-bit", bitsPerSample)
-                return wavFile  // Can't normalize non-16-bit
-            }
+            if (bitsPerSample != 16) return wavFile
 
             // Find "data" chunk
             var dataOffset = -1
@@ -364,31 +897,20 @@ class GroqApiClient {
             if (dataOffset < 0 || dataSize <= 0) return null
 
             val pcmEnd = minOf(dataOffset + dataSize, data.size)
-
-            // Amplify all 16-bit PCM samples
             var clipCount = 0
             var i = dataOffset
             while (i + 1 < pcmEnd) {
-                // Read 16-bit little-endian sample
                 val low = data[i].toInt() and 0xFF
                 val high = data[i + 1].toInt()
                 val sample = (high shl 8) or low
-
-                // Apply gain
                 val amplified = (sample * gain).toLong()
-
-                // Clamp to 16-bit range
                 val clamped = amplified.toInt().coerceIn(-32768, 32767)
                 if (clamped.toLong() != amplified) clipCount++
-
-                // Write back as 16-bit little-endian
                 data[i] = (clamped and 0xFF).toByte()
                 data[i + 1] = (clamped shr 8).toByte()
-
                 i += 2
             }
 
-            // Write modified data back to the file
             wavFile.writeBytes(data)
 
             if (clipCount > 0) {
@@ -396,67 +918,17 @@ class GroqApiClient {
                     clipCount, clipCount * 100.0 / (dataSize / 2))
             }
 
-            Timber.i("Normalization complete: gain=%.2fx, %d samples processed", gain, dataSize / 2)
+            Timber.i("Normalization complete: gain=%.2fx", gain)
             return wavFile
 
         } catch (e: Exception) {
             Timber.e(e, "Failed to normalize WAV file")
-            return wavFile  // Return original file as fallback
+            return wavFile
         }
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // FILE DIAGNOSTICS
-    // ══════════════════════════════════════════════════════════════════
-
-    private fun logFileDiagnostics(file: File) {
-        Timber.i("═══ FILE DIAGNOSTICS ═══")
-        Timber.i("  Name: %s", file.name)
-        Timber.i("  Size: %d bytes (%.2fMB)", file.length(), file.length() / (1024.0 * 1024.0))
-        Timber.i("  Extension: %s", file.extension)
-
-        try {
-            val bytes = file.inputStream().use { it.readNBytes(16) }
-            val hex = bytes.joinToString(" ") { "%02x".format(it) }
-            Timber.i("  First 16 bytes: %s", hex)
-
-            val format = when {
-                bytes.size >= 4 && String(bytes, 0, 4) == "RIFF" -> "WAV (RIFF)"
-                bytes.size >= 3 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFB.toByte() -> "MP3"
-                bytes.size >= 4 && String(bytes, 0, 4) == "OggS" -> "OGG"
-                bytes.size >= 4 && String(bytes, 0, 3) == "ID3" -> "MP3 (ID3)"
-                bytes.size >= 8 && String(bytes, 4, 4) == "ftyp" -> "MP4/M4A (ftyp)"
-                bytes.size >= 4 && String(bytes, 0, 4) == "fLaC" -> "FLAC"
-                bytes.size >= 4 && bytes[0] == 0x1A.toByte() && bytes[1] == 0x45.toByte() -> "WebM/MKV"
-                else -> "Unknown format"
-            }
-            Timber.i("  Detected format: %s", format)
-        } catch (e: Exception) {
-            Timber.w(e, "  Could not read first bytes")
-        }
-
-        try {
-            val extractor = MediaExtractor()
-            extractor.setDataSource(file.absolutePath)
-            Timber.i("  Tracks: %d", extractor.trackCount)
-            for (i in 0 until extractor.trackCount) {
-                val fmt = extractor.getTrackFormat(i)
-                val mime = fmt.getString(MediaFormat.KEY_MIME) ?: "unknown"
-                val sr = try { fmt.getInteger(MediaFormat.KEY_SAMPLE_RATE) } catch (_: Exception) { -1 }
-                val ch = try { fmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT) } catch (_: Exception) { -1 }
-                val dur = try { fmt.getLong(MediaFormat.KEY_DURATION) / 1000 } catch (_: Exception) { -1L }
-                val br = try { fmt.getInteger(MediaFormat.KEY_BIT_RATE) } catch (_: Exception) { -1 }
-                Timber.i("    Track %d: %s, %dHz, %dch, %dms, %dbps", i, mime, sr, ch, dur, br)
-            }
-            extractor.release()
-        } catch (e: Exception) {
-            Timber.w(e, "  Could not probe with MediaExtractor")
-        }
-        Timber.i("═══ END FILE DIAGNOSTICS ═══")
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // PCM ANALYSIS
+    // PCM ANALYSIS (fallback only)
     // ══════════════════════════════════════════════════════════════════
 
     private data class PcmAnalysisResult(
@@ -517,7 +989,6 @@ class GroqApiClient {
             val pcmEnd = minOf(dataOffset + dataSize, data.size)
             val bytesPerSample = bitsPerSample / 8
             val totalSamples = (pcmEnd - dataOffset) / bytesPerSample
-
             val samplesToCheck = minOf(5000, totalSamples)
             val step = if (totalSamples > samplesToCheck) totalSamples / samplesToCheck else 1
 
@@ -546,7 +1017,6 @@ class GroqApiClient {
 
             val meanAbs = if (samplesToCheck > 0) sumAbs.toDouble() / samplesToCheck else 0.0
             val nonZeroPct = if (samplesToCheck > 0) nonZeroCount * 100.0 / samplesToCheck else 0.0
-            val hasAudio = nonZeroPct >= 1.0 && meanAbs >= 50.0
 
             return PcmAnalysisResult(
                 fileBytes = wavFile.length(), pcmDataBytes = dataSize,
@@ -554,7 +1024,8 @@ class GroqApiClient {
                 totalSamples = totalSamples,
                 minSample = if (minSample == Int.MAX_VALUE) 0 else minSample,
                 maxSample = if (maxSample == Int.MIN_VALUE) 0 else maxSample,
-                meanAbsSample = meanAbs, nonZeroPercent = nonZeroPct, hasAudio = hasAudio
+                meanAbsSample = meanAbs, nonZeroPercent = nonZeroPct,
+                hasAudio = nonZeroPct >= 1.0 && meanAbs >= 50.0
             )
         } catch (e: Exception) {
             Timber.e(e, "Failed to analyze WAV PCM")
@@ -574,26 +1045,7 @@ class GroqApiClient {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // SAVE DEBUG WAV
-    // ══════════════════════════════════════════════════════════════════
-
-    private fun saveDebugWavToDownloads(context: Context, wavFile: File) {
-        try {
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            if (!downloadsDir.exists()) downloadsDir.mkdirs()
-
-            val debugFile = File(downloadsDir, "looplingo_debug_normalized.wav")
-            wavFile.inputStream().use { input ->
-                FileOutputStream(debugFile).use { output -> input.copyTo(output) }
-            }
-            Timber.i("Debug WAV saved to: %s (%.2fKB)", debugFile.absolutePath, debugFile.length() / 1024.0)
-        } catch (e: Exception) {
-            Timber.w(e, "Could not save debug WAV to Downloads")
-        }
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // STEP 1: RESOLVE FILE PATH
+    // FILE RESOLUTION
     // ══════════════════════════════════════════════════════════════════
 
     private fun resolveToReadableFile(context: Context, filePath: String): Pair<File, () -> Unit> {
@@ -711,239 +1163,71 @@ class GroqApiClient {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // STEP 3: DECODE AUDIO TO PCM AND CREATE WAV CHUNKS
+    // FILE DIAGNOSTICS
     // ══════════════════════════════════════════════════════════════════
 
-    private fun decodeAndCreateWavChunks(
-        context: Context,
-        sourceFile: File,
-        chunkDurationSec: Double = CHUNK_DURATION_SEC
-    ): List<AudioChunk> {
-        val extractor = MediaExtractor()
-        var decoder: MediaCodec? = null
-        val chunks = mutableListOf<AudioChunk>()
+    private fun logFileDiagnostics(file: File) {
+        Timber.i("═══ FILE DIAGNOSTICS ═══")
+        Timber.i("  Name: %s", file.name)
+        Timber.i("  Size: %d bytes (%.2fMB)", file.length(), file.length() / (1024.0 * 1024.0))
+        Timber.i("  Extension: %s", file.extension)
 
         try {
-            extractor.setDataSource(sourceFile.absolutePath)
+            val bytes = file.inputStream().use { it.readNBytes(16) }
+            val hex = bytes.joinToString(" ") { "%02x".format(it) }
+            Timber.i("  First 16 bytes: %s", hex)
 
-            var audioTrackIndex = -1
-            var inputFormat: MediaFormat? = null
-            for (i in 0 until extractor.trackCount) {
-                val format = extractor.getTrackFormat(i)
-                val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
-                if (mime.startsWith("audio/")) {
-                    audioTrackIndex = i
-                    inputFormat = format
-                    Timber.i("Found audio track %d: %s", i, mime)
-                    break
-                }
+            val format = when {
+                bytes.size >= 4 && String(bytes, 0, 4) == "RIFF" -> "WAV (RIFF)"
+                bytes.size >= 3 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFB.toByte() -> "MP3"
+                bytes.size >= 4 && String(bytes, 0, 4) == "OggS" -> "OGG"
+                bytes.size >= 4 && String(bytes, 0, 3) == "ID3" -> "MP3 (ID3)"
+                bytes.size >= 8 && String(bytes, 4, 4) == "ftyp" -> "MP4/M4A (ftyp)"
+                bytes.size >= 4 && String(bytes, 0, 4) == "fLaC" -> "FLAC"
+                bytes.size >= 4 && bytes[0] == 0x1A.toByte() && bytes[1] == 0x45.toByte() -> "WebM/MKV"
+                else -> "Unknown format"
             }
-
-            if (audioTrackIndex < 0 || inputFormat == null) {
-                Timber.w("No audio track found in: %s", sourceFile.name)
-                return emptyList()
-            }
-
-            val mime = inputFormat.getString(MediaFormat.KEY_MIME) ?: return emptyList()
-            extractor.selectTrack(audioTrackIndex)
-
-            val srcSampleRate = inputFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-            val srcChannels = inputFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-            val srcDurationUs = try { inputFormat.getLong(MediaFormat.KEY_DURATION) } catch (_: Exception) { -1L }
-            Timber.i("Source audio: %s, %dHz, %dch, %.1fs",
-                mime, srcSampleRate, srcChannels,
-                if (srcDurationUs > 0) srcDurationUs / 1_000_000.0 else -1.0)
-
-            decoder = MediaCodec.createDecoderByType(mime)
-            decoder.configure(inputFormat, null, null, 0)
-            decoder.start()
-
-            var outputSampleRate = srcSampleRate
-            var outputChannels = srcChannels
-            var outputFormatChecked = false
-
-            val chunkBuffer = mutableListOf<ByteArray>()
-            var chunkBufferSize = 0L
-            val bytesPerSecond = srcSampleRate.toLong() * srcChannels * 2
-            val chunkSizeBytes = (bytesPerSecond * chunkDurationSec).toLong()
-            var chunkIndex = 0
-            var totalPcmBytesDecoded = 0L
-            var chunkStartTimeBytes = 0L
-
-            var inputDone = false
-            var outputDone = false
-            val bufferInfo = MediaCodec.BufferInfo()
-
-            while (!outputDone) {
-                if (!inputDone) {
-                    val inputBufferIndex = decoder.dequeueInputBuffer(CODEC_TIMEOUT_US)
-                    if (inputBufferIndex >= 0) {
-                        val inputBuffer = decoder.getInputBuffer(inputBufferIndex)
-                        if (inputBuffer != null) {
-                            val sampleSize = extractor.readSampleData(inputBuffer, 0)
-                            if (sampleSize < 0) {
-                                decoder.queueInputBuffer(inputBufferIndex, 0, 0, 0,
-                                    MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-                                inputDone = true
-                            } else {
-                                decoder.queueInputBuffer(inputBufferIndex, 0, sampleSize,
-                                    extractor.sampleTime, 0)
-                                extractor.advance()
-                            }
-                        }
-                    }
-                }
-
-                val outputBufferIndex = decoder.dequeueOutputBuffer(bufferInfo, CODEC_TIMEOUT_US)
-
-                when {
-                    outputBufferIndex >= 0 -> {
-                        if (!outputFormatChecked) {
-                            val outFormat = decoder.outputFormat
-                            try { outputSampleRate = outFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE) } catch (_: Exception) {}
-                            try { outputChannels = outFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT) } catch (_: Exception) {}
-                            outputFormatChecked = true
-                            Timber.i("Decoder output: %dHz, %dch", outputSampleRate, outputChannels)
-                        }
-
-                        if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
-                            outputDone = true
-                        }
-
-                        if (bufferInfo.size > 0) {
-                            val outputBuffer = decoder.getOutputBuffer(outputBufferIndex)
-                            if (outputBuffer != null) {
-                                val pcmData = ByteArray(bufferInfo.size)
-                                outputBuffer.position(bufferInfo.offset)
-                                outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
-                                outputBuffer.get(pcmData)
-
-                                chunkBuffer.add(pcmData)
-                                chunkBufferSize += pcmData.size
-                                totalPcmBytesDecoded += pcmData.size
-
-                                if (chunkBufferSize >= chunkSizeBytes) {
-                                    val startTimeSec = chunkStartTimeBytes.toDouble() / bytesPerSecond
-                                    val durationSec = chunkBufferSize.toDouble() / bytesPerSecond
-
-                                    val chunkFile = writeWavFile(
-                                        chunkBuffer, outputSampleRate, outputChannels, context, chunkIndex
-                                    )
-                                    chunks.add(AudioChunk(chunkFile, startTimeSec, durationSec))
-
-                                    chunkStartTimeBytes += chunkBufferSize
-                                    chunkIndex++
-                                    chunkBuffer.clear()
-                                    chunkBufferSize = 0L
-
-                                    if (chunks.size >= MAX_CHUNKS) {
-                                        Timber.i("Reached max chunks (%d), stopping", MAX_CHUNKS)
-                                        break
-                                    }
-                                }
-                            }
-                        }
-
-                        decoder.releaseOutputBuffer(outputBufferIndex, false)
-                    }
-                    outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                        val outFormat = decoder.outputFormat
-                        try { outputSampleRate = outFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE) } catch (_: Exception) {}
-                        try { outputChannels = outFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT) } catch (_: Exception) {}
-                        outputFormatChecked = true
-                        Timber.i("Output format changed: %dHz, %dch", outputSampleRate, outputChannels)
-                    }
-                    outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> { /* wait */ }
-                }
-            }
-
-            // Drain remaining PCM as the last chunk
-            if (chunkBuffer.isNotEmpty() && chunkBufferSize > 0) {
-                val startTimeSec = chunkStartTimeBytes.toDouble() / bytesPerSecond
-                val durationSec = chunkBufferSize.toDouble() / bytesPerSecond
-                if (durationSec >= 0.5 && chunks.size < MAX_CHUNKS) {
-                    val chunkFile = writeWavFile(
-                        chunkBuffer, outputSampleRate, outputChannels, context, chunkIndex
-                    )
-                    chunks.add(AudioChunk(chunkFile, startTimeSec, durationSec))
-                }
-            }
-
-            Timber.i("Decode complete: %d chunks, %d bytes PCM", chunks.size, totalPcmBytesDecoded)
-            return chunks
-
+            Timber.i("  Detected format: %s", format)
         } catch (e: Exception) {
-            Timber.e(e, "Failed to decode audio")
-            chunks.forEach { it.file.delete() }
-            return emptyList()
-        } finally {
-            try { extractor.release() } catch (_: Exception) {}
-            try { decoder?.stop() } catch (_: Exception) {}
-            try { decoder?.release() } catch (_: Exception) {}
+            Timber.w(e, "  Could not read first bytes")
         }
-    }
 
-    // ══════════════════════════════════════════════════════════════════
-    // WAV FILE WRITER
-    // ══════════════════════════════════════════════════════════════════
-
-    private fun writeWavFile(
-        pcmChunks: List<ByteArray>,
-        sampleRate: Int,
-        channels: Int,
-        context: Context,
-        chunkIndex: Int
-    ): File {
-        val dataSize = pcmChunks.sumOf { it.size }
-        val byteRate = sampleRate * channels * WAV_BITS_PER_SAMPLE / 8
-        val blockAlign = channels * WAV_BITS_PER_SAMPLE / 8
-        val fileSize = 36 + dataSize
-
-        val outputFile = File.createTempFile("looplingo_wav_${chunkIndex}_", ".wav", context.cacheDir)
-
-        FileOutputStream(outputFile).use { fos ->
-            val out = java.io.BufferedOutputStream(fos, 32 * 1024)
-
-            out.write("RIFF".toByteArray(Charsets.US_ASCII))
-            out.write(intToLittleEndian(fileSize))
-            out.write("WAVE".toByteArray(Charsets.US_ASCII))
-
-            out.write("fmt ".toByteArray(Charsets.US_ASCII))
-            out.write(intToLittleEndian(16))
-            out.write(shortToLittleEndian(WAV_AUDIO_FORMAT_PCM))
-            out.write(shortToLittleEndian(channels))
-            out.write(intToLittleEndian(sampleRate))
-            out.write(intToLittleEndian(byteRate))
-            out.write(shortToLittleEndian(blockAlign))
-            out.write(shortToLittleEndian(WAV_BITS_PER_SAMPLE))
-
-            out.write("data".toByteArray(Charsets.US_ASCII))
-            out.write(intToLittleEndian(dataSize))
-
-            for (chunk in pcmChunks) {
-                out.write(chunk)
+        try {
+            val extractor = MediaExtractor()
+            extractor.setDataSource(file.absolutePath)
+            Timber.i("  Tracks: %d", extractor.trackCount)
+            for (i in 0 until extractor.trackCount) {
+                val fmt = extractor.getTrackFormat(i)
+                val mime = fmt.getString(MediaFormat.KEY_MIME) ?: "unknown"
+                val sr = try { fmt.getInteger(MediaFormat.KEY_SAMPLE_RATE) } catch (_: Exception) { -1 }
+                val ch = try { fmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT) } catch (_: Exception) { -1 }
+                val dur = try { fmt.getLong(MediaFormat.KEY_DURATION) / 1000 } catch (_: Exception) { -1L }
+                Timber.i("    Track %d: %s, %dHz, %dch, %dms", i, mime, sr, ch, dur)
             }
-
-            out.flush()
+            extractor.release()
+        } catch (e: Exception) {
+            Timber.w(e, "  Could not probe with MediaExtractor")
         }
-
-        return outputFile
+        Timber.i("═══ END FILE DIAGNOSTICS ═══")
     }
 
-    private fun intToLittleEndian(value: Int): ByteArray {
-        return byteArrayOf(
-            (value and 0xFF).toByte(),
-            ((value shr 8) and 0xFF).toByte(),
-            ((value shr 16) and 0xFF).toByte(),
-            ((value shr 24) and 0xFF).toByte()
-        )
-    }
+    // ══════════════════════════════════════════════════════════════════
+    // DEBUG FILE SAVE
+    // ══════════════════════════════════════════════════════════════════
 
-    private fun shortToLittleEndian(value: Int): ByteArray {
-        return byteArrayOf(
-            (value and 0xFF).toByte(),
-            ((value shr 8) and 0xFF).toByte()
-        )
+    private fun saveDebugFile(context: Context, sourceFile: File, debugName: String) {
+        try {
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            if (!downloadsDir.exists()) downloadsDir.mkdirs()
+
+            val debugFile = File(downloadsDir, debugName)
+            sourceFile.inputStream().use { input ->
+                FileOutputStream(debugFile).use { output -> input.copyTo(output) }
+            }
+            Timber.i("Debug file saved to: %s (%.2fKB)", debugFile.absolutePath, debugFile.length() / 1024.0)
+        } catch (e: Exception) {
+            Timber.w(e, "Could not save debug file to Downloads")
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -971,8 +1255,8 @@ class GroqApiClient {
 
                 if (chunkSegments.isEmpty()) {
                     emptyChunks++
-                    Timber.d("Chunk %d/%d: no speech (time %.1fs-%.1fs)",
-                        chunkNum, chunks.size, offsetSec, offsetSec + chunk.durationSec)
+                    Timber.d("Chunk %d/%d: no speech (time %.1fs)",
+                        chunkNum, chunks.size, offsetSec)
                 } else {
                     for (seg in chunkSegments) {
                         allSegments.add(Segment(
@@ -1005,13 +1289,6 @@ class GroqApiClient {
     // WHISPER API CALL
     // ══════════════════════════════════════════════════════════════════
 
-    /**
-     * Call the Groq Whisper API with a single audio file.
-     *
-     * @param language ISO 639-1 code or "auto". When set, tells Whisper
-     *                 what language to expect — improves detection for
-     *                 non-English audio (Bengali, Japanese, etc.)
-     */
     private fun callWhisperApi(apiKey: String, audioFile: File, language: String = "auto"): List<Segment> {
         val mediaType = guessAudioMediaType(audioFile.name)
         Timber.i("→ Whisper API: %s (%.2fKB) as %s, lang=%s",
@@ -1026,10 +1303,6 @@ class GroqApiClient {
             .addFormDataPart("response_format", "verbose_json")
             .addFormDataPart("timestamp_granularities[]", "segment")
 
-        // Add language parameter if specified (not "auto")
-        // When language is set, Whisper skips language detection and
-        // directly transcribes in that language — much more accurate
-        // for Bengali, Japanese, and other non-English languages.
         if (language.isNotBlank() && language != "auto") {
             multipartBuilder.addFormDataPart("language", language)
             Timber.i("  Language set to: %s", language)
