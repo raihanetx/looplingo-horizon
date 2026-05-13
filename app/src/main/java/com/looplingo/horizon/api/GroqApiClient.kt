@@ -450,6 +450,7 @@ class GroqApiClient {
             var sampleCount = 0
 
             while (true) {
+                buffer.clear()  // Reset buffer position before each read
                 val sampleSize = extractor.readSampleData(buffer, 0)
                 if (sampleSize < 0) break
 
@@ -484,11 +485,10 @@ class GroqApiClient {
 
         } catch (e: Exception) {
             Timber.e(e, "Failed to extract audio track with MediaMuxer")
-            muxer?.let { try { it.release() } catch (_: Exception) {} }
             return null
         } finally {
             try { extractor.release() } catch (_: Exception) {}
-            try { muxer?.release() } catch (_: Exception) {}
+            try { muxer?.release() } catch (_: Exception) {}  // safe even if stop() was called
         }
     }
 
@@ -568,6 +568,7 @@ class GroqApiClient {
                 val chunkEndUs = minOf(chunkStartUs + chunkDurationUs, totalDurationUs)
 
                 // Seek to the start of this chunk
+                buffer.clear()  // Reset buffer before seeking
                 extractor.seekTo(chunkStartUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
 
                 val chunkFile = File.createTempFile("looplingo_chunk_${chunkIdx}_", ".$outputExt", context.cacheDir)
@@ -582,6 +583,7 @@ class GroqApiClient {
                     var lastPts = chunkStartUs
 
                     while (true) {
+                        buffer.clear()  // Reset buffer before each read
                         val sampleSize = extractor.readSampleData(buffer, 0)
                         if (sampleSize < 0) break  // End of stream
 
@@ -1320,7 +1322,16 @@ class GroqApiClient {
         if (!response.isSuccessful || responseBody.isNullOrBlank()) {
             val errorDetail = responseBody?.take(500) ?: "No response body"
             Timber.e("← Whisper API error: HTTP %d — %s", response.code, errorDetail)
-            throw RuntimeException("Groq API error ${response.code}: ${responseBody?.take(200) ?: "No response"}")
+
+            // User-friendly error messages for common API issues
+            val userMessage = when (response.code) {
+                401 -> "API key is invalid. Please check your Groq API key in settings."
+                403 -> "API key is forbidden or expired. Get a new key from console.groq.com"
+                429 -> "Rate limit exceeded. Wait a moment and try again."
+                413 -> "Audio file too large for Groq API (max 25MB)."
+                else -> "Groq API error ${response.code}: ${responseBody?.take(200) ?: "No response"}"
+            }
+            throw RuntimeException(userMessage)
         }
 
         Timber.d("← Whisper API response: HTTP %d, %d bytes", response.code, responseBody.length)
