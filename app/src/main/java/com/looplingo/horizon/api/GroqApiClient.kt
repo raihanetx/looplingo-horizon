@@ -195,7 +195,7 @@ class GroqApiClient {
         Timber.i("Language: %s", language)
 
         // ── Step 0: Resolve to a readable file ────────────────────────
-        onProgress?.onProgress("Preparing audio file…")
+        onProgress?.onProgress("[Step 0] Resolving file path…")
         val (sourceFile, cleanupSource) = resolveToReadableFile(context, filePath)
 
         try {
@@ -205,67 +205,85 @@ class GroqApiClient {
             }
 
             val sourceSizeMB = sourceFile.length() / (1024.0 * 1024.0)
+            onProgress?.onProgress("[Step 0] File ready: ${sourceFile.name} (%.2fMB)".format(sourceSizeMB))
             Timber.i("Source file: %s (%.2fMB)", sourceFile.name, sourceSizeMB)
             logFileDiagnostics(sourceFile)
 
             // ── Step 1: ALREADY AUDIO? Send directly ──────────────────
             if (isAudioFile(sourceFile) && sourceFile.length() <= GROQ_MAX_FILE_SIZE) {
-                onProgress?.onProgress("Sending audio directly to Whisper…")
+                onProgress?.onProgress("[Step 1] Audio file detected — sending directly (%.2fMB)…".format(sourceSizeMB))
                 Timber.i("Step 1: File is already audio — sending directly (%.2fMB)", sourceSizeMB)
 
                 try {
                     val result = callWhisperApi(apiKey, sourceFile, language)
                     if (result.isNotEmpty()) {
+                        onProgress?.onProgress("[Step 1] SUCCESS! %d segments from direct audio".format(result.size))
                         Timber.i("═══ SUCCESS: %d segments from direct audio! ═══", result.size)
                         return@withContext result
                     }
+                    onProgress?.onProgress("[Step 1] No speech detected in direct audio, trying extraction…")
                     Timber.w("Direct audio: no speech detected, trying extraction")
                 } catch (e: Exception) {
+                    onProgress?.onProgress("[Step 1] Failed: ${e.message?.take(80)} — trying extraction…")
                     Timber.w(e, "Direct audio failed, trying extraction")
                 }
+            } else if (!isAudioFile(sourceFile)) {
+                onProgress?.onProgress("[Step 1] Video file detected — need to extract audio")
+            } else {
+                onProgress?.onProgress("[Step 1] Audio too large (%.2fMB > 25MB) — will chunk".format(sourceSizeMB))
             }
 
             // ── Step 2: EXTRACT AUDIO TRACK (no re-encode) ────────────
-            onProgress?.onProgress("Extracting audio from file…")
+            onProgress?.onProgress("[Step 2] Extracting audio track (no re-encoding)…")
             Timber.i("Step 2: Extracting audio track with MediaMuxer (no re-encoding)")
 
             val extractedAudio = extractAudioTrack(context, sourceFile)
             if (extractedAudio != null) {
-                Timber.i("Extracted audio: %s (%.2fKB)", extractedAudio.name, extractedAudio.length() / 1024.0)
+                val extractedKB = extractedAudio.length() / 1024.0
+                onProgress?.onProgress("[Step 2] Extracted: ${extractedAudio.name} (%.1fKB)".format(extractedKB))
+                Timber.i("Extracted audio: %s (%.2fKB)", extractedAudio.name, extractedKB)
 
                 if (extractedAudio.length() <= GROQ_MAX_FILE_SIZE) {
                     // Audio fits in one request — send it all at once
-                    onProgress?.onProgress("Sending extracted audio to Whisper…")
+                    onProgress?.onProgress("[Step 2] Sending extracted audio to Whisper (%.1fKB)…".format(extractedKB))
                     try {
                         val result = callWhisperApi(apiKey, extractedAudio, language)
                         if (result.isNotEmpty()) {
+                            onProgress?.onProgress("[Step 2] SUCCESS! %d segments from extracted audio".format(result.size))
                             Timber.i("═══ SUCCESS: %d segments from extracted audio! ═══", result.size)
                             extractedAudio.delete()
                             return@withContext result
                         }
+                        onProgress?.onProgress("[Step 2] No speech detected — trying chunks…")
                         Timber.w("Extracted audio: no speech detected, trying with chunks")
                     } catch (e: Exception) {
+                        onProgress?.onProgress("[Step 2] API error: ${e.message?.take(80)} — trying chunks…")
                         Timber.w(e, "Full extracted audio failed, trying chunks")
                     }
                 }
 
                 // Audio too large or single request failed — split into time-based chunks
-                onProgress?.onProgress("Splitting audio into chunks…")
+                onProgress?.onProgress("[Step 2b] Splitting audio into time-based chunks…")
                 val chunks = splitAudioIntoChunks(context, sourceFile)
                 if (chunks.isNotEmpty()) {
+                    onProgress?.onProgress("[Step 2b] Created %d chunks, transcribing…".format(chunks.size))
                     val result = transcribeChunks(apiKey, chunks, language, onProgress)
                     extractedAudio.delete()
                     if (result.isNotEmpty()) {
+                        onProgress?.onProgress("[Step 2b] SUCCESS! %d segments from %d chunks".format(result.size, chunks.size))
                         Timber.i("═══ SUCCESS: %d segments from %d chunks! ═══", result.size, chunks.size)
                         return@withContext result
                     }
+                    onProgress?.onProgress("[Step 2b] No speech in any chunk")
                     Timber.w("Chunks: no speech detected in any chunk")
                 }
                 extractedAudio.delete()
+            } else {
+                onProgress?.onProgress("[Step 2] Audio extraction FAILED — trying PCM fallback")
             }
 
             // ── Step 3 (FALLBACK): PCM NORMALIZATION ──────────────────
-            onProgress?.onProgress("Trying with audio normalization (fallback)…")
+            onProgress?.onProgress("[Step 3] FALLBACK: Decoding to PCM + normalizing…")
             Timber.i("Step 3: FALLBACK — decoding to PCM with normalization")
 
             val wavChunks = decodeAndCreateWavChunks(context, sourceFile)
@@ -1249,7 +1267,7 @@ class GroqApiClient {
 
         for ((index, chunk) in chunks.withIndex()) {
             val chunkNum = index + 1
-            onProgress?.onProgress("Transcribing chunk $chunkNum/${chunks.size}…")
+            onProgress?.onProgress("[Chunk $chunkNum/${chunks.size}] Sending to Whisper…")
 
             try {
                 val chunkSegments = callWhisperApi(apiKey, chunk.file, language)

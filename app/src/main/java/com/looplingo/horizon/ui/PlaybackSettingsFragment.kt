@@ -55,6 +55,7 @@ class PlaybackSettingsFragment : Fragment() {
     private var selectedSegmentIndex: Int = -1
     private var dialogueLoopCount: Int = 3
     private var isGeneratingSubtitles: Boolean = false
+    private val debugLog = StringBuilder()
 
     private val prefsName = "looplingo_prefs"
     private val keyGroqApiKey = "groq_api_key"
@@ -339,10 +340,18 @@ class PlaybackSettingsFragment : Fragment() {
             }
 
             isGeneratingSubtitles = true
+            debugLog.clear()
             binding.progressSubtitles.visibility = View.VISIBLE
             binding.tvSubtitleStatus.visibility = View.VISIBLE
             binding.tvSubtitleStatus.text = getString(R.string.subtitle_step_preparing)
+            binding.tvDebugLog.visibility = View.VISIBLE
+            binding.tvDebugLog.text = ""
             binding.btnGenerateSubtitles.isEnabled = false
+
+            appendDebugLog("=== TRANSCRIPTION STARTED ===")
+            appendDebugLog("File: ${effectivePath.take(80)}")
+            appendDebugLog("Language: $selectedLanguageCode")
+            appendDebugLog("API key: ${apiKey.take(10)}...${apiKey.takeLast(4)}")
 
             lifecycleScope.launch {
                 try {
@@ -350,9 +359,10 @@ class PlaybackSettingsFragment : Fragment() {
                         groqApiClient.transcribeAudio(
                             requireContext(), apiKey, effectivePath, selectedLanguageCode
                         ) { step ->
-                            // Update progress on main thread
+                            // Update progress AND debug log on main thread
                             lifecycleScope.launch(Dispatchers.Main) {
                                 binding.tvSubtitleStatus.text = step
+                                appendDebugLog(step)
                             }
                         }
                     }
@@ -363,27 +373,70 @@ class PlaybackSettingsFragment : Fragment() {
 
                     if (segments.isEmpty()) {
                         binding.tvSubtitleStatus.text = getString(R.string.subtitle_no_segments)
+                        appendDebugLog("RESULT: No segments found")
                     } else {
                         binding.tvSubtitleStatus.text = getString(R.string.subtitle_generated, segments.size)
+                        appendDebugLog("SUCCESS: ${segments.size} segments found!")
+                        for ((i, seg) in segments.take(5).withIndex()) {
+                            appendDebugLog("  [$i] ${formatMsToTime(seg.startMs)}-${formatMsToTime(seg.endMs)}: ${seg.text.take(50)}")
+                        }
+                        if (segments.size > 5) appendDebugLog("  ... and ${segments.size - 5} more")
                         showDialogueList(segments)
                     }
                 } catch (e: SubtitleException) {
                     Timber.e(e, "Subtitle generation failed")
                     isGeneratingSubtitles = false
                     binding.progressSubtitles.visibility = View.GONE
-                    binding.tvSubtitleStatus.text = e.message ?: getString(R.string.subtitle_error_short)
-                    showSnackbar(e.message ?: getString(R.string.subtitle_error_short))
+                    val errorMsg = e.message ?: getString(R.string.subtitle_error_short)
+                    binding.tvSubtitleStatus.text = errorMsg
+                    appendDebugLog("FAILED: $errorMsg")
+                    appendDebugLog("Exception type: ${e.javaClass.simpleName}")
+                    appendDebugLog("Stack: ${e.stackTraceToString().take(200)}")
+                    showSnackbar(errorMsg)
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to generate subtitles")
                     isGeneratingSubtitles = false
                     binding.progressSubtitles.visibility = View.GONE
-                    binding.tvSubtitleStatus.text = getString(R.string.subtitle_error, e.message ?: "Unknown")
+                    val errorMsg = e.message ?: "Unknown error"
+                    binding.tvSubtitleStatus.text = getString(R.string.subtitle_error, errorMsg)
+                    appendDebugLog("ERROR: $errorMsg")
+                    appendDebugLog("Exception: ${e.javaClass.simpleName}")
+                    // Show full stack trace for debugging
+                    val stackLines = e.stackTraceToString().lines().take(8)
+                    for (line in stackLines) {
+                        appendDebugLog("  $line")
+                    }
+                    // If it's an API error, show the HTTP details
+                    if (errorMsg.contains("403")) {
+                        appendDebugLog("")
+                        appendDebugLog("*** API KEY IS FORBIDDEN/EXPIRED ***")
+                        appendDebugLog("Your Groq API key is rejected.")
+                        appendDebugLog("Fix: Go to console.groq.com")
+                        appendDebugLog("Create a new API key and enter it above.")
+                    } else if (errorMsg.contains("401")) {
+                        appendDebugLog("")
+                        appendDebugLog("*** API KEY IS INVALID ***")
+                        appendDebugLog("The key format is wrong or incomplete.")
+                        appendDebugLog("Fix: Copy the full key from console.groq.com")
+                    }
                     showSnackbar(getString(R.string.subtitle_error_short))
                 } finally {
                     binding.btnGenerateSubtitles.isEnabled = true
                 }
             }
         }
+    }
+
+    /** Append a line to the visible debug log panel */
+    private fun appendDebugLog(line: String) {
+        debugLog.append(line).append("\n")
+        binding.tvDebugLog.text = debugLog.toString()
+        // Auto-scroll to bottom
+        val scrollAmount = binding.tvDebugLog.layout?.let { layout ->
+            val lineCount = layout.lineCount
+            if (lineCount > 0) layout.getLineTop(lineCount) - binding.tvDebugLog.height else 0
+        } ?: 0
+        if (scrollAmount > 0) binding.tvDebugLog.scrollTo(0, scrollAmount)
     }
 
     private fun showDialogueList(segments: List<Segment>) {

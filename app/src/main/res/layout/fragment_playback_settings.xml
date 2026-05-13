@@ -456,6 +456,22 @@
                         android:textColor="@color/colorOnSurface"
                         android:visibility="gone" />
 
+                    <!-- Debug log — shows every step and exact error messages -->
+                    <TextView
+                        android:id="@+id/tv_debug_log"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_sm"
+                        android:background="@color/colorSurfaceVariant"
+                        android:fontFamily="monospace"
+                        android:maxLines="30"
+                        android:padding="@dimen/space_sm"
+                        android:scrollbars="vertical"
+                        android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                        android:textColor="@color/colorOnSurfaceVariant"
+                        android:textIsSelectable="true"
+                        android:visibility="gone" />
+
                     <!-- Dialogue list -->
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rv_dialogue_list"
