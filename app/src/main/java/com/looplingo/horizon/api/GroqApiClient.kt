@@ -139,7 +139,7 @@ class GroqApiClient {
         fun onProgress(step: String)
     }
 
-    class SubtitleException(message: String) : Exception(message)
+    open class SubtitleException(message: String) : Exception(message)
 
     /** Thrown when the API key is invalid/expired — no point retrying other steps */
     class ApiKeyException(message: String) : SubtitleException(message)
