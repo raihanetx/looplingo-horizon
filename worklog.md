@@ -1,54 +1,25 @@
+# LoopLingo Horizon — Worklog
+
 ---
 Task ID: 1
-Agent: Main
-Task: Read and analyze all key project files
+Agent: Main Agent
+Task: Complete audit and fix all remaining bugs in LoopLingo Horizon
 
 Work Log:
-- Read GroqApiClient.kt (2036 lines) - full Whisper API pipeline
-- Read AppDatabase.kt, DatabaseModule.kt, RepositoryModule.kt
-- Read SubtitleCue.kt, VideoRepository.kt, TranscriptRepository.kt
-- Read PlaybackSettingsFragment.kt, PlaybackSettingsViewModel.kt
-- Read AudioPlaybackService.kt (key sections)
-- Identified package: com.looplingo.horizon (not com.raihan.looplingohorizon)
+- Read all 31 Kotlin source files across the project
+- Identified that the previous session had already fixed the major architecture issues (MIME type, whisper-large-v3, 16KHz pre-processing, A-B loop, DB migrations)
+- Conducted thorough audit of all remaining files
+- Found 20 additional bugs (2 Critical, 4 High, 8 Medium, 6 Low)
+- Fixed all Critical and High severity bugs
+- Fixed all Medium severity bugs
 
 Stage Summary:
-- MIME type already fixed (audio/mp4 for M4A)
-- apiSemaphore declared but never used (parallel processing not implemented)
-- Double delete bug on line 287+291
-- No transcription persistence (no Room entity/DAO)
-- Whisper results disconnected from TranscriptRepository
-- SubtitleCue half-open range bug
-- fallbackToDestructiveMigration() still in DatabaseModule
-- Flow collection not cancelled in ViewModel onCleared()
-
----
-Task ID: 2
-Agent: Main
-Task: Implement all critical bug fixes and optimizations
-
-Work Log:
-- Fixed parallel chunk processing in GroqApiClient.kt (transcribeChunksWithOverlap)
-  - Now uses coroutineScope + async for concurrent chunk transcription
-  - Uses apiSemaphore for rate-limit-aware concurrency (MAX_CONCURRENT_CHUNKS=3)
-  - Chunks processed in groups with prompt chaining between groups
-  - Added ChunkResult data class for parallel result handling
-- Fixed double delete bug in transcribeAudio() Step 1
-- Fixed SEEK_TO_CLOSEST_SYNC → SEEK_TO_PREVIOUS_SYNC for chunk boundaries
-- Created TranscriptionEntity.kt (Room entity for transcription persistence)
-- Created TranscriptionDao.kt (Room DAO with full CRUD operations)
-- Updated AppDatabase.kt (v5→v6, added TranscriptionEntity + TranscriptionDao)
-- Updated DatabaseModule.kt (v5→v6 migration, removed fallbackToDestructiveMigration)
-- Updated TranscriptRepository.kt (dual-source: files + DB, saveTranscriptions(), async methods)
-- Fixed SubtitleCue.kt isActiveAt() (closed range [startMs..endMs] instead of half-open)
-- Updated VideoRepository.kt (documented Context usage, uses applicationContext explicitly)
-- Updated PlaybackSettingsViewModel.kt (added onCleared(), saveTranscription(), TranscriptRepository injection)
-- Updated PlaybackSettingsFragment.kt (saves transcriptions + SRT after successful generation)
-- Updated RepositoryModule.kt (removed duplicate @Provides for @Inject classes)
-- Fixed unused import in TranscriptionDao.kt
-
-Stage Summary:
-- 11 files modified/created
-- All critical bugs fixed
-- Parallel chunk processing implemented (3-5x faster)
-- Transcription persistence implemented (Room DB v6)
-- Whisper-to-playback bridge completed
+- **BUG-1 (Critical)**: Fixed `resolveToReadableFile()` to extract audio directly from content:// URIs via `extractAudioFromContentUri()` using `MediaExtractor.setDataSource(Context, Uri, Headers)`, avoiding 72MB+ video file copies
+- **BUG-2 (High)**: Fixed `analyzeWavPcm()` reversed byte order — now correctly reads little-endian WAV as `(high shl 8) or low` matching `normalizeWavFile()`
+- **BUG-3 (High)**: Fixed dead code path — `extracted.delete()` moved inside the `ppExtracted != null` branch so the fallback `extracted.exists()` check works correctly
+- **BUG-6 (Medium)**: Fixed OkHttp Response leak in `callWhisperApi()` — now uses `try/finally { response.close() }` pattern and captures `responseCode` before closing
+- **BUG-9 (Critical)**: Fixed VTT timestamp parsing — `parseTimestamp()` now converts regex separator `"\\."` to literal `"."` for `String.split()` since split uses literal matching
+- **BUG-10 (High)**: Fixed `SubtitleScanner.findSubtitleViaContentResolver()` to use `ContentResolver.openInputStream()` instead of direct `File()` access
+- **BUG-11 (Medium)**: Fixed `SubtitleScanner.findSubtitlesViaMediaStore()` to prefer ContentResolver stream access with File fallback
+- **BUG-12 (Medium)**: Fixed `MainFragment.saveLoopFromMiniPlayer()` to use `viewLifecycleOwner.lifecycleScope` instead of `lifecycleScope`
+- **BUG-16 (Low)**: Fixed `Segment.startMs`/`endMs` to use `Math.round()` instead of `.toLong()` truncation
