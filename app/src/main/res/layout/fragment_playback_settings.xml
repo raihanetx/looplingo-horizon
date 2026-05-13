@@ -407,6 +407,27 @@
                         app:icon="@drawable/ic_check"
                         app:iconGravity="textStart" />
 
+                    <!-- Language selector for Whisper transcription -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_language"
+                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_md"
+                        android:hint="Transcription Language"
+                        app:helperText="Select language for better accuracy"
+                        app:helperTextEnabled="true"
+                        app:startIconDrawable="@drawable/ic_language">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/actv_language"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_generate_subtitles"
                         style="@style/Widget.Horizon.Button.Tonal"

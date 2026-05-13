@@ -7,6 +7,8 @@ import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -56,6 +58,8 @@ class PlaybackSettingsFragment : Fragment() {
 
     private val prefsName = "looplingo_prefs"
     private val keyGroqApiKey = "groq_api_key"
+    private val keyLanguage = "whisper_language"
+    private var selectedLanguageCode = "auto"
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPlaybackSettingsBinding.inflate(inflater, container, false)
@@ -250,9 +254,39 @@ class PlaybackSettingsFragment : Fragment() {
         binding.tvApiKeyBanner.visibility = if (apiKey.isBlank()) View.VISIBLE else View.GONE
     }
 
+    private fun setupLanguageSelector() {
+        val languages = GroqApiClient.SUPPORTED_LANGUAGES
+        val displayNames = languages.map { it.second }
+
+        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, displayNames)
+        binding.actvLanguage.setAdapter(adapter)
+
+        // Load saved language preference
+        val prefs = requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        val savedLangCode = prefs.getString(keyLanguage, "auto") ?: "auto"
+        val savedDisplayName = languages.find { it.first == savedLangCode }?.second ?: displayNames[0]
+        binding.actvLanguage.setText(savedDisplayName, false)
+        selectedLanguageCode = savedLangCode
+
+        // Save language when user selects one
+        binding.actvLanguage.setOnItemClickListener { _, _, position, _ ->
+            val (code, _) = languages[position]
+            selectedLanguageCode = code
+            prefs.edit().putString(keyLanguage, code).apply()
+            Timber.d("Language selected: %s (%s)", displayNames[position], code)
+        }
+    }
+
+    private fun getSelectedLanguageCode(): String {
+        val displayText = binding.actvLanguage.text.toString()
+        val match = GroqApiClient.SUPPORTED_LANGUAGES.find { it.second == displayText }
+        return match?.first ?: "auto"
+    }
+
     private fun setupSubtitleGeneration() {
         loadSavedApiKey()
         updateApiKeyBanner()
+        setupLanguageSelector()
 
         // Save API key button — explicit save action
         binding.btnSaveApiKey.setOnClickListener {
@@ -292,6 +326,9 @@ class PlaybackSettingsFragment : Fragment() {
                 return@setOnClickListener
             }
 
+            // Get selected language
+            selectedLanguageCode = getSelectedLanguageCode()
+
             val videoPath = args.videoPath
             val contentUri = args.contentUri
             // Use contentUri if available (scoped storage), otherwise use file path
@@ -310,7 +347,9 @@ class PlaybackSettingsFragment : Fragment() {
             lifecycleScope.launch {
                 try {
                     val segments = withContext(Dispatchers.IO) {
-                        groqApiClient.transcribeAudio(requireContext(), apiKey, effectivePath) { step ->
+                        groqApiClient.transcribeAudio(
+                            requireContext(), apiKey, effectivePath, selectedLanguageCode
+                        ) { step ->
                             // Update progress on main thread
                             lifecycleScope.launch(Dispatchers.Main) {
                                 binding.tvSubtitleStatus.text = step
