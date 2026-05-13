@@ -43,8 +43,8 @@ jobs:
       - name: Get version info
         id: version
         run: |
-          VERSION_NAME=$(grep 'versionName' app/build.gradle | head -1 | awk -F'"' '{print $2}')
-          VERSION_CODE=$(grep 'versionCode' app/build.gradle | head -1 | awk -F' ' '{print $2}')
+          VERSION_NAME=$(grep 'versionName "' app/build.gradle | awk -F'"' '{print $2}')
+          VERSION_CODE=$(grep 'versionCode ' app/build.gradle | awk -F' ' '{print $2}')
           echo "name=v${VERSION_NAME}" >> $GITHUB_OUTPUT
           echo "code=${VERSION_CODE}" >> $GITHUB_OUTPUT
           echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
