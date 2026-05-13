@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Client for the Groq Whisper API — speech-to-text transcription.
  *
- * Architecture (v1.15.0 — Normalize + Language):
+ * Architecture (v1.16.0 — Normalize + Language + Test Mode):
  *
  *   The KEY insight from v1.14.0 debugging:
  *   - PCM stats: meanAbs=515, range=[-7668..8596], nonZero=49.1%
@@ -33,19 +33,20 @@ import java.util.concurrent.TimeUnit
  *   - But the audio is TOO QUIET for Whisper's voice activity detection
  *   - Movie content has quiet intros + dialogue — low average volume
  *
- *   v1.15.0 fixes:
+ *   v1.16.0 fixes:
  *   1. PCM NORMALIZATION — amplify quiet audio to ~90% of max range
  *      before sending to Whisper. A meanAbs of 515 becomes ~5500
  *   2. LANGUAGE PARAMETER — tell Whisper what language to listen for
  *      (Bengali, Japanese, English, auto-detect, etc.)
  *   3. Probe-first: send raw file, then WAV chunks with normalization
+ *   4. MAX_CHUNKS = 5 for testing — only 5 chunks sent to verify fix works
  */
 class GroqApiClient {
 
     companion object {
         private const val GROQ_MAX_FILE_SIZE = 25L * 1024 * 1024
         private const val CHUNK_DURATION_SEC = 15.0
-        private const val MAX_CHUNKS = 30
+        private const val MAX_CHUNKS = 5  // Testing: only 5 chunks to verify normalization works
 
         private const val GROQ_API_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 
@@ -163,7 +164,7 @@ class GroqApiClient {
             throw SubtitleException("No file selected — go back and pick an audio/video file")
         }
 
-        Timber.i("═══ STARTING TRANSCRIPTION PIPELINE v1.15.0 ═══")
+        Timber.i("═══ STARTING TRANSCRIPTION PIPELINE v1.16.0 ═══")
         Timber.i("Input: %s", filePath.take(100))
         Timber.i("Language: %s", language)
 
