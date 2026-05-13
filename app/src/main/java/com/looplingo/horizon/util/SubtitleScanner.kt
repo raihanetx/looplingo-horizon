@@ -125,7 +125,7 @@ class SubtitleScanner @Inject constructor(
                         context.contentResolver.openInputStream(fileUri)?.use { inputStream ->
                             val ext = filePath.substringAfterLast('.', "").lowercase()
                             val parsed = parseSubtitleFromStream(inputStream, ext)
-                            if (parsed.isNotEmpty()) return@use parsed
+                            if (parsed.isNotEmpty()) parsed else null
                         }
                     } catch (e: Exception) {
                         Timber.d(e, "ContentResolver stream failed, trying direct File access")
