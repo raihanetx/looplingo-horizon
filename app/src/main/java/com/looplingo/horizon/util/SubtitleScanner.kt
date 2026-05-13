@@ -48,34 +48,102 @@ class SubtitleScanner @Inject constructor(
 
     /**
      * Look for subtitle files with the same base name as the video file.
+     *
+     * On Android 10+ with scoped storage, direct file path access may be restricted.
+     * We try both direct File access (works for app-specific dirs and legacy storage)
+     * and ContentResolver-based access as a fallback.
      */
     private fun findSubtitleFile(videoPath: String): List<SubtitleCue>? {
         val videoFile = File(videoPath)
         val videoDir = videoFile.parentFile ?: return null
         val baseName = videoFile.nameWithoutExtension
 
-        // Check same directory
+        // Check same directory using direct file access (works on legacy storage & app dirs)
         for (ext in subtitleExtensions) {
             val subtitleFile = File(videoDir, "$baseName.$ext")
-            if (subtitleFile.exists() && subtitleFile.canRead()) {
-                Timber.i("Found subtitle file: %s", subtitleFile.absolutePath)
-                return parseSubtitleFile(subtitleFile, ext)
+            try {
+                if (subtitleFile.exists() && subtitleFile.canRead()) {
+                    Timber.i("Found subtitle file: %s", subtitleFile.absolutePath)
+                    return parseSubtitleFile(subtitleFile, ext)
+                }
+            } catch (e: SecurityException) {
+                Timber.d("Scoped storage blocked direct access to: %s", subtitleFile.absolutePath)
+                // Try ContentResolver fallback for this directory
+                val result = findSubtitleViaContentResolver(videoDir, baseName, ext)
+                if (result != null) return result
             }
         }
 
         // Check subtitles/ subdirectory
         val subtitlesDir = File(videoDir, "subtitles")
-        if (subtitlesDir.exists() && subtitlesDir.isDirectory) {
-            for (ext in subtitleExtensions) {
-                val subtitleFile = File(subtitlesDir, "$baseName.$ext")
-                if (subtitleFile.exists() && subtitleFile.canRead()) {
-                    Timber.i("Found subtitle file in sub/: %s", subtitleFile.absolutePath)
-                    return parseSubtitleFile(subtitleFile, ext)
+        try {
+            if (subtitlesDir.exists() && subtitlesDir.isDirectory) {
+                for (ext in subtitleExtensions) {
+                    val subtitleFile = File(subtitlesDir, "$baseName.$ext")
+                    if (subtitleFile.exists() && subtitleFile.canRead()) {
+                        Timber.i("Found subtitle file in sub/: %s", subtitleFile.absolutePath)
+                        return parseSubtitleFile(subtitleFile, ext)
+                    }
                 }
             }
+        } catch (e: SecurityException) {
+            Timber.d("Scoped storage blocked access to subtitles subdirectory")
         }
 
         return null
+    }
+
+    /**
+     * Try to find and parse a subtitle file via ContentResolver when direct
+     * File access is blocked by scoped storage.
+     */
+    private fun findSubtitleViaContentResolver(
+        directory: File,
+        baseName: String,
+        extension: String
+    ): List<SubtitleCue>? {
+        return try {
+            val dirPath = directory.absolutePath
+            val fileName = "$baseName.$extension"
+            val uri = MediaStore.Files.getContentUri("external")
+            val projection = arrayOf(MediaStore.Files.FileColumns.DATA)
+            val selection = "${MediaStore.Files.FileColumns.DATA} = ?"
+            val selectionArgs = arrayOf("$dirPath/$fileName")
+
+            context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
+                    val filePath = cursor.getString(dataColumn)
+                    Timber.i("Found subtitle via ContentResolver fallback: %s", filePath)
+                    // Use ContentResolver.openInputStream() instead of direct File access
+                    // to avoid SecurityException on Android 10+ scoped storage
+                    try {
+                        // Try to get a content URI for this file via MediaStore
+                        val fileUri = MediaStore.Files.getContentUri("external", cursor.getLong(
+                            cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+                        ))
+                        context.contentResolver.openInputStream(fileUri)?.use { inputStream ->
+                            val ext = filePath.substringAfterLast('.', "").lowercase()
+                            val parsed = parseSubtitleFromStream(inputStream, ext)
+                            if (parsed.isNotEmpty()) return parsed
+                        }
+                    } catch (e: Exception) {
+                        Timber.d(e, "ContentResolver stream failed, trying direct File access")
+                        // Last resort: try direct file access (works on older Android / app dirs)
+                        val file = File(filePath)
+                        if (file.exists() && file.canRead()) {
+                            val ext = filePath.substringAfterLast('.', "").lowercase()
+                            return parseSubtitleFile(file, ext)
+                        }
+                    }
+                } else {
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            Timber.d(e, "ContentResolver fallback failed for %s.%s", baseName, extension)
+            null
+        }
     }
 
     /**
@@ -90,30 +158,55 @@ class SubtitleScanner @Inject constructor(
             val uri = MediaStore.Files.getContentUri("external")
             val projection = arrayOf(
                 MediaStore.Files.FileColumns.DATA,
-                MediaStore.Files.FileColumns.MIME_TYPE
+                MediaStore.Files.FileColumns.MIME_TYPE,
+                MediaStore.Files.FileColumns._ID
             )
 
             // Build a selection for subtitle file extensions
+            // Escape SQL LIKE wildcards in baseName to prevent unexpected matches
+            val escapedBaseName = baseName
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_")
             val extensionConditions = subtitleExtensions.joinToString(" OR ") {
-                "${MediaStore.Files.FileColumns.DATA} LIKE '%$baseName.$it'"
+                "${MediaStore.Files.FileColumns.DATA} LIKE '%$escapedBaseName.$it' ESCAPE '\\'"
             }
             val selection = "($extensionConditions)"
 
             context.contentResolver.query(uri, projection, selection, null, null)?.use { cursor ->
                 val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
 
                 while (cursor.moveToNext()) {
                     val filePath = cursor.getString(dataColumn)
                     val ext = filePath.substringAfterLast('.', "").lowercase()
+                    val fileId = cursor.getLong(idColumn)
                     if (ext in subtitleExtensions) {
-                        val file = File(filePath)
-                        if (file.exists() && file.canRead()) {
-                            Timber.i("Found subtitle via MediaStore: %s", filePath)
-                            val parsed = parseSubtitleFile(file, ext)
-                            if (parsed.isNotEmpty()) {
-                                results.addAll(parsed)
-                                break  // Use the first found match
+                        try {
+                            // Prefer ContentResolver stream access (scoped storage compatible)
+                            val fileUri = MediaStore.Files.getContentUri("external", fileId)
+                            context.contentResolver.openInputStream(fileUri)?.use { inputStream ->
+                                val parsed = parseSubtitleFromStream(inputStream, ext)
+                                if (parsed.isNotEmpty()) {
+                                    Timber.i("Found subtitle via MediaStore+ContentResolver: %s", filePath)
+                                    results.addAll(parsed)
+                                }
                             }
+                            if (results.isNotEmpty()) break  // Use the first found match
+                        } catch (e: SecurityException) {
+                            Timber.d("Scoped storage blocked access to MediaStore result: %s", filePath)
+                            // Fallback: try direct File access (works on older Android / app dirs)
+                            try {
+                                val file = File(filePath)
+                                if (file.exists() && file.canRead()) {
+                                    Timber.i("Found subtitle via MediaStore+File: %s", filePath)
+                                    val parsed = parseSubtitleFile(file, ext)
+                                    if (parsed.isNotEmpty()) {
+                                        results.addAll(parsed)
+                                        break
+                                    }
+                                }
+                            } catch (_: SecurityException) {}
                         }
                     }
                 }

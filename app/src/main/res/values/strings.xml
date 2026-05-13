@@ -41,6 +41,7 @@
     <string name="content_desc_play_pause">Play or pause</string>
     <string name="mini_player_ab_set">A-B loop active</string>
     <string name="mini_player_a_set">Point A set at %s</string>
+    <string name="mini_player_set_both_points">Set both A and B points first</string>
 
     <!-- Validation errors -->
     <string name="error_loop_count_minimum">Loop count must be at least 1</string>

@@ -428,6 +428,27 @@
 
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Translation language selector -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_translation_language"
+                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_sm"
+                        android:hint="Translation Language"
+                        app:helperText="Target language for AI translation"
+                        app:helperTextEnabled="true"
+                        app:startIconDrawable="@drawable/ic_translate">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/actv_translation_language"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_generate_subtitles"
                         style="@style/Widget.Horizon.Button.Tonal"

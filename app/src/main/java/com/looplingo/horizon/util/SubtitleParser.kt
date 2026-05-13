@@ -99,9 +99,13 @@ object SubtitleParser {
         }
 
         // Fill in end times: each cue ends when the next one starts (or +5s for last)
+        // Uses CLOSED range — endMs equals next cue's startMs (no gap).
+        // This matches SubtitleCue.isActiveAt() which uses [startMs, endMs].
+        // When positionMs equals the boundary, BOTH cues match at that instant;
+        // the binary search in TranscriptRepository returns the correct one.
         for (i in cues.indices) {
             if (i < cues.size - 1) {
-                cues[i] = cues[i].copy(endMs = cues[i + 1].startMs - 1)
+                cues[i] = cues[i].copy(endMs = cues[i + 1].startMs)
             } else {
                 cues[i] = cues[i].copy(endMs = cues[i].startMs + 5000)
             }
@@ -144,13 +148,14 @@ object SubtitleParser {
         var currentEndMs: Long? = null
         var currentTextLines = mutableListOf<String>()
 
-        // Skip VTT header lines
+        // Skip VTT header section (including any metadata headers like NOTE, Style:, Kind:)
         var inVttHeader = isVtt
 
         reader.forEachLine { line ->
             val trimmed = line.trimEnd()
 
-            // Skip VTT header section
+            // Skip VTT header section — skip all lines until we find a blank line
+            // This handles WEBVTT + optional metadata headers (NOTE, Style, Kind, etc.)
             if (inVttHeader) {
                 if (trimmed.isBlank()) {
                     inVttHeader = false
@@ -234,6 +239,11 @@ object SubtitleParser {
      * Supported formats:
      *  - hh:mm:ss,mmm (SRT) or hh:mm:ss.mmm (VTT)
      *  - mm:ss,mmm or mm:ss.mmm
+     *
+     * @param decimalSeparator The regex separator for the decimal part.
+     *     For SRT this is "," (literal comma), for VTT this is "\\." (regex for literal dot).
+     *     IMPORTANT: String.split(String) uses LITERAL matching, not regex.
+     *     So for VTT timestamps like "23.456", we must split on "." not "\\.".
      */
     private fun parseTimestamp(ts: String, decimalSeparator: String): Long {
         return try {
@@ -256,7 +266,11 @@ object SubtitleParser {
                 else -> return 0L
             }
 
-            val secParts = secondsAndMillis.split(decimalSeparator)
+            // String.split(String) uses LITERAL matching, not regex.
+            // For VTT: decimalSeparator = "\\." (for Regex patterns), but we need "." for split.
+            // For SRT: decimalSeparator = "," (same for both Regex and literal split).
+            val splitSeparator = if (decimalSeparator == "\\.") "." else decimalSeparator
+            val secParts = secondsAndMillis.split(splitSeparator)
             val seconds = secParts[0].toLong()
             val millis = if (secParts.size > 1) {
                 // Normalize to 3 digits: "5" → 500, "50" → 500, "500" → 500

@@ -21,7 +21,10 @@ coroutines = "1.8.0"
 media = "1.7.0"
 navigation = "2.7.7"
 timber = "5.0.1"
+okhttp = "4.12.0"
+gson = "2.10.1"
 leakcanary = "2.13"
+security-crypto = "1.1.0-alpha06"
 
 # Testing
 junit = "4.13.2"
@@ -81,6 +84,13 @@ navigation-ui = { group = "androidx.navigation", name = "navigation-ui-ktx", ver
 
 # Logging
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
+
+# Networking
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+
+# Security
+security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "security-crypto" }
 
 # Debug tools
 leakcanary = { group = "com.squareup.leakcanary", name = "leakcanary-android", version.ref = "leakcanary" }

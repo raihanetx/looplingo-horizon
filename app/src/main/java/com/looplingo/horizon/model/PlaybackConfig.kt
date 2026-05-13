@@ -24,9 +24,11 @@ data class PlaybackConfig(
     val hasABLoop: Boolean
         get() = rangeEndMs > 0L && rangeEndMs > rangeStartMs
 
-    /** Whether this config will loop (either A-B or full video). */
+    /** Whether this config will actually loop (repeat playback).
+     *  A-B with loopCount=1 plays the segment once (no repetition),
+     *  so it's not truly "looping" — just range-restricted playback. */
     val willLoop: Boolean
-        get() = loopCount > 1 || hasABLoop
+        get() = loopCount > 1
 
     /** Whether this is just normal full-video playback (no looping, no range). */
     val isNormalPlayback: Boolean
@@ -36,6 +38,7 @@ data class PlaybackConfig(
     val displayBadge: String
         get() = when {
             isNormalPlayback -> ""
+            hasABLoop && loopCount > 1 -> "AB×$loopCount"
             hasABLoop -> "AB"
             loopCount > 1 -> "x$loopCount"
             else -> ""

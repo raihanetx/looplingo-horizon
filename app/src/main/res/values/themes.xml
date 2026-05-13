@@ -48,20 +48,11 @@
         <item name="android:statusBarColor">@color/transparent</item>
         <item name="android:navigationBarColor">@color/transparent</item>
         <item name="android:windowBackground">@color/colorBackground</item>
-        <item name="android:windowLightStatusBar">true</item>
 
         <!-- Custom component overrides -->
         <item name="snackbarStyle">@style/Widget.Horizon.Snackbar</item>
         <item name="snackbarTextViewStyle">@style/Widget.Horizon.Snackbar.TextView</item>
         <item name="materialCardViewStyle">@style/Widget.Horizon.CardView.Elevated</item>
-    </style>
-
-    <!-- ══════════════════════════════════════════════════════════════════════
-         DARK THEME OVERRIDES (system auto-applies via DayNight parent)
-         We only need to override window flags that differ in dark mode.
-         ══════════════════════════════════════════════════════════════════════ -->
-    <style name="Theme.HorizonPlayer.Dark" parent="Theme.HorizonPlayer">
-        <item name="android:windowLightStatusBar">false</item>
     </style>
 
     <!-- ══════════════════════════════════════════════════════════════════════

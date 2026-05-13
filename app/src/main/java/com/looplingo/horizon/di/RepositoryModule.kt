@@ -1,47 +1,22 @@
 package com.looplingo.horizon.di
 
-import android.content.Context
-import com.looplingo.horizon.data.dao.PlaybackRuleDao
-import com.looplingo.horizon.data.dao.SavedTimestampDao
-import com.looplingo.horizon.data.dao.VideoDao
-import com.looplingo.horizon.repository.PlaybackRepository
-import com.looplingo.horizon.repository.TranscriptRepository
-import com.looplingo.horizon.repository.VideoRepository
-import com.looplingo.horizon.util.FileScanner
 import dagger.Module
-import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Singleton
 
+/**
+ * Hilt module for providing repository instances.
+ *
+ * All repositories now use @Inject constructor with @Singleton,
+ * so Hilt can create them automatically. Their dependencies
+ * (VideoDao, FileScanner, @ApplicationContext Context,
+ * SubtitleScanner, TranscriptionDao, PlaybackRuleDao) are all
+ * already provided by other Hilt modules (DatabaseModule, or
+ * @Inject constructor on FileScanner/SubtitleScanner).
+ *
+ * This module is kept empty for future use if non-injectable
+ * dependencies need to be provided.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
-object RepositoryModule {
-
-    @Provides
-    @Singleton
-    fun provideVideoRepository(
-        videoDao: VideoDao,
-        fileScanner: FileScanner,
-        @ApplicationContext context: Context
-    ): VideoRepository {
-        return VideoRepository(videoDao, fileScanner, context)
-    }
-
-    @Provides
-    @Singleton
-    fun providePlaybackRepository(
-        playbackRuleDao: PlaybackRuleDao
-    ): PlaybackRepository {
-        return PlaybackRepository(playbackRuleDao)
-    }
-
-    @Provides
-    @Singleton
-    fun provideTranscriptRepository(
-        subtitleScanner: com.looplingo.horizon.util.SubtitleScanner
-    ): TranscriptRepository {
-        return TranscriptRepository(subtitleScanner)
-    }
-}
+object RepositoryModule

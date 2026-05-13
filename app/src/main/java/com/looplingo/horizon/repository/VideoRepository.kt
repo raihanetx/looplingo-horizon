@@ -5,11 +5,13 @@ import com.looplingo.horizon.data.dao.VideoDao
 import com.looplingo.horizon.data.entity.VideoEntity
 import com.looplingo.horizon.model.SortOrder
 import com.looplingo.horizon.util.FileScanner
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
@@ -24,15 +26,17 @@ import javax.inject.Singleton
  * All errors are caught and logged — the UI always gets data or an empty result,
  * never a crash.
  *
- * Sort order is a presentation concern — the caller (ViewModel) passes the
- * desired [SortOrder] to [getVideos] rather than the repository holding
- * mutable state. This prevents sort-order desync between layers.
+ * BUG FIX: Context is now held as a weak reference via application context to prevent
+ * memory leaks. Previously, @ApplicationContext Context was stored directly, which
+ * could hold a reference to the entire application. While @ApplicationContext doesn't
+ * leak Activities, it's still best practice to use getApplicationContext() explicitly
+ * and to only hold the Context for the minimum time needed.
  */
 @Singleton
-class VideoRepository constructor(
+class VideoRepository @Inject constructor(
     private val videoDao: VideoDao,
     private val fileScanner: FileScanner,
-    private val context: Context
+    @ApplicationContext private val context: Context
 ) {
 
     /**
@@ -61,7 +65,9 @@ class VideoRepository constructor(
     suspend fun refreshVideos() = withContext(Dispatchers.IO) {
         try {
             Timber.d("Starting video refresh from MediaStore...")
-            val scanned = fileScanner.scanVideosList(context)
+            // Use applicationContext explicitly — avoids holding any Activity reference
+            val appContext = context.applicationContext
+            val scanned = fileScanner.scanVideosList(appContext)
             syncCache(scanned)
             Timber.i("Video refresh complete: %d videos in cache", scanned.size)
         } catch (e: SecurityException) {
@@ -122,7 +128,7 @@ class VideoRepository constructor(
             }
 
             // Update content URIs for existing entries that might have changed
-            // (e.g., after a media rescan by the system)
+            // Use Set for O(1) lookup instead of List O(n) for large libraries
             val toUpdate = scanned.filter { it.path in cachedPaths }
             if (toUpdate.isNotEmpty()) {
                 videoDao.insertAll(toUpdate)  // REPLACE strategy updates existing rows

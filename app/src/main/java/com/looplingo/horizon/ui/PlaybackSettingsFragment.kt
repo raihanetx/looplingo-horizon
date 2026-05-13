@@ -1,6 +1,7 @@
 package com.looplingo.horizon.ui
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -35,8 +36,11 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import com.looplingo.horizon.util.TimeUtils
 import timber.log.Timber
-import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class PlaybackSettingsFragment : Fragment() {
@@ -51,17 +55,25 @@ class PlaybackSettingsFragment : Fragment() {
     private var positionPollingRunnable: Runnable? = null
     private val POSITION_POLL_INTERVAL_MS = 500L
 
-    private val groqApiClient = GroqApiClient()
+    @Inject lateinit var groqApiClient: GroqApiClient
     private var dialogueSegments: List<Segment> = emptyList()
+    private var translatedTexts: Map<Int, String> = emptyMap()  // segment.id → translation
     private var selectedSegmentIndex: Int = -1
     private var dialogueLoopCount: Int = 3
     private var isGeneratingSubtitles: Boolean = false
+    private var subtitleGenerationJob: kotlinx.coroutines.Job? = null
     private val debugLog = StringBuilder()
 
-    private val prefsName = "looplingo_prefs"
+    private val securePrefsName = "looplingo_secure_prefs"
     private val keyGroqApiKey = "groq_api_key"
     private val keyLanguage = "whisper_language"
+    private val keyTranslationLanguage = "translation_language"
     private var selectedLanguageCode = "auto"
+    private var selectedTranslationCode = "bn"  // Default: Bangla
+
+    // Cached EncryptedSharedPreferences — avoid re-creating on every read/write
+    // (AES key derivation is expensive, ~50ms per creation)
+    private var cachedEncryptedPrefs: SharedPreferences? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPlaybackSettingsBinding.inflate(inflater, container, false)
@@ -164,7 +176,8 @@ class PlaybackSettingsFragment : Fragment() {
         for (i in 0 until chipGroup.childCount) {
             val chip = chipGroup.getChildAt(i) as? Chip ?: continue
             val chipSpeed = chip.tag as? Float ?: continue
-            chip.isChecked = (chipSpeed == speed)
+            // Use tolerance-based comparison to avoid floating-point == issues
+            chip.isChecked = (kotlin.math.abs(chipSpeed - speed) < 0.001f)
         }
     }
 
@@ -227,20 +240,40 @@ class PlaybackSettingsFragment : Fragment() {
     // AI SUBTITLES — Groq STT with smart pipeline
     // ══════════════════════════════════════════════════════════════════════
 
+    /**
+     * Create or get encrypted SharedPreferences for storing sensitive data (API keys).
+     * Uses AES256 encryption for both keys and values.
+     */
+    private fun getEncryptedPrefs(): SharedPreferences {
+        cachedEncryptedPrefs?.let { return it }
+        val masterKey = MasterKey.Builder(requireContext())
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        val prefs = EncryptedSharedPreferences.create(
+            requireContext(),
+            securePrefsName,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+        cachedEncryptedPrefs = prefs
+        return prefs
+    }
+
     private fun getGroqApiKey(): String {
-        val prefs = requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        val prefs = getEncryptedPrefs()
         val savedKey = prefs.getString(keyGroqApiKey, "") ?: ""
         if (savedKey.isNotBlank()) return savedKey
         return BuildConfig.GROQ_API_KEY
     }
 
     private fun saveGroqApiKey(apiKey: String) {
-        requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        getEncryptedPrefs()
             .edit().putString(keyGroqApiKey, apiKey.trim()).apply()
     }
 
     private fun loadSavedApiKey() {
-        val prefs = requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        val prefs = getEncryptedPrefs()
         val savedKey = prefs.getString(keyGroqApiKey, "") ?: ""
         if (savedKey.isNotBlank()) {
             binding.etGroqApiKey.setText(savedKey)
@@ -256,6 +289,29 @@ class PlaybackSettingsFragment : Fragment() {
         binding.tvApiKeyBanner.visibility = if (apiKey.isBlank()) View.VISIBLE else View.GONE
     }
 
+    /** Translation languages available for the Chat API translator. */
+    private val TRANSLATION_LANGUAGES = listOf(
+        "bn" to "\u09AC\u09BE\u0982\u09B2\u09BE (Bengali)",
+        "en" to "English",
+        "hi" to "\u0939\u093F\u0928\u094D\u0926\u0940 (Hindi)",
+        "ja" to "\u65E5\u672C\u8A9E (Japanese)",
+        "ko" to "\uD55C\uAD6D\uC5B4 (Korean)",
+        "zh" to "\u4E2D\u6587 (Chinese)",
+        "ar" to "\u0627\u0644\u0639\u0631\u0628\u064A\u0629 (Arabic)",
+        "es" to "Espa\u00F1ol (Spanish)",
+        "fr" to "Fran\u00E7ais (French)",
+        "de" to "Deutsch (German)",
+        "pt" to "Portugu\u00EAs (Portuguese)",
+        "ru" to "\u0420\u0443\u0441\u0441\u043A\u0438\u0439 (Russian)",
+        "th" to "\u0E44\u0E17\u0E22 (Thai)",
+        "vi" to "Ti\u1EBFng Vi\u1EC7t (Vietnamese)",
+        "tr" to "T\u00FCrk\u00E7e (Turkish)",
+        "id" to "Bahasa Indonesia",
+        "ta" to "\u0BA4\u0BAE\u0BBF\u0BB4\u0BCD (Tamil)",
+        "te" to "\u0C24\u0C46\u0C32\u0C41\u0C17\u0C41 (Telugu)",
+        "ur" to "\u0627\u0631\u062F\u0648 (Urdu)"
+    )
+
     private fun setupLanguageSelector() {
         val languages = GroqApiClient.SUPPORTED_LANGUAGES
         val displayNames = languages.map { it.second }
@@ -264,7 +320,7 @@ class PlaybackSettingsFragment : Fragment() {
         binding.actvLanguage.setAdapter(adapter)
 
         // Load saved language preference
-        val prefs = requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        val prefs = getEncryptedPrefs()
         val savedLangCode = prefs.getString(keyLanguage, "auto") ?: "auto"
         val savedDisplayName = languages.find { it.first == savedLangCode }?.second ?: displayNames[0]
         binding.actvLanguage.setText(savedDisplayName, false)
@@ -277,12 +333,36 @@ class PlaybackSettingsFragment : Fragment() {
             prefs.edit().putString(keyLanguage, code).apply()
             Timber.d("Language selected: %s (%s)", displayNames[position], code)
         }
+
+        // ── Translation language selector ──
+        val translationDisplayNames = TRANSLATION_LANGUAGES.map { it.second }
+        val translationAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, translationDisplayNames)
+        binding.actvTranslationLanguage.setAdapter(translationAdapter)
+
+        // Load saved translation language preference (default: Bangla)
+        selectedTranslationCode = prefs.getString(keyTranslationLanguage, "bn") ?: "bn"
+        val savedTranslationDisplayName = TRANSLATION_LANGUAGES.find { it.first == selectedTranslationCode }?.second ?: translationDisplayNames[0]
+        binding.actvTranslationLanguage.setText(savedTranslationDisplayName, false)
+
+        // Save translation language when user selects one
+        binding.actvTranslationLanguage.setOnItemClickListener { _, _, position, _ ->
+            val (code, _) = TRANSLATION_LANGUAGES[position]
+            selectedTranslationCode = code
+            prefs.edit().putString(keyTranslationLanguage, code).apply()
+            Timber.d("Translation language selected: %s (%s)", translationDisplayNames[position], code)
+        }
     }
 
     private fun getSelectedLanguageCode(): String {
         val displayText = binding.actvLanguage.text.toString()
         val match = GroqApiClient.SUPPORTED_LANGUAGES.find { it.second == displayText }
         return match?.first ?: "auto"
+    }
+
+    private fun getSelectedTranslationCode(): String {
+        val displayText = binding.actvTranslationLanguage.text.toString()
+        val match = TRANSLATION_LANGUAGES.find { it.second == displayText }
+        return match?.first ?: "bn"
     }
 
     private fun setupSubtitleGeneration() {
@@ -328,8 +408,9 @@ class PlaybackSettingsFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            // Get selected language
+            // Get selected languages
             selectedLanguageCode = getSelectedLanguageCode()
+            selectedTranslationCode = getSelectedTranslationCode()
 
             val videoPath = args.videoPath
             val contentUri = args.contentUri
@@ -340,35 +421,127 @@ class PlaybackSettingsFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            isGeneratingSubtitles = true
-            debugLog.clear()
-            binding.progressSubtitles.visibility = View.VISIBLE
-            binding.tvSubtitleStatus.visibility = View.VISIBLE
-            binding.tvSubtitleStatus.text = getString(R.string.subtitle_step_preparing)
-            binding.tvDebugLog.visibility = View.VISIBLE
-            binding.tvDebugLog.text = ""
-            binding.btnGenerateSubtitles.isEnabled = false
+            // Check if transcriptions already exist in DB — offer to use cached
+            if (!isGeneratingSubtitles) {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val hasCached = withContext(Dispatchers.IO) {
+                        try {
+                            viewModel.hasTranscriptions(videoPath)
+                        } catch (_: Exception) { false }
+                    }
+                    if (hasCached && !isGeneratingSubtitles) {
+                        // Show dialog asking user if they want to re-transcribe
+                        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                            .setTitle("Transcriptions Found")
+                            .setMessage("This file already has transcriptions saved. Do you want to re-transcribe and replace them?")
+                            .setPositiveButton("Re-transcribe") { _, _ ->
+                                startSubtitleGeneration(apiKey, effectivePath, videoPath)
+                            }
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .setNeutralButton("Use Cached") { _, _ ->
+                                loadCachedTranscriptions(videoPath)
+                            }
+                            .show()
+                        return@launch
+                    }
+                    // No cached transcriptions — proceed directly
+                    startSubtitleGeneration(apiKey, effectivePath, videoPath)
+                }
+                return@setOnClickListener
+            }
+        }
+    }
 
-            appendDebugLog("=== TRANSCRIPTION STARTED ===")
-            appendDebugLog("File: ${effectivePath.take(80)}")
-            appendDebugLog("Language: $selectedLanguageCode")
-            appendDebugLog("API key: ${apiKey.take(10)}...${apiKey.takeLast(4)}")
+    /**
+     * Load cached transcriptions from the database and display them.
+     * Avoids making a redundant API call when transcriptions already exist.
+     */
+    private fun loadCachedTranscriptions(videoPath: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val cues = withContext(Dispatchers.IO) {
+                    viewModel.getTranscriptionCues(videoPath)
+                }
+                if (cues.isNotEmpty()) {
+                    // Convert SubtitleCue back to Segment for the dialogue list
+                    dialogueSegments = cues.mapIndexed { index, cue ->
+                        Segment(
+                            id = index,
+                            text = cue.text.substringBefore("\n→"),  // Remove translation part for segment text
+                            startSec = cue.startMs / 1000.0,
+                            endSec = cue.endMs / 1000.0
+                        )
+                    }
+                    translatedTexts = cues.mapNotNull { cue ->
+                        val translationLine = cue.text.substringAfter("\n→ ", "")
+                        if (translationLine.isNotEmpty()) {
+                            val idx = cues.indexOf(cue)
+                            dialogueSegments.getOrNull(idx)?.id to translationLine
+                        } else null
+                    }.toMap()
+                    selectedSegmentIndex = -1
+                    binding.tvSubtitleStatus.text = getString(R.string.subtitle_generated, cues.size)
+                    appendDebugLog("Loaded ${cues.size} cached transcriptions from database")
+                    showDialogueList(dialogueSegments)
+                } else {
+                    showSnackbar("No cached transcriptions found — generating new ones")
+                    val apiKey = getGroqApiKey()
+                    val contentUri = args.contentUri
+                    val effectivePath = if (contentUri.isNotBlank()) contentUri else videoPath
+                    startSubtitleGeneration(apiKey, effectivePath, videoPath)
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load cached transcriptions")
+                showSnackbar("Failed to load cached — generating new ones")
+                val apiKey = getGroqApiKey()
+                val contentUri = args.contentUri
+                val effectivePath = if (contentUri.isNotBlank()) contentUri else videoPath
+                startSubtitleGeneration(apiKey, effectivePath, videoPath)
+            }
+        }
+    }
 
-            lifecycleScope.launch {
+    /**
+     * Start the actual subtitle generation process via Groq API.
+     * Extracted from setupSubtitleGeneration to allow re-use from the
+     * "use cached" dialog and direct invocation.
+     */
+    private fun startSubtitleGeneration(apiKey: String, effectivePath: String, videoPath: String) {
+        isGeneratingSubtitles = true
+        debugLog.clear()
+        binding.progressSubtitles.visibility = View.VISIBLE
+        binding.tvSubtitleStatus.visibility = View.VISIBLE
+        binding.tvSubtitleStatus.text = getString(R.string.subtitle_step_preparing)
+        binding.tvDebugLog.visibility = View.VISIBLE
+        binding.tvDebugLog.text = ""
+        binding.btnGenerateSubtitles.isEnabled = false
+
+        appendDebugLog("=== TRANSCRIPTION STARTED ===")
+        appendDebugLog("File: ${effectivePath.take(80)}")
+        appendDebugLog("Language: $selectedLanguageCode → Translation: $selectedTranslationCode")
+        appendDebugLog("API key: ${apiKey.take(10)}...${apiKey.takeLast(4)}")
+
+        subtitleGenerationJob = viewLifecycleOwner.lifecycleScope.launch {
                 try {
-                    val segments = withContext(Dispatchers.IO) {
-                        groqApiClient.transcribeAudio(
-                            requireContext(), apiKey, effectivePath, selectedLanguageCode
+                    val result = withContext(Dispatchers.IO) {
+                        groqApiClient.transcribeAndTranslate(
+                            requireContext(), apiKey, effectivePath,
+                            selectedLanguageCode, selectedTranslationCode
                         ) { step ->
                             // Update progress AND debug log on main thread
-                            lifecycleScope.launch(Dispatchers.Main) {
-                                binding.tvSubtitleStatus.text = step
-                                appendDebugLog(step)
+                            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                                if (_binding != null) {
+                                    binding.tvSubtitleStatus.text = step
+                                    appendDebugLog(step)
+                                }
                             }
                         }
                     }
 
+                    val segments = result.segments
+                    translatedTexts = result.translatedTexts
                     dialogueSegments = segments
+                    selectedSegmentIndex = -1  // Reset selection on new subtitles
                     isGeneratingSubtitles = false
                     binding.progressSubtitles.visibility = View.GONE
 
@@ -378,10 +551,30 @@ class PlaybackSettingsFragment : Fragment() {
                     } else {
                         binding.tvSubtitleStatus.text = getString(R.string.subtitle_generated, segments.size)
                         appendDebugLog("SUCCESS: ${segments.size} segments found!")
+                        if (translatedTexts.isNotEmpty()) {
+                            appendDebugLog("Translation: ${translatedTexts.size} segments translated to ${result.targetLanguage}")
+                        }
                         for ((i, seg) in segments.take(5).withIndex()) {
+                            val translation = translatedTexts[seg.id]
                             appendDebugLog("  [$i] ${formatMsToTime(seg.startMs)}-${formatMsToTime(seg.endMs)}: ${seg.text.take(50)}")
+                            if (translation != null) {
+                                appendDebugLog("       → $translation")
+                            }
                         }
                         if (segments.size > 5) appendDebugLog("  ... and ${segments.size - 5} more")
+
+                        // Persist transcriptions + translations to Room database
+                        viewModel.saveTranscription(
+                            videoPath = args.videoPath,
+                            segments = segments,
+                            languageCode = selectedLanguageCode,
+                            isTranslation = false,
+                            translatedTexts = translatedTexts,
+                            translationLanguage = result.targetLanguage
+                        )
+                        groqApiClient.saveSrtFile(requireContext(), segments, args.videoPath.substringAfterLast("/"))
+                        appendDebugLog("Transcriptions + translations saved to database + SRT file")
+
                         showDialogueList(segments)
                     }
                 } catch (e: ApiKeyException) {
@@ -457,7 +650,7 @@ class PlaybackSettingsFragment : Fragment() {
 
         binding.rvDialogueList.apply {
             layoutManager = LinearLayoutManager(requireContext())
-            adapter = DialogueAdapter(segments) { segment, index ->
+            adapter = DialogueAdapter(segments, translatedTexts) { segment, index ->
                 selectedSegmentIndex = index
                 onDialogueSegmentSelected(segment)
             }
@@ -690,13 +883,18 @@ class PlaybackSettingsFragment : Fragment() {
             if (parts.size == 2) {
                 val minutes = parts[0].toLongOrNull() ?: 0L
                 val seconds = parts[1].toLongOrNull() ?: 0L
-                return (minutes * 60 + seconds) * 1000
+                // Validate ranges: seconds must be 0-59
+                val clampedSeconds = seconds.coerceIn(0, 59)
+                return (minutes * 60 + clampedSeconds) * 1000
             }
             if (parts.size == 3) {
                 val hours = parts[0].toLongOrNull() ?: 0L
                 val minutes = parts[1].toLongOrNull() ?: 0L
                 val seconds = parts[2].toLongOrNull() ?: 0L
-                return (hours * 3600 + minutes * 60 + seconds) * 1000
+                // Validate ranges: minutes and seconds must be 0-59
+                val clampedMinutes = minutes.coerceIn(0, 59)
+                val clampedSeconds = seconds.coerceIn(0, 59)
+                return (hours * 3600 + clampedMinutes * 60 + clampedSeconds) * 1000
             }
         }
 
@@ -704,18 +902,7 @@ class PlaybackSettingsFragment : Fragment() {
         return seconds * 1000
     }
 
-    private fun formatMsToTime(ms: Long): String {
-        if (ms <= 0) return "0:00"
-        val totalSeconds = ms / 1000
-        val hours = TimeUnit.SECONDS.toHours(totalSeconds)
-        val minutes = TimeUnit.SECONDS.toMinutes(totalSeconds) % 60
-        val seconds = totalSeconds % 60
-        return if (hours > 0) {
-            String.format("%d:%02d:%02d", hours, minutes, seconds)
-        } else {
-            String.format("%d:%02d", minutes, seconds)
-        }
-    }
+    private fun formatMsToTime(ms: Long): String = TimeUtils.formatMsToTime(ms)
 
     private fun showSnackbar(message: String, action: (() -> Unit)? = null) {
         view?.let { rootView ->
@@ -730,9 +917,31 @@ class PlaybackSettingsFragment : Fragment() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        // Stop position polling when fragment is backgrounded to save CPU/battery.
+        // MainFragment correctly does this in onPause, but this fragment previously
+        // didn't — the handler continued running even when the screen was off or
+        // the user was in another app.
+        stopPositionPolling()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Restart position polling when fragment comes back to foreground.
+        // Only restart if the binding is still available (view not destroyed).
+        if (_binding != null) {
+            startPositionPolling()
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         stopPositionPolling()
+        subtitleGenerationJob?.cancel()
+        subtitleGenerationJob = null
+        isGeneratingSubtitles = false
+        cachedEncryptedPrefs = null  // Clear cached prefs to avoid leaking Context
         _binding = null
     }
 
@@ -742,6 +951,7 @@ class PlaybackSettingsFragment : Fragment() {
 
     private inner class DialogueAdapter(
         private val segments: List<Segment>,
+        private val translations: Map<Int, String>,
         private val onSegmentClick: (Segment, Int) -> Unit
     ) : RecyclerView.Adapter<DialogueAdapter.DialogueViewHolder>() {
 
@@ -761,12 +971,24 @@ class PlaybackSettingsFragment : Fragment() {
         override fun onBindViewHolder(holder: DialogueViewHolder, position: Int) {
             val segment = segments[position]
             holder.tvTime.text = "${formatMsToTime(segment.startMs)} → ${formatMsToTime(segment.endMs)}"
-            holder.tvText.text = segment.text
+
+            // Show original text + translation if available
+            val translation = translations[segment.id]
+            holder.tvText.text = if (translation != null) {
+                "${segment.text}\n→ $translation"
+            } else {
+                segment.text
+            }
 
             holder.itemView.isSelected = (position == selectedPos)
             holder.itemView.setOnClickListener {
+                val previousPos = selectedPos
                 selectedPos = position
-                notifyDataSetChanged()
+                // Only update the two changed items instead of the entire list
+                if (previousPos >= 0 && previousPos < itemCount) {
+                    notifyItemChanged(previousPos)
+                }
+                notifyItemChanged(position)
                 onSegmentClick(segment, position)
             }
         }

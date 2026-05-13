@@ -10,11 +10,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Scans the device for video files using MediaStore.
+ * Scans the device for media files (video and audio) using MediaStore.
  *
  * Implemented as an injectable singleton so it can be mocked in tests.
- * The [scanVideosList] method queries MediaStore and returns a list of
- * [VideoEntity] objects representing all video files found on the device.
+ * The [scanVideosList] method queries both MediaStore Video and Audio tables
+ * and returns a list of [VideoEntity] objects representing all media files
+ * found on the device.
  *
  * Safety notes:
  *  - The entire scan is wrapped in try-catch so a MediaStore failure
@@ -30,7 +31,27 @@ import javax.inject.Singleton
 @Singleton
 class FileScanner @Inject constructor() {
 
+    /**
+     * Scans both video and audio files from MediaStore and returns a merged,
+     * deduplicated list. Kept as [scanVideosList] for backward compatibility.
+     */
     suspend fun scanVideosList(context: Context): List<VideoEntity> = withContext(Dispatchers.IO) {
+        val videoList = scanVideoFiles(context)
+        val audioList = scanAudioFiles(context)
+        val merged = (videoList + audioList).distinctBy { it.path }
+        if (merged.size < videoList.size + audioList.size) {
+            Timber.w("Removed %d duplicate path entries from merged scan results",
+                videoList.size + audioList.size - merged.size)
+        }
+        Timber.i("Scan complete: %d media files found (%d video + %d audio, merged & deduped)",
+            merged.size, videoList.size, audioList.size)
+        merged
+    }
+
+    /**
+     * Scan video files from MediaStore.Video.
+     */
+    private suspend fun scanVideoFiles(context: Context): List<VideoEntity> = withContext(Dispatchers.IO) {
         val videoList = mutableListOf<VideoEntity>()
 
         try {
@@ -54,12 +75,11 @@ class FileScanner @Inject constructor() {
             )
 
             if (query == null) {
-                Timber.w("MediaStore query returned null — content provider unavailable")
+                Timber.w("MediaStore Video query returned null — content provider unavailable")
                 return@withContext emptyList()
             }
 
             query.use { cursor ->
-                // Validate column indices exist before iterating
                 val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
                 val pathCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
                 val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
@@ -67,7 +87,7 @@ class FileScanner @Inject constructor() {
                 val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
                 val modifiedCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
 
-                Timber.d("MediaStore query returned %d rows", cursor.count)
+                Timber.d("MediaStore Video query returned %d rows", cursor.count)
 
                 while (cursor.moveToNext()) {
                     try {
@@ -76,12 +96,10 @@ class FileScanner @Inject constructor() {
 
                         val id = cursor.getLong(idCol)
                         if (id <= 0) {
-                            Timber.w("Skipping entry with invalid ID: %d", id)
+                            Timber.w("Skipping video entry with invalid ID: %d", id)
                             continue
                         }
 
-                        // Build the content:// URI — this is the primary way to access
-                        // the file on Android 10+. Raw file paths may not be accessible.
                         val contentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
                             .buildUpon()
                             .appendPath(id.toString())
@@ -91,11 +109,10 @@ class FileScanner @Inject constructor() {
                         val title = cursor.getString(nameCol)
                         val duration = cursor.getLong(durationCol).coerceAtLeast(0)
                         val size = cursor.getLong(sizeCol).coerceAtLeast(0)
-                        val lastModified = cursor.getLong(modifiedCol) * 1000  // seconds → ms
+                        val lastModified = cursor.getLong(modifiedCol) * 1000
 
-                        // Skip entries with obviously invalid data
                         if (title.isNullOrBlank() && path.isBlank()) {
-                            Timber.w("Skipping entry with no title and no path (id=%d)", id)
+                            Timber.w("Skipping video entry with no title and no path (id=%d)", id)
                             continue
                         }
 
@@ -112,26 +129,125 @@ class FileScanner @Inject constructor() {
                     } catch (e: IllegalArgumentException) {
                         Timber.w(e, "Skipping video entry — invalid column data")
                     } catch (e: Exception) {
-                        // Log and skip this individual entry — don't kill the whole scan
                         Timber.w(e, "Skipping video entry due to unexpected error")
                     }
                 }
             }
         } catch (e: SecurityException) {
-            Timber.e(e, "Permission denied when querying MediaStore — user must grant READ_MEDIA_VIDEO")
+            Timber.e(e, "Permission denied when querying MediaStore Video — user must grant READ_MEDIA_VIDEO")
         } catch (e: IllegalStateException) {
-            Timber.e(e, "MediaStore cursor in invalid state — possibly closed prematurely")
+            Timber.e(e, "MediaStore Video cursor in invalid state — possibly closed prematurely")
         } catch (e: Exception) {
             Timber.e(e, "Unexpected error scanning videos from MediaStore")
         }
 
-        // Deduplicate by path (shouldn't happen, but defensive)
+        // Deduplicate by path (defensive)
         val distinct = videoList.distinctBy { it.path }
         if (distinct.size < videoList.size) {
-            Timber.w("Removed %d duplicate path entries from scan results", videoList.size - distinct.size)
+            Timber.w("Removed %d duplicate path entries from video scan results", videoList.size - distinct.size)
+        }
+        distinct
+    }
+
+    /**
+     * Scan audio-only files (MP3, M4A, FLAC, OGG, WAV, etc.) from MediaStore.Audio.
+     * Returns them as [VideoEntity] objects for unified handling in the app.
+     */
+    private suspend fun scanAudioFiles(context: Context): List<VideoEntity> = withContext(Dispatchers.IO) {
+        val audioList = mutableListOf<VideoEntity>()
+
+        try {
+            val projection = arrayOf(
+                MediaStore.Audio.Media._ID,
+                MediaStore.Audio.Media.DISPLAY_NAME,
+                MediaStore.Audio.Media.DATA,
+                MediaStore.Audio.Media.DURATION,
+                MediaStore.Audio.Media.SIZE,
+                MediaStore.Audio.Media.DATE_MODIFIED
+            )
+
+            val sortOrder = "${MediaStore.Audio.Media.DATE_MODIFIED} DESC"
+
+            val query = context.contentResolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                null,
+                null,
+                sortOrder
+            )
+
+            if (query == null) {
+                Timber.w("MediaStore Audio query returned null — content provider unavailable")
+                return@withContext emptyList()
+            }
+
+            query.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                val pathCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+                val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+                val modifiedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
+
+                Timber.d("MediaStore Audio query returned %d rows", cursor.count)
+
+                while (cursor.moveToNext()) {
+                    try {
+                        val path = cursor.getString(pathCol)
+                        if (path.isNullOrBlank()) continue
+
+                        val id = cursor.getLong(idCol)
+                        if (id <= 0) {
+                            Timber.w("Skipping audio entry with invalid ID: %d", id)
+                            continue
+                        }
+
+                        val contentUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                            .buildUpon()
+                            .appendPath(id.toString())
+                            .build()
+                            .toString()
+
+                        val title = cursor.getString(nameCol)
+                        val duration = cursor.getLong(durationCol).coerceAtLeast(0)
+                        val size = cursor.getLong(sizeCol).coerceAtLeast(0)
+                        val lastModified = cursor.getLong(modifiedCol) * 1000
+
+                        if (title.isNullOrBlank() && path.isBlank()) {
+                            Timber.w("Skipping audio entry with no title and no path (id=%d)", id)
+                            continue
+                        }
+
+                        audioList.add(
+                            VideoEntity(
+                                path = path,
+                                title = title ?: path.substringAfterLast("/", "Unknown"),
+                                duration = duration,
+                                size = size,
+                                lastModified = lastModified,
+                                contentUri = contentUri
+                            )
+                        )
+                    } catch (e: IllegalArgumentException) {
+                        Timber.w(e, "Skipping audio entry — invalid column data")
+                    } catch (e: Exception) {
+                        Timber.w(e, "Skipping audio entry due to unexpected error")
+                    }
+                }
+            }
+        } catch (e: SecurityException) {
+            Timber.e(e, "Permission denied when querying MediaStore Audio — user must grant READ_MEDIA_AUDIO")
+        } catch (e: IllegalStateException) {
+            Timber.e(e, "MediaStore Audio cursor in invalid state — possibly closed prematurely")
+        } catch (e: Exception) {
+            Timber.e(e, "Unexpected error scanning audio from MediaStore")
         }
 
-        Timber.i("Scan complete: %d videos found", distinct.size)
+        // Deduplicate by path (defensive)
+        val distinct = audioList.distinctBy { it.path }
+        if (distinct.size < audioList.size) {
+            Timber.w("Removed %d duplicate path entries from audio scan results", audioList.size - distinct.size)
+        }
         distinct
     }
 }

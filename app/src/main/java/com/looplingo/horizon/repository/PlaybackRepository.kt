@@ -10,10 +10,11 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class PlaybackRepository constructor(
+class PlaybackRepository @Inject constructor(
     private val playbackRuleDao: PlaybackRuleDao
 ) {
 

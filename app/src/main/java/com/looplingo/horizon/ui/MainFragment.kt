@@ -33,10 +33,10 @@ import com.looplingo.horizon.playback.AudioPlaybackService
 import com.looplingo.horizon.model.SortOrder
 import com.looplingo.horizon.ui.adapter.VideoAdapter
 import com.looplingo.horizon.ui.viewmodel.MainViewModel
+import com.looplingo.horizon.util.TimeUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.util.concurrent.TimeUnit
 
 /**
  * Main screen showing the list of video files found on the device.
@@ -371,7 +371,7 @@ class MainFragment : Fragment() {
             )
             showSnackbar(getString(R.string.loop_preview_active))
         } else {
-            showSnackbar("Set both A and B points first")
+            showSnackbar(getString(R.string.mini_player_set_both_points))
         }
     }
 
@@ -386,7 +386,7 @@ class MainFragment : Fragment() {
                 miniABStartMs, miniABEndMs, miniABLoopCount
             )
             // Also persist to database
-            lifecycleScope.launch {
+            viewLifecycleOwner.lifecycleScope.launch {
                 try {
                     viewModel.savePlaybackConfig(
                         videoPath, miniABStartMs, miniABEndMs, miniABLoopCount
@@ -398,7 +398,7 @@ class MainFragment : Fragment() {
                 }
             }
         } else {
-            showSnackbar("Set both A and B points first")
+            showSnackbar(getString(R.string.mini_player_set_both_points))
         }
     }
 
@@ -474,19 +474,8 @@ class MainFragment : Fragment() {
         miniPlayerPollingRunnable = null
     }
 
-    /** Format milliseconds to "m:ss" or "h:mm:ss" */
-    private fun formatMsToTime(ms: Long): String {
-        if (ms <= 0) return "0:00"
-        val totalSeconds = ms / 1000
-        val hours = TimeUnit.SECONDS.toHours(totalSeconds)
-        val minutes = TimeUnit.SECONDS.toMinutes(totalSeconds) % 60
-        val seconds = totalSeconds % 60
-        return if (hours > 0) {
-            String.format("%d:%02d:%02d", hours, minutes, seconds)
-        } else {
-            String.format("%d:%02d", minutes, seconds)
-        }
-    }
+    /** Format milliseconds to "m:ss" or "h:mm:ss". Delegates to shared TimeUtils. */
+    private fun formatMsToTime(ms: Long): String = TimeUtils.formatMsToTime(ms)
 
     // ══════════════════════════════════════════════════════════════════════
     // OBSERVERS
@@ -549,29 +538,69 @@ class MainFragment : Fragment() {
     private fun checkPermissionsAndScan() {
         requestNotificationPermissionIfNeeded()
 
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_VIDEO
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+: Request both video AND audio permissions
+            // The app scans both video and audio files, so both are needed.
+            val videoGranted = ContextCompat.checkSelfPermission(
+                requireContext(), Manifest.permission.READ_MEDIA_VIDEO
+            ) == PackageManager.PERMISSION_GRANTED
+            val audioGranted = ContextCompat.checkSelfPermission(
+                requireContext(), Manifest.permission.READ_MEDIA_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
 
-        when {
-            ContextCompat.checkSelfPermission(
-                requireContext(), permission
-            ) == PackageManager.PERMISSION_GRANTED -> {
-                Timber.d("Permission already granted, scanning videos")
+            if (videoGranted && audioGranted) {
+                Timber.d("Both media permissions granted, scanning videos")
                 viewModel.refreshVideos()
+            } else {
+                // Request both permissions using the multiple permissions launcher
+                val permissionsToRequest = mutableListOf<String>()
+                if (!videoGranted) permissionsToRequest.add(Manifest.permission.READ_MEDIA_VIDEO)
+                if (!audioGranted) permissionsToRequest.add(Manifest.permission.READ_MEDIA_AUDIO)
+                if (permissionsToRequest.isNotEmpty()) {
+                    Timber.d("Requesting media permissions: %s", permissionsToRequest)
+                    requestMultiplePermissionsLauncher.launch(permissionsToRequest.toTypedArray())
+                }
             }
-            shouldShowRequestPermissionRationale(permission) -> {
-                Timber.d("Showing permission rationale before request")
-                showSnackbar(getString(R.string.permission_rationale), getString(R.string.retry)) {
+        } else {
+            // Android 12 and below: single storage permission covers everything
+            val permission = Manifest.permission.READ_EXTERNAL_STORAGE
+
+            when {
+                ContextCompat.checkSelfPermission(
+                    requireContext(), permission
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    Timber.d("Storage permission already granted, scanning videos")
+                    viewModel.refreshVideos()
+                }
+                shouldShowRequestPermissionRationale(permission) -> {
+                    Timber.d("Showing permission rationale before request")
+                    showSnackbar(getString(R.string.permission_rationale), getString(R.string.retry)) {
+                        requestPermissionLauncher.launch(permission)
+                    }
+                }
+                else -> {
+                    Timber.d("Requesting storage permission")
                     requestPermissionLauncher.launch(permission)
                 }
             }
-            else -> {
-                Timber.d("Requesting storage permission")
-                requestPermissionLauncher.launch(permission)
-            }
+        }
+    }
+
+    /**
+     * Launcher for requesting multiple permissions at once (Android 13+).
+     * Requests READ_MEDIA_VIDEO and READ_MEDIA_AUDIO together since the app
+     * scans both video and audio files.
+     */
+    private val requestMultiplePermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.all { it.value }
+        if (allGranted) {
+            Timber.i("All media permissions granted — scanning videos")
+            viewModel.refreshVideos()
+        } else {
+            Timber.w("Some media permissions denied: %s", permissions.filter { !it.value }.keys)
+            showPermissionDenied()
         }
     }
 

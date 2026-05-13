@@ -139,9 +139,12 @@ dependencies {
     // Logging
     implementation libs.timber
 
+    // Security (encrypted SharedPreferences for API keys)
+    implementation libs.security.crypto
+
     // Networking — OkHttp + Gson for Groq API
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation libs.okhttp
+    implementation libs.gson
 
     // LeakCanary (debug only — memory leak detection)
     debugImplementation libs.leakcanary

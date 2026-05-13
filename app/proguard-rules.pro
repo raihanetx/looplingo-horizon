@@ -36,15 +36,12 @@
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 
 # ── Timber ─────────────────────────────────────────────────────────────
-# Strip ALL Timber logging in release builds.
-# DebugTree is never planted in release, so all calls are dead code.
-# Removing w/e prevents string concatenation allocation even in release.
+# Strip debug/verbose/info logging in release builds.
+# Keep warning and error logs for crash diagnosis in production.
 -assumenosideeffects class timber.log.Timber {
     public static *** d(...);
     public static *** v(...);
     public static *** i(...);
-    public static *** w(...);
-    public static *** e(...);
 }
 
 # ── AndroidX / Lifecycle ───────────────────────────────────────────────
@@ -88,3 +85,22 @@
     public static *** i(...);
     public static *** w(...);
 }
+
+# ── Gson models used by GroqApiClient ─────────────────────────────────
+# These private data classes are used for JSON serialization/deserialization
+# via Gson. Without these rules, R8/ProGuard will strip/rename their fields
+# in release builds, breaking JSON parsing at runtime.
+-keepclassmembers class com.looplingo.horizon.api.GroqApiClient$Segment { *; }
+-keepclassmembers class com.looplingo.horizon.api.GroqApiClient$TranscriptionResponse { *; }
+-keepclassmembers class com.looplingo.horizon.api.GroqApiClient$SegmentJson { *; }
+-keepclassmembers class com.looplingo.horizon.api.GroqApiClient$ErrorJson { *; }
+-keepclassmembers class com.looplingo.horizon.api.GroqApiClient$AudioChunk { *; }
+-keepclassmembers class com.looplingo.horizon.api.GroqApiClient$ChunkResult { *; }
+-keepclassmembers class com.looplingo.horizon.api.GroqApiClient$PcmAnalysisResult { *; }
+
+# Keep SerializedName annotations
+-keepattributes *Annotation*
+
+# Gson specific rules
+-dontwarn sun.misc.**
+-keep class com.google.gson.** { *; }

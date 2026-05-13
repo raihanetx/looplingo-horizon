@@ -1,49 +1,205 @@
 package com.looplingo.horizon.repository
 
+import com.looplingo.horizon.data.dao.TranscriptionDao
+import com.looplingo.horizon.data.entity.TranscriptionEntity
 import com.looplingo.horizon.model.SubtitleCue
 import com.looplingo.horizon.util.SubtitleScanner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Repository for managing subtitle/transcript data.
  *
- * Responsibilities:
- *  - Load and cache subtitle cues for a given video file
- *  - Provide the current active cue based on playback position
- *  - Clear cache when memory is needed
+ * TWO SOURCES OF TRUTH:
+ *  1. Subtitle files (.srt, .vtt, .lrc) found by [SubtitleScanner] — external files
+ *  2. Whisper transcriptions persisted in Room via [TranscriptionDao] — AI-generated
  *
- * Subtitles are loaded from files (.srt, .vtt, .lrc) found by [SubtitleScanner].
- * They are cached in memory for fast access during playback.
- * No database storage is needed — subtitle files are the source of truth.
+ * Priority: Subtitle files > Database transcriptions > empty
+ *
+ * The repository first checks for external subtitle files (fastest, highest quality).
+ * If none are found, it falls back to database-stored Whisper transcriptions.
+ * This means re-transcription is only needed if the user explicitly requests it.
+ *
+ * All loaded cues are cached in memory for fast access during playback.
+ * The cache is invalidated when new transcriptions are saved.
  */
 @Singleton
 class TranscriptRepository @Inject constructor(
-    private val subtitleScanner: SubtitleScanner
+    private val subtitleScanner: SubtitleScanner,
+    private val transcriptionDao: TranscriptionDao
 ) {
-    /** In-memory cache of parsed subtitle cues, keyed by video path. */
-    private val cache = mutableMapOf<String, List<SubtitleCue>>()
+
+    companion object {
+        private const val MAX_CACHE_ENTRIES = 50
+    }
+
+    /** In-memory cache of parsed subtitle cues, keyed by video path. Thread-safe. */
+    private val cache = ConcurrentHashMap<String, List<SubtitleCue>>()
 
     /**
      * Load subtitle cues for the given video path.
      *
-     * Uses cached data if available, otherwise scans for subtitle files
-     * and parses them. Returns an empty list if no subtitles are found.
+     * Resolution order:
+     *  1. Memory cache (instant)
+     *  2. External subtitle files (.srt, .vtt, .lrc)
+     *  3. Database transcriptions (from Whisper)
+     *
+     * Returns an empty list if no subtitles are found from any source.
      */
     fun getSubtitlesForVideo(videoPath: String): List<SubtitleCue> {
         cache[videoPath]?.let { return it }
 
-        val cues = subtitleScanner.findSubtitlesForVideo(videoPath)
-        if (cues.isNotEmpty()) {
-            cache[videoPath] = cues
-            Timber.i("Cached %d subtitle cues for: %s", cues.size, videoPath.substringAfterLast("/"))
+        // Try external subtitle files first
+        val fileCues = subtitleScanner.findSubtitlesForVideo(videoPath)
+        if (fileCues.isNotEmpty()) {
+            cache[videoPath] = fileCues
+            trimCache()
+            Timber.i("Cached %d subtitle cues (file) for: %s", fileCues.size, videoPath.substringAfterLast("/"))
+            return fileCues
         }
-        return cues
+
+        // Note: Database transcriptions are loaded asynchronously via loadTranscriptionsFromDb()
+        // because Room requires coroutine context. The cache will be populated when the
+        // caller uses the async method. This synchronous method returns empty for DB-only cases.
+        return emptyList()
     }
 
     /**
-     * Force reload subtitles for a video (e.g., after the user adds a new subtitle file).
+     * Async version that also checks database transcriptions.
+     * Use this when you need the complete picture including AI-generated transcriptions.
+     *
+     * @return List of SubtitleCue from the best available source.
+     */
+    suspend fun getSubtitlesForVideoAsync(videoPath: String): List<SubtitleCue> {
+        cache[videoPath]?.let { return it }
+
+        // Try external subtitle files first
+        val fileCues = subtitleScanner.findSubtitlesForVideo(videoPath)
+        if (fileCues.isNotEmpty()) {
+            cache[videoPath] = fileCues
+            trimCache()
+            return fileCues
+        }
+
+        // Try database transcriptions
+        return loadTranscriptionsFromDb(videoPath)
+    }
+
+    /**
+     * Load transcription segments from the Room database and convert to SubtitleCues.
+     * This is the bridge between GroqApiClient's Segment objects and the playback system.
+     */
+    private suspend fun loadTranscriptionsFromDb(videoPath: String): List<SubtitleCue> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val entities = transcriptionDao.getTranscriptionsForVideoOnce(videoPath)
+                if (entities.isEmpty()) return@withContext emptyList()
+
+                val cues = entities.mapIndexed { index, entity ->
+                    entity.toSubtitleCue(index + 1)
+                }
+                cache[videoPath] = cues
+                trimCache()
+                Timber.i("Cached %d transcription cues (DB) for: %s", cues.size, videoPath.substringAfterLast("/"))
+                cues
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load transcriptions from DB for: %s", videoPath)
+                emptyList()
+            }
+        }
+    }
+
+    /**
+     * Save Whisper transcription segments to the database.
+     * This replaces any existing transcriptions for the same video.
+     *
+     * @param videoPath The video/audio file path (matches VideoEntity.path).
+     * @param segments The Whisper transcription segments from GroqApiClient.
+     * @param languageCode The language code used for transcription.
+     * @param isTranslation Whether this is a translation (any→English).
+     * @param translatedTexts Optional map of segment.id → translated text (from LLM).
+     * @param translationLanguage Target language code for translation (e.g., "bn").
+     */
+    suspend fun saveTranscriptions(
+        videoPath: String,
+        segments: List<com.looplingo.horizon.api.GroqApiClient.Segment>,
+        languageCode: String = "auto",
+        isTranslation: Boolean = false,
+        translatedTexts: Map<Int, String> = emptyMap(),
+        translationLanguage: String? = null
+    ) {
+        withContext(Dispatchers.IO) {
+            try {
+                // Delete existing transcriptions for this video (replace strategy)
+                transcriptionDao.deleteTranscriptionsForVideo(videoPath)
+
+                // Convert and insert new segments
+                val entities = segments.map { segment ->
+                    TranscriptionEntity(
+                        videoPath = videoPath,
+                        text = segment.text.trim(),
+                        segmentStartMs = segment.startMs,
+                        segmentEndMs = segment.endMs,
+                        noSpeechProb = segment.noSpeechProb,
+                        avgLogprob = segment.avgLogprob,
+                        languageCode = languageCode,
+                        isTranslation = isTranslation,
+                        translatedText = translatedTexts[segment.id],
+                        translationLanguage = translationLanguage
+                    )
+                }
+                transcriptionDao.insertSegments(entities)
+
+                // Update in-memory cache immediately
+                val cues = entities.mapIndexed { index, entity ->
+                    entity.toSubtitleCue(index + 1)
+                }
+                cache[videoPath] = cues
+                trimCache()
+
+                Timber.i("Saved %d transcription segments for: %s (lang=%s, translation=%s)",
+                    entities.size, videoPath.substringAfterLast("/"), languageCode, isTranslation)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to save transcriptions for: %s", videoPath)
+            }
+        }
+    }
+
+    /**
+     * Check if transcriptions exist in the database for a video.
+     * Returns true if at least one segment is stored.
+     */
+    suspend fun hasTranscriptionsInDb(videoPath: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                transcriptionDao.getTranscriptionCountForVideo(videoPath) > 0
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to check transcriptions for: %s", videoPath)
+                false
+            }
+        }
+    }
+
+    /**
+     * Evict oldest cache entries when the cache exceeds [MAX_CACHE_ENTRIES].
+     * Removes enough entries to bring the cache well below the limit.
+     */
+    private fun trimCache() {
+        if (cache.size > MAX_CACHE_ENTRIES) {
+            val keysToRemove = cache.keys.take(cache.size - MAX_CACHE_ENTRIES + 10)
+            keysToRemove.forEach { cache.remove(it) }
+            Timber.d("Trimmed %d entries from subtitle cache (was %d, limit %d)",
+                keysToRemove.size, cache.size + keysToRemove.size, MAX_CACHE_ENTRIES)
+        }
+    }
+
+    /**
+     * Force reload subtitles for a video (e.g., after the user adds a new subtitle file
+     * or after new transcriptions are saved).
      */
     fun reloadSubtitles(videoPath: String): List<SubtitleCue> {
         cache.remove(videoPath)
@@ -51,16 +207,27 @@ class TranscriptRepository @Inject constructor(
     }
 
     /**
+     * Async reload that also checks database.
+     */
+    suspend fun reloadSubtitlesAsync(videoPath: String): List<SubtitleCue> {
+        cache.remove(videoPath)
+        return getSubtitlesForVideoAsync(videoPath)
+    }
+
+    /**
      * Find the subtitle cue that is active at the given playback position.
      *
      * Uses binary search for efficient lookup in large subtitle files.
      * Returns null if no cue is active at the given position.
+     *
+     * Note: Uses closed range [startMs, endMs] to match the fixed SubtitleCue.isActiveAt().
      */
     fun getActiveCue(videoPath: String, positionMs: Long): SubtitleCue? {
         val cues = cache[videoPath] ?: return null
         if (cues.isEmpty()) return null
 
         // Binary search for the cue whose range contains positionMs
+        // Uses closed range [startMs, endMs] to match SubtitleCue.isActiveAt()
         var low = 0
         var high = cues.lastIndex
         while (low <= high) {
@@ -86,10 +253,19 @@ class TranscriptRepository @Inject constructor(
     }
 
     /**
-     * Check if a video has subtitles available.
+     * Check if a video has subtitles available (from any source).
+     * For synchronous check, only file-based subtitles are considered.
      */
     fun hasSubtitles(videoPath: String): Boolean {
         return getSubtitlesForVideo(videoPath).isNotEmpty()
+    }
+
+    /**
+     * Check if subtitles exist from any source (including database).
+     */
+    suspend fun hasSubtitlesAsync(videoPath: String): Boolean {
+        if (hasSubtitles(videoPath)) return true
+        return hasTranscriptionsInDb(videoPath)
     }
 
     /**
@@ -105,4 +281,61 @@ class TranscriptRepository @Inject constructor(
     fun clearCacheForVideo(videoPath: String) {
         cache.remove(videoPath)
     }
+
+    /**
+     * Delete all transcriptions older than the specified number of days.
+     * Used for periodic cache cleanup.
+     */
+    suspend fun cleanupOldTranscriptions(olderThanDays: Int = 30): Int {
+        return withContext(Dispatchers.IO) {
+            try {
+                val cutoff = System.currentTimeMillis() - (olderThanDays.toLong() * 24 * 60 * 60 * 1000)
+                val deleted = transcriptionDao.deleteOlderThan(cutoff)
+                if (deleted > 0) {
+                    Timber.i("Cleaned up %d transcriptions older than %d days", deleted, olderThanDays)
+                }
+                deleted
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to cleanup old transcriptions")
+                0
+            }
+        }
+    }
+
+    /**
+     * Delete orphaned transcriptions whose video no longer exists in the cache.
+     */
+    suspend fun deleteOrphanedTranscriptions(): Int {
+        return withContext(Dispatchers.IO) {
+            try {
+                val deleted = transcriptionDao.deleteOrphanedTranscriptions()
+                if (deleted > 0) {
+                    Timber.i("Deleted %d orphaned transcriptions", deleted)
+                }
+                deleted
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to delete orphaned transcriptions")
+                0
+            }
+        }
+    }
+}
+
+/**
+ * Extension function to convert a TranscriptionEntity to a SubtitleCue.
+ * This bridges the Room persistence layer with the playback sync system.
+ * If a translation is available, it's appended below the original text.
+ */
+private fun TranscriptionEntity.toSubtitleCue(index: Int): SubtitleCue {
+    val displayText = if (!translatedText.isNullOrBlank()) {
+        "$text\n→ $translatedText"
+    } else {
+        text
+    }
+    return SubtitleCue(
+        index = index,
+        startMs = segmentStartMs,
+        endMs = segmentEndMs,
+        text = displayText
+    )
 }

@@ -154,6 +154,8 @@ class MainViewModel @Inject constructor(
         rangeEndMs: Long,
         loopCount: Int
     ) {
+        if (videoPath.isBlank()) return  // Guard: don't save with blank path
+
         val config = PlaybackConfig(
             videoPath = videoPath,
             rangeStartMs = rangeStartMs,
@@ -165,7 +167,12 @@ class MainViewModel @Inject constructor(
         } else {
             config
         }
-        playbackRepository.saveConfig(sanitized)
-        Timber.i("Saved playback config from mini player: %s", videoPath.substringAfterLast("/"))
+        try {
+            playbackRepository.saveConfig(sanitized)
+            Timber.i("Saved playback config from mini player: %s", videoPath.substringAfterLast("/"))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            Timber.d("Save playback config cancelled")
+            throw e  // Re-throw cancellation
+        }
     }
 }

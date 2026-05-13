@@ -47,7 +47,7 @@ object PlaybackConfigValidator {
         }
 
         val validSpeeds = SpeedPresets.ALL.map { it.speed }
-        if (config.speed !in validSpeeds) {
+        if (validSpeeds.none { kotlin.math.abs(it - config.speed) < 0.001f }) {
             errors.add("Invalid speed value: ${config.speed}")
         }
 
@@ -63,6 +63,9 @@ object PlaybackConfigValidator {
     }
 
     fun sanitize(config: PlaybackConfig): PlaybackConfig {
+        // Cannot sanitize a blank videoPath — return as-is and let the caller handle it
+        if (config.videoPath.isBlank()) return config
+
         var sanitized = config
 
         if (sanitized.rangeStartMs < 0) {
@@ -82,7 +85,7 @@ object PlaybackConfigValidator {
         )
 
         val validSpeeds = SpeedPresets.ALL.map { it.speed }
-        if (sanitized.speed !in validSpeeds) {
+        if (validSpeeds.none { kotlin.math.abs(it - sanitized.speed) < 0.001f }) {
             sanitized = sanitized.copy(speed = SpeedPresets.DEFAULT.speed)
         }
 
