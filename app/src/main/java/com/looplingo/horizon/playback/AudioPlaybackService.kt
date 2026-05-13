@@ -675,13 +675,17 @@ class AudioPlaybackService : LifecycleService() {
                 advanceToNextVideo()
             } else {
                 // STATE_ENDED fired before A-B monitor caught B (e.g. short video or overshoot)
-                currentLoopIteration++
+                // DON'T increment currentLoopIteration here — the A-B monitor already
+                // incremented it when it caught position >= B. If we increment again,
+                // we double-count the iteration and the loop ends prematurely.
+                // Instead, just seek back to A and let the monitor handle counting.
                 if (currentLoopIteration < currentConfig.loopCount) {
-                    Timber.d("A-B loop iteration %d/%d (via STATE_ENDED)", currentLoopIteration, currentConfig.loopCount)
+                    Timber.d("A-B loop: STATE_ENDED before monitor, iteration %d/%d — seeking to A",
+                        currentLoopIteration + 1, currentConfig.loopCount)
                     seekToA()
                     scheduleAbCheck()
                 } else {
-                    // Loop count reached — seek to B and continue to end instead of skipping
+                    // Loop count reached — continue from B to end instead of skipping
                     Timber.d("A-B loop completed after %d iterations, continuing from B to end", currentConfig.loopCount)
                     abLoopCompleted = true
                     cancelAbMonitor()
