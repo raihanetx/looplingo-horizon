@@ -769,6 +769,7 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
             decoder = MediaCodec.createDecoderByType(srcMime)
             decoder.configure(inputFormat, null, null, 0)
             decoder.start()
+            val dec = decoder!!
 
             // Read decoder output format
             var decodedSampleRate = inputFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
@@ -788,27 +789,27 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
             // Phase 1: Decode to PCM and downsample
             while (!outputDone) {
                 if (!inputDone) {
-                    val inIdx = decoder.dequeueInputBuffer(CODEC_TIMEOUT_US)
+                    val inIdx = dec.dequeueInputBuffer(CODEC_TIMEOUT_US)
                     if (inIdx >= 0) {
-                        val inBuf = decoder.getInputBuffer(inIdx)
+                        val inBuf = dec.getInputBuffer(inIdx)
                         if (inBuf != null) {
                             val size = extractor.readSampleData(inBuf, 0)
                             if (size < 0) {
-                                decoder.queueInputBuffer(inIdx, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                                dec.queueInputBuffer(inIdx, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                                 inputDone = true
                             } else {
-                                decoder.queueInputBuffer(inIdx, 0, size, extractor.sampleTime, 0)
+                                dec.queueInputBuffer(inIdx, 0, size, extractor.sampleTime, 0)
                                 extractor.advance()
                             }
                         }
                     }
                 }
 
-                val outIdx = decoder.dequeueOutputBuffer(bufferInfo, CODEC_TIMEOUT_US)
+                val outIdx = dec.dequeueOutputBuffer(bufferInfo, CODEC_TIMEOUT_US)
                 when {
                     outIdx >= 0 -> {
                         if (!outputFormatChecked) {
-                            val fmt = decoder.outputFormat
+                            val fmt = dec.outputFormat
                             try { decodedSampleRate = fmt.getInteger(MediaFormat.KEY_SAMPLE_RATE) } catch (_: Exception) {}
                             try { decodedChannels = fmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT) } catch (_: Exception) {}
                             outputFormatChecked = true
@@ -818,7 +819,7 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
 
                         if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputDone = true
                         if (bufferInfo.size > 0) {
-                            val outBuf = decoder.getOutputBuffer(outIdx)
+                            val outBuf = dec.getOutputBuffer(outIdx)
                             if (outBuf != null) {
                                 val pcmData = ByteArray(bufferInfo.size)
                                 outBuf.position(bufferInfo.offset)
@@ -835,17 +836,17 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
                                 // Memory guard: bail out if buffer exceeds 150MB (very long files)
                                 if (pcmBufferSize > 150L * 1024 * 1024) {
                                     Timber.w("PCM buffer exceeded 150MB — too large for in-memory encoding, falling back")
-                                    decoder.stop()
-                                    decoder.release()
+                                    dec.stop()
+                                    dec.release()
                                     decoder = null
                                     return null
                                 }
                             }
                         }
-                        decoder.releaseOutputBuffer(outIdx, false)
+                        dec.releaseOutputBuffer(outIdx, false)
                     }
                     outIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                        val fmt = decoder.outputFormat
+                        val fmt = dec.outputFormat
                         try { decodedSampleRate = fmt.getInteger(MediaFormat.KEY_SAMPLE_RATE) } catch (_: Exception) {}
                         try { decodedChannels = fmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT) } catch (_: Exception) {}
                         outputFormatChecked = true
@@ -854,8 +855,8 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
                 }
             }
 
-            decoder.stop()
-            decoder.release()
+            dec.stop()
+            dec.release()
             decoder = null
 
             if (pcmBuffer.isEmpty() || pcmBufferSize == 0L) {
@@ -875,6 +876,7 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
             encoder = MediaCodec.createEncoderByType(TARGET_MIME)
             encoder.configure(encoderFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
             encoder.start()
+            val enc = encoder!!
 
             muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
             var muxerTrackIndex = -1
@@ -892,19 +894,19 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
 
             while (!encoderOutputDone) {
                 if (!encoderInputDone) {
-                    val inIdx = encoder.dequeueInputBuffer(CODEC_TIMEOUT_US)
+                    val inIdx = enc.dequeueInputBuffer(CODEC_TIMEOUT_US)
                     if (inIdx >= 0) {
-                        val inBuf = encoder.getInputBuffer(inIdx)
+                        val inBuf = enc.getInputBuffer(inIdx)
                         if (inBuf != null) {
                             val remaining = inputChunks.size - inputOffset
                             if (remaining <= 0) {
-                                encoder.queueInputBuffer(inIdx, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                                enc.queueInputBuffer(inIdx, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                                 encoderInputDone = true
                             } else {
                                 val size = minOf(remaining, inBuf.capacity())
                                 inBuf.clear()
                                 inBuf.put(inputChunks, inputOffset, size)
-                                encoder.queueInputBuffer(inIdx, 0, size,
+                                enc.queueInputBuffer(inIdx, 0, size,
                                     (inputOffset.toLong() / targetBytesPerSec) * 1_000_000, 0)
                                 inputOffset += size
                             }
@@ -912,7 +914,7 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
                     }
                 }
 
-                val outIdx = encoder.dequeueOutputBuffer(encBufferInfo, CODEC_TIMEOUT_US)
+                val outIdx = enc.dequeueOutputBuffer(encBufferInfo, CODEC_TIMEOUT_US)
                 when {
                     outIdx >= 0 -> {
                         if (encBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
@@ -921,14 +923,14 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
 
                         if (!muxerStarted && encBufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) {
                             // Codec config data — must add track before writing
-                            val encFormat = encoder.outputFormat
+                            val encFormat = enc.outputFormat
                             muxerTrackIndex = muxer.addTrack(encFormat)
                             muxer.start()
                             muxerStarted = true
                         }
 
                         if (encBufferInfo.size > 0 && muxerStarted) {
-                            val outBuf = encoder.getOutputBuffer(outIdx)
+                            val outBuf = enc.getOutputBuffer(outIdx)
                             if (outBuf != null) {
                                 outBuf.position(encBufferInfo.offset)
                                 outBuf.limit(encBufferInfo.offset + encBufferInfo.size)
@@ -936,11 +938,11 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
                                 sampleCount++
                             }
                         }
-                        encoder.releaseOutputBuffer(outIdx, false)
+                        enc.releaseOutputBuffer(outIdx, false)
                     }
                     outIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                         if (!muxerStarted) {
-                            val encFormat = encoder.outputFormat
+                            val encFormat = enc.outputFormat
                             muxerTrackIndex = muxer.addTrack(encFormat)
                             muxer.start()
                             muxerStarted = true
@@ -950,8 +952,8 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
                 }
             }
 
-            encoder.stop()
-            encoder.release()
+            enc.stop()
+            enc.release()
             encoder = null
 
             if (muxerStarted) muxer.stop()
@@ -1606,6 +1608,7 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
             decoder = MediaCodec.createDecoderByType(mime)
             decoder.configure(inputFormat, null, null, 0)
             decoder.start()
+            val dec = decoder!!
 
             var outputFormatChecked = false
             var decodedSampleRate = srcSampleRate
@@ -1624,34 +1627,34 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
 
             while (!outputDone) {
                 if (!inputDone) {
-                    val inIdx = decoder.dequeueInputBuffer(CODEC_TIMEOUT_US)
+                    val inIdx = dec.dequeueInputBuffer(CODEC_TIMEOUT_US)
                     if (inIdx >= 0) {
-                        val inBuf = decoder.getInputBuffer(inIdx)
+                        val inBuf = dec.getInputBuffer(inIdx)
                         if (inBuf != null) {
                             val size = extractor.readSampleData(inBuf, 0)
                             if (size < 0) {
-                                decoder.queueInputBuffer(inIdx, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                                dec.queueInputBuffer(inIdx, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                                 inputDone = true
                             } else {
-                                decoder.queueInputBuffer(inIdx, 0, size, extractor.sampleTime, 0)
+                                dec.queueInputBuffer(inIdx, 0, size, extractor.sampleTime, 0)
                                 extractor.advance()
                             }
                         }
                     }
                 }
 
-                val outIdx = decoder.dequeueOutputBuffer(bufferInfo, CODEC_TIMEOUT_US)
+                val outIdx = dec.dequeueOutputBuffer(bufferInfo, CODEC_TIMEOUT_US)
                 when {
                     outIdx >= 0 -> {
                         if (!outputFormatChecked) {
-                            val fmt = decoder.outputFormat
+                            val fmt = dec.outputFormat
                             try { decodedSampleRate = fmt.getInteger(MediaFormat.KEY_SAMPLE_RATE) } catch (_: Exception) {}
                             try { decodedChannels = fmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT) } catch (_: Exception) {}
                             outputFormatChecked = true
                         }
                         if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputDone = true
                         if (bufferInfo.size > 0) {
-                            val outBuf = decoder.getOutputBuffer(outIdx)
+                            val outBuf = dec.getOutputBuffer(outIdx)
                             if (outBuf != null) {
                                 val pcmData = ByteArray(bufferInfo.size)
                                 outBuf.position(bufferInfo.offset)
@@ -1677,10 +1680,10 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
                                 }
                             }
                         }
-                        decoder.releaseOutputBuffer(outIdx, false)
+                        dec.releaseOutputBuffer(outIdx, false)
                     }
                     outIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                        val fmt = decoder.outputFormat
+                        val fmt = dec.outputFormat
                         try { decodedSampleRate = fmt.getInteger(MediaFormat.KEY_SAMPLE_RATE) } catch (_: Exception) {}
                         try { decodedChannels = fmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT) } catch (_: Exception) {}
                         outputFormatChecked = true

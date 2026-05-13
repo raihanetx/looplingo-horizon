@@ -125,7 +125,7 @@ class SubtitleScanner @Inject constructor(
                         context.contentResolver.openInputStream(fileUri)?.use { inputStream ->
                             val ext = filePath.substringAfterLast('.', "").lowercase()
                             val parsed = parseSubtitleFromStream(inputStream, ext)
-                            if (parsed.isNotEmpty()) return parsed
+                            if (parsed.isNotEmpty()) return@use parsed
                         }
                     } catch (e: Exception) {
                         Timber.d(e, "ContentResolver stream failed, trying direct File access")
@@ -133,11 +133,12 @@ class SubtitleScanner @Inject constructor(
                         val file = File(filePath)
                         if (file.exists() && file.canRead()) {
                             val ext = filePath.substringAfterLast('.', "").lowercase()
-                            return parseSubtitleFile(file, ext)
+                            return@use parseSubtitleFile(file, ext)
                         }
                     }
+                    null  // File found in MediaStore but couldn't read it
                 } else {
-                    null
+                    null  // No matching file found
                 }
             }
         } catch (e: Exception) {

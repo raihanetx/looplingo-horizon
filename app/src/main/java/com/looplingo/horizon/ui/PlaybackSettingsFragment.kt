@@ -472,11 +472,10 @@ class PlaybackSettingsFragment : Fragment() {
                             endSec = cue.endMs / 1000.0
                         )
                     }
-                    translatedTexts = cues.mapNotNull { cue ->
+                    translatedTexts = cues.mapIndexedNotNull { index, cue ->
                         val translationLine = cue.text.substringAfter("\n→ ", "")
-                        if (translationLine.isNotEmpty()) {
-                            val idx = cues.indexOf(cue)
-                            dialogueSegments.getOrNull(idx)?.id to translationLine
+                        if (translationLine.isNotEmpty() && dialogueSegments.getOrNull(index) != null) {
+                            dialogueSegments[index].id to translationLine
                         } else null
                     }.toMap()
                     selectedSegmentIndex = -1
