@@ -357,9 +357,21 @@ class GroqApiClient {
 
             val result = transcribeChunks(apiKey, normalizedChunks, language, onProgress)
             if (result.isEmpty()) {
+                val lastResp = lastWhisperResponseRaw.take(200)
+                onProgress?.onProgress("")
+                onProgress?.onProgress("═══ DIAGNOSTICS ═══")
+                onProgress?.onProgress("All 3 steps failed (direct, extracted, PCM)")
+                onProgress?.onProgress("Last API response: $lastResp")
+                onProgress?.onProgress("File: ${sourceFile.name} (%.2fMB)".format(sourceSizeMB))
+                onProgress?.onProgress("")
+                onProgress?.onProgress("POSSIBLE CAUSES:")
+                onProgress?.onProgress("1. Audio might be truly silent (no speech)")
+                onProgress?.onProgress("2. Language set to 'auto' — try Bengali/Japanese/etc")
+                onProgress?.onProgress("3. M4A extraction may be corrupt — check Downloads/")
+                onProgress?.onProgress("4. Audio codec not supported by Whisper")
                 throw SubtitleException(
-                    "No speech detected even after normalization. " +
-                    "Try selecting the language manually (Bengali, Japanese, etc.) instead of Auto-detect."
+                    "No speech detected in any step. See debug log for details. " +
+                    "Try: 1) Select language manually 2) Try a different file 3) Check debug files in Downloads/"
                 )
             }
 
@@ -1384,16 +1396,33 @@ class GroqApiClient {
     // WHISPER API CALL
     // ══════════════════════════════════════════════════════════════════
 
+    private var lastWhisperResponseRaw: String = ""
+
     private fun callWhisperApi(apiKey: String, audioFile: File, language: String = "auto"): List<Segment> {
         val mediaType = guessAudioMediaType(audioFile.name)
         Timber.i("→ Whisper API: %s (%.2fKB) as %s, lang=%s",
             audioFile.name, audioFile.length() / 1024.0, mediaType, language)
 
-        val fileBody = audioFile.asRequestBody(mediaType.toMediaType())
+        // For M4A files: try sending as .mp4 extension with video/mp4 MIME type
+        // Groq's FFmpeg decoder handles .mp4 better than .m4a in some cases
+        val effectiveFileName = if (audioFile.extension.lowercase() == "m4a") {
+            audioFile.nameWithoutExtension + ".mp4"
+        } else {
+            audioFile.name
+        }
+        val effectiveMediaType = if (audioFile.extension.lowercase() == "m4a") {
+            "video/mp4"  // Groq FFmpeg handles video/mp4 for MP4 containers better
+        } else {
+            mediaType
+        }
+
+        Timber.i("  Effective: filename=%s, MIME=%s", effectiveFileName, effectiveMediaType)
+
+        val fileBody = audioFile.asRequestBody(effectiveMediaType.toMediaType())
 
         val multipartBuilder = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("file", audioFile.name, fileBody)
+            .addFormDataPart("file", effectiveFileName, fileBody)
             .addFormDataPart("model", "whisper-large-v3")
             .addFormDataPart("response_format", "verbose_json")
             .addFormDataPart("timestamp_granularities[]", "segment")
@@ -1411,6 +1440,10 @@ class GroqApiClient {
 
         val response = client.newCall(request).execute()
         val responseBody = response.body?.string()
+
+        // ALWAYS log the full response for debugging
+        lastWhisperResponseRaw = responseBody?.take(1000) ?: "(null)"
+        Timber.i("← Whisper API: HTTP %d, body=%s", response.code, lastWhisperResponseRaw.take(300))
 
         if (!response.isSuccessful || responseBody.isNullOrBlank()) {
             val errorDetail = responseBody?.take(500) ?: "No response body"
@@ -1433,18 +1466,25 @@ class GroqApiClient {
             throw RuntimeException(userMessage)
         }
 
-        Timber.d("← Whisper API response: HTTP %d, %d bytes", response.code, responseBody.length)
-
         val transcription = parseTranscriptionResponse(responseBody)
 
         if (transcription.error != null) {
             val errMsg = transcription.error.message ?: "Unknown error"
-            Timber.e("← Whisper API error: %s", errMsg)
+            Timber.e("← Whisper API error in response body: %s", errMsg)
             throw RuntimeException(errMsg)
         }
 
+        // Log exactly what Whisper returned
+        if (transcription.segments.isNullOrEmpty() && transcription.text.isNullOrBlank()) {
+            Timber.w("← Whisper returned EMPTY: no text, no segments")
+            Timber.w("← Full response: %s", responseBody.take(500))
+        } else if (transcription.segments.isNullOrEmpty()) {
+            Timber.i("← Whisper returned TEXT only (no segments): \"%s\"", transcription.text?.take(100))
+        } else {
+            Timber.i("← Whisper returned %d segments, text=\"%s\"", transcription.segments.size, transcription.text?.take(80))
+        }
+
         if (transcription.segments.isNullOrEmpty() && !transcription.text.isNullOrBlank()) {
-            Timber.i("← No segments but got full text: \"%s\"", transcription.text.take(80))
             return listOf(Segment(id = 0, text = transcription.text.trim(), startSec = 0.0, endSec = 0.0))
         }
 
@@ -1452,9 +1492,11 @@ class GroqApiClient {
             Segment(id = segJson.id, text = segJson.text.trim(), startSec = segJson.start, endSec = segJson.end)
         } ?: emptyList()
 
-        Timber.i("← Whisper API returned %d segments", segments.size)
         return segments
     }
+
+    /** Get the last raw Whisper API response for debug logging */
+    fun getLastWhisperResponse(): String = lastWhisperResponseRaw
 
     private fun guessAudioMediaType(fileName: String): String {
         return when (fileName.substringAfterLast(".", "").lowercase()) {

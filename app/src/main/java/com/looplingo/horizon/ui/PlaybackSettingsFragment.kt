@@ -410,6 +410,13 @@ class PlaybackSettingsFragment : Fragment() {
                     binding.tvSubtitleStatus.text = errorMsg
                     appendDebugLog("FAILED: $errorMsg")
                     appendDebugLog("Exception type: ${e.javaClass.simpleName}")
+                    // Also show the last Whisper API response for debugging
+                    val lastResp = groqApiClient.getLastWhisperResponse()
+                    if (lastResp.isNotBlank() && lastResp != "(null)") {
+                        appendDebugLog("")
+                        appendDebugLog("Last Whisper API response:")
+                        appendDebugLog(lastResp.take(300))
+                    }
                     showSnackbar(errorMsg)
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to generate subtitles")
