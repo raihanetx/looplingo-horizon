@@ -37,6 +37,17 @@ class TranscriptRepository @Inject constructor(
         private const val MAX_CACHE_ENTRIES = 50
     }
 
+    /**
+     * Result of loading cached transcription data with metadata.
+     * Includes the translation language so the UI can check if the cached
+     * translation matches the user's current selection.
+     */
+    data class CachedTranscriptionData(
+        val cues: List<SubtitleCue>,
+        val translationLanguage: String?,  // e.g., "bn", "hi", or null if no translation
+        val sourceLanguage: String          // e.g., "en", "auto"
+    )
+
     /** In-memory cache of parsed subtitle cues, keyed by video path. Thread-safe. */
     private val cache = ConcurrentHashMap<String, List<SubtitleCue>>()
 
@@ -90,6 +101,39 @@ class TranscriptRepository @Inject constructor(
     }
 
     /**
+     * Async version that returns transcription data WITH metadata.
+     * This is the preferred method for the UI because it includes the
+     * translation language, allowing the UI to check if the cached
+     * translation matches the user's current selection.
+     *
+     * If the cache hit comes from an external subtitle file (not DB),
+     * translationLanguage and sourceLanguage will be null/"auto".
+     */
+    suspend fun getSubtitlesWithMetaAsync(videoPath: String): CachedTranscriptionData {
+        cache[videoPath]?.let {
+            // Memory cache hit — we don't have metadata, load from DB to get it
+            // Actually, check DB for metadata too
+            val meta = loadTranscriptionMetaFromDb(videoPath)
+            return CachedTranscriptionData(
+                cues = it,
+                translationLanguage = meta?.first,
+                sourceLanguage = meta?.second ?: "auto"
+            )
+        }
+
+        // Try external subtitle files first
+        val fileCues = subtitleScanner.findSubtitlesForVideo(videoPath)
+        if (fileCues.isNotEmpty()) {
+            cache[videoPath] = fileCues
+            trimCache()
+            return CachedTranscriptionData(cues = fileCues, translationLanguage = null, sourceLanguage = "auto")
+        }
+
+        // Try database transcriptions — this gives us both cues AND metadata
+        return loadTranscriptionsWithMetaFromDb(videoPath)
+    }
+
+    /**
      * Load transcription segments from the Room database and convert to SubtitleCues.
      * This is the bridge between GroqApiClient's Segment objects and the playback system.
      */
@@ -109,6 +153,59 @@ class TranscriptRepository @Inject constructor(
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load transcriptions from DB for: %s", videoPath)
                 emptyList()
+            }
+        }
+    }
+
+    /**
+     * Load transcription metadata (translation language, source language) from DB.
+     * Returns null if no transcriptions exist for this video.
+     */
+    private suspend fun loadTranscriptionMetaFromDb(videoPath: String): Pair<String?, String>? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val meta = transcriptionDao.getTranscriptionMetaForVideo(videoPath)
+                if (meta == null) {
+                    Timber.d("No transcription metadata in DB for: %s", videoPath.substringAfterLast("/"))
+                    return@withContext null
+                }
+                Pair(meta.translationLanguage, meta.languageCode)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load transcription metadata for: %s", videoPath)
+                null
+            }
+        }
+    }
+
+    /**
+     * Load transcriptions with metadata from the Room database.
+     * Returns both cues AND the translation/source language info.
+     */
+    private suspend fun loadTranscriptionsWithMetaFromDb(videoPath: String): CachedTranscriptionData {
+        return withContext(Dispatchers.IO) {
+            try {
+                val entities = transcriptionDao.getTranscriptionsForVideoOnce(videoPath)
+                if (entities.isEmpty()) {
+                    return@withContext CachedTranscriptionData(emptyList(), null, "auto")
+                }
+
+                val cues = entities.mapIndexed { index, entity ->
+                    entity.toSubtitleCue(index + 1)
+                }
+                cache[videoPath] = cues
+                trimCache()
+
+                // Extract metadata from the first entity (all segments for a video share the same metadata)
+                val translationLang = entities.firstOrNull()?.translationLanguage
+                val sourceLang = entities.firstOrNull()?.languageCode ?: "auto"
+
+                Timber.i("Cached %d transcription cues (DB) for: %s (translation=%s, source=%s)",
+                    cues.size, videoPath.substringAfterLast("/"), translationLang, sourceLang)
+
+                CachedTranscriptionData(cues = cues, translationLanguage = translationLang, sourceLanguage = sourceLang)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load transcriptions from DB for: %s", videoPath)
+                CachedTranscriptionData(emptyList(), null, "auto")
             }
         }
     }

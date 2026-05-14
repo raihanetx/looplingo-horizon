@@ -43,6 +43,11 @@ class PlaybackSettingsViewModel @Inject constructor(
         return transcriptRepository.getSubtitlesForVideoAsync(videoPath)
     }
 
+    /** Get transcription cues with metadata (translation language, source language) from DB. */
+    suspend fun getTranscriptionCuesWithMeta(videoPath: String): TranscriptRepository.CachedTranscriptionData {
+        return transcriptRepository.getSubtitlesWithMetaAsync(videoPath)
+    }
+
     private val _config = MutableStateFlow(PlaybackConfig(videoPath = ""))
     val config: StateFlow<PlaybackConfig> = _config.asStateFlow()
 

@@ -41,6 +41,25 @@ interface TranscriptionDao {
     suspend fun getTranscriptionCountForVideo(videoPath: String): Int
 
     /**
+     * Get the translation language and source language for a video's transcriptions.
+     * Returns TranscriptionMeta from the first segment,
+     * or null if no transcriptions exist.
+     * This is used to check if cached transcriptions match the user's current
+     * language selection without loading all segments.
+     */
+    @Query("SELECT translationLanguage, languageCode FROM transcriptions WHERE videoPath = :videoPath LIMIT 1")
+    suspend fun getTranscriptionMetaForVideo(videoPath: String): TranscriptionMeta?
+
+    /**
+     * Lightweight POJO for transcription metadata queries.
+     * Room maps the SELECT columns to these fields by name.
+     */
+    data class TranscriptionMeta(
+        val translationLanguage: String?,
+        val languageCode: String
+    )
+
+    /**
      * Insert a single transcription segment.
      * Uses REPLACE strategy to handle deduplication.
      */

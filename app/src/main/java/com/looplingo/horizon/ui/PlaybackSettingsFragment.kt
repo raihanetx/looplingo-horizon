@@ -70,7 +70,7 @@ class PlaybackSettingsFragment : Fragment() {
     private val keyLanguage = "whisper_language"
     private val keyTranslationLanguage = "translation_language"
     private var selectedLanguageCode = "auto"
-    private var selectedTranslationCode = "bn"  // Default: Bangla
+    private var selectedTranslationCode = "none"  // Default: No translation (saves credits!)
 
     // Cached EncryptedSharedPreferences — avoid re-creating on every read/write
     // (AES key derivation is expensive, ~50ms per creation)
@@ -290,8 +290,10 @@ class PlaybackSettingsFragment : Fragment() {
         binding.tvApiKeyBanner.visibility = if (apiKey.isBlank()) View.VISIBLE else View.GONE
     }
 
-    /** Translation languages available for the Chat API translator. */
+    /** Translation languages available for the Chat API translator.
+     *  First option is "none" — disables translation entirely (saves API credits!). */
     private val TRANSLATION_LANGUAGES = listOf(
+        "none" to "No Translation (subtitles only)",
         "bn" to "\u09AC\u09BE\u0982\u09B2\u09BE (Bengali)",
         "en" to "English",
         "hi" to "\u0939\u093F\u0928\u094D\u0926\u0940 (Hindi)",
@@ -340,8 +342,8 @@ class PlaybackSettingsFragment : Fragment() {
         val translationAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, translationDisplayNames)
         binding.actvTranslationLanguage.setAdapter(translationAdapter)
 
-        // Load saved translation language preference (default: Bangla)
-        selectedTranslationCode = prefs.getString(keyTranslationLanguage, "bn") ?: "bn"
+        // Load saved translation language preference (default: none — saves credits)
+        selectedTranslationCode = prefs.getString(keyTranslationLanguage, "none") ?: "none"
         val savedTranslationDisplayName = TRANSLATION_LANGUAGES.find { it.first == selectedTranslationCode }?.second ?: translationDisplayNames[0]
         binding.actvTranslationLanguage.setText(savedTranslationDisplayName, false)
 
@@ -363,7 +365,7 @@ class PlaybackSettingsFragment : Fragment() {
     private fun getSelectedTranslationCode(): String {
         val displayText = binding.actvTranslationLanguage.text.toString()
         val match = TRANSLATION_LANGUAGES.find { it.second == displayText }
-        return match?.first ?: "bn"
+        return match?.first ?: "none"
     }
 
     private fun setupSubtitleGeneration() {
@@ -435,12 +437,24 @@ class PlaybackSettingsFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val cues = withContext(Dispatchers.IO) {
-                    viewModel.getTranscriptionCues(videoPath)
+                val cachedData = withContext(Dispatchers.IO) {
+                    viewModel.getTranscriptionCuesWithMeta(videoPath)
                 }
-                if (cues.isNotEmpty()) {
+                if (cachedData.cues.isNotEmpty()) {
                     // CACHE HIT — show subtitles immediately, no API call needed!
-                    loadSubtitleCues(cues, fromCache = true)
+                    loadSubtitleCues(cachedData.cues, fromCache = true)
+
+                    // Check if the cached translation language matches the user's current selection.
+                    // If not, show a hint so the user knows they can re-generate with a different language.
+                    val currentTranslation = getSelectedTranslationCode()
+                    val cachedTranslation = cachedData.translationLanguage
+                    if (currentTranslation != cachedTranslation) {
+                        val currentName = TRANSLATION_LANGUAGES.find { it.first == currentTranslation }?.second ?: currentTranslation
+                        val cachedName = TRANSLATION_LANGUAGES.find { it.first == cachedTranslation }?.second ?: cachedTranslation ?: "None"
+                        appendDebugLog("NOTE: Cached translation is $cachedName, but you selected $currentName.")
+                        appendDebugLog("Click 'Generate' to re-translate with $currentName (uses 1 API call for translation only).")
+                        binding.tvSubtitleStatus.text = "Cached: ${cachedData.cues.size} segments ($cachedName). Re-generate for $currentName?"
+                    }
                 } else {
                     // No cache — show "Generate" prompt
                     binding.tvSubtitleStatus.text = getString(R.string.btn_generate_subtitles)
@@ -540,25 +554,56 @@ class PlaybackSettingsFragment : Fragment() {
         appendDebugLog("Language: $selectedLanguageCode → Translation: $selectedTranslationCode")
         appendDebugLog("API key: ${apiKey.take(10)}...${apiKey.takeLast(4)}")
 
+        val wantsTranslation = selectedTranslationCode != "none"
+
         subtitleGenerationJob = viewLifecycleOwner.lifecycleScope.launch {
                 try {
-                    val result = withContext(Dispatchers.IO) {
-                        groqApiClient.transcribeAndTranslate(
-                            requireContext(), apiKey, effectivePath,
-                            selectedLanguageCode, selectedTranslationCode
-                        ) { step ->
-                            // Update progress AND debug log on main thread
-                            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                                if (_binding != null) {
-                                    binding.tvSubtitleStatus.text = step
-                                    appendDebugLog(step)
+                    // Choose pipeline based on whether translation is needed:
+                    // - "none" → transcription only (1 API call, saves credits!)
+                    // - any language → transcription + translation (2 API calls)
+                    val segments: List<Segment>
+                    val finalTranslatedTexts: Map<Int, String>
+                    val finalTranslationLanguage: String?
+
+                    if (wantsTranslation) {
+                        // Full pipeline: transcribe + translate (2 API calls)
+                        val result = withContext(Dispatchers.IO) {
+                            groqApiClient.transcribeAndTranslate(
+                                requireContext(), apiKey, effectivePath,
+                                selectedLanguageCode, selectedTranslationCode
+                            ) { step ->
+                                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                                    if (_binding != null) {
+                                        binding.tvSubtitleStatus.text = step
+                                        appendDebugLog(step)
+                                    }
                                 }
                             }
                         }
+                        segments = result.segments
+                        finalTranslatedTexts = result.translatedTexts
+                        finalTranslationLanguage = result.targetLanguage
+                    } else {
+                        // Subtitles only — no translation (1 API call, saves credits!)
+                        appendDebugLog("Translation: DISABLED (subtitles only mode)")
+                        segments = withContext(Dispatchers.IO) {
+                            groqApiClient.transcribeAudio(
+                                requireContext(), apiKey, effectivePath,
+                                selectedLanguageCode
+                            ) { step ->
+                                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                                    if (_binding != null) {
+                                        binding.tvSubtitleStatus.text = step
+                                        appendDebugLog(step)
+                                    }
+                                }
+                            }
+                        }
+                        finalTranslatedTexts = emptyMap()
+                        finalTranslationLanguage = null
                     }
 
-                    val segments = result.segments
-                    translatedTexts = result.translatedTexts
+                    translatedTexts = finalTranslatedTexts
                     dialogueSegments = segments
                     selectedSegmentIndex = -1  // Reset selection on new subtitles
                     isGeneratingSubtitles = false
@@ -570,11 +615,13 @@ class PlaybackSettingsFragment : Fragment() {
                     } else {
                         binding.tvSubtitleStatus.text = getString(R.string.subtitle_generated, segments.size)
                         appendDebugLog("SUCCESS: ${segments.size} segments found!")
-                        if (translatedTexts.isNotEmpty()) {
-                            appendDebugLog("Translation: ${translatedTexts.size} segments translated to ${result.targetLanguage}")
+                        if (finalTranslatedTexts.isNotEmpty()) {
+                            appendDebugLog("Translation: ${finalTranslatedTexts.size} segments translated to $finalTranslationLanguage")
+                        } else {
+                            appendDebugLog("Translation: None (subtitles only)")
                         }
                         for ((i, seg) in segments.take(5).withIndex()) {
-                            val translation = translatedTexts[seg.id]
+                            val translation = finalTranslatedTexts[seg.id]
                             appendDebugLog("  [$i] ${formatMsToTime(seg.startMs)}-${formatMsToTime(seg.endMs)}: ${seg.text.take(50)}")
                             if (translation != null) {
                                 appendDebugLog("       → $translation")
@@ -588,11 +635,11 @@ class PlaybackSettingsFragment : Fragment() {
                             segments = segments,
                             languageCode = selectedLanguageCode,
                             isTranslation = false,
-                            translatedTexts = translatedTexts,
-                            translationLanguage = result.targetLanguage
+                            translatedTexts = finalTranslatedTexts,
+                            translationLanguage = finalTranslationLanguage
                         )
                         groqApiClient.saveSrtFile(requireContext(), segments, args.videoPath.substringAfterLast("/"))
-                        appendDebugLog("Transcriptions + translations saved to database + SRT file")
+                        appendDebugLog("Transcriptions saved to database + SRT file")
 
                         showDialogueList(segments)
                     }

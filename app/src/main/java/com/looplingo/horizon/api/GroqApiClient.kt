@@ -520,7 +520,7 @@ class GroqApiClient @javax.inject.Inject constructor() {
         apiKey: String,
         filePath: String,
         language: String = "auto",
-        targetLanguage: String = "bn",
+        targetLanguage: String = "none",
         onProgress: ProgressCallback? = null
     ): TranscriptionWithTranslation = withContext(Dispatchers.IO) {
         // Step 1: Transcribe with Whisper (1 API call)
