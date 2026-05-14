@@ -446,13 +446,14 @@ class PlaybackSettingsFragment : Fragment() {
 
                     // Check if the cached translation language matches the user's current selection.
                     // If not, show a hint so the user knows they can re-generate with a different language.
+                    // Normalize: null in DB = "none" (no translation), both mean the same thing.
                     val currentTranslation = getSelectedTranslationCode()
-                    val cachedTranslation = cachedData.translationLanguage
+                    val cachedTranslation = cachedData.translationLanguage ?: "none"
                     if (currentTranslation != cachedTranslation) {
                         val currentName = TRANSLATION_LANGUAGES.find { it.first == currentTranslation }?.second ?: currentTranslation
-                        val cachedName = TRANSLATION_LANGUAGES.find { it.first == cachedTranslation }?.second ?: cachedTranslation ?: "None"
+                        val cachedName = TRANSLATION_LANGUAGES.find { it.first == cachedTranslation }?.second ?: cachedTranslation
                         appendDebugLog("NOTE: Cached translation is $cachedName, but you selected $currentName.")
-                        appendDebugLog("Click 'Generate' to re-translate with $currentName (uses 1 API call for translation only).")
+                        appendDebugLog("Click 'Generate' to re-generate with $currentName (uses API credits).")
                         binding.tvSubtitleStatus.text = "Cached: ${cachedData.cues.size} segments ($cachedName). Re-generate for $currentName?"
                     }
                 } else {
@@ -609,6 +610,13 @@ class PlaybackSettingsFragment : Fragment() {
                     isGeneratingSubtitles = false
                     binding.progressSubtitles.visibility = View.GONE
 
+                    // BUG FIX: If translation was requested but failed silently (empty result),
+                    // don't claim we have a translation — save translationLanguage as null.
+                    if (wantsTranslation && finalTranslatedTexts.isEmpty()) {
+                        appendDebugLog("WARNING: Translation API returned no results — saved transcription without translation")
+                        finalTranslationLanguage = null
+                    }
+
                     if (segments.isEmpty()) {
                         binding.tvSubtitleStatus.text = getString(R.string.subtitle_no_segments)
                         appendDebugLog("RESULT: No segments found")
@@ -617,6 +625,8 @@ class PlaybackSettingsFragment : Fragment() {
                         appendDebugLog("SUCCESS: ${segments.size} segments found!")
                         if (finalTranslatedTexts.isNotEmpty()) {
                             appendDebugLog("Translation: ${finalTranslatedTexts.size} segments translated to $finalTranslationLanguage")
+                        } else if (wantsTranslation) {
+                            appendDebugLog("Translation: FAILED — transcription saved without translation")
                         } else {
                             appendDebugLog("Translation: None (subtitles only)")
                         }
@@ -638,7 +648,7 @@ class PlaybackSettingsFragment : Fragment() {
                             translatedTexts = finalTranslatedTexts,
                             translationLanguage = finalTranslationLanguage
                         )
-                        groqApiClient.saveSrtFile(requireContext(), segments, args.videoPath.substringAfterLast("/"))
+                        groqApiClient.saveSrtFile(requireContext(), segments, args.videoPath.substringAfterLast("/"), finalTranslatedTexts)
                         appendDebugLog("Transcriptions saved to database + SRT file")
 
                         showDialogueList(segments)

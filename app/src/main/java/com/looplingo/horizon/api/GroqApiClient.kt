@@ -520,7 +520,7 @@ class GroqApiClient @javax.inject.Inject constructor() {
         apiKey: String,
         filePath: String,
         language: String = "auto",
-        targetLanguage: String = "none",
+        targetLanguage: String,  // No default — caller must explicitly specify (e.g., "bn", "hi")
         onProgress: ProgressCallback? = null
     ): TranscriptionWithTranslation = withContext(Dispatchers.IO) {
         // Step 1: Transcribe with Whisper (1 API call)
@@ -650,6 +650,7 @@ Example: {"0": "translation", "1": "translation", ...}"""
 
     /** Get human-readable language name from ISO 639-1 code. */
     private fun languageName(code: String): String {
+        if (code == "none") return "No Translation"
         return SUPPORTED_LANGUAGES.find { it.first == code }?.second ?: code
     }
 
@@ -673,24 +674,30 @@ Example: {"0": "translation", "1": "translation", ...}"""
     /**
      * Generate SRT subtitle content from segments.
      * Groq doesn't support srt/vtt response format — we generate it client-side.
+     * If translations are provided, each subtitle shows original + translation.
      */
-    fun generateSrt(segments: List<Segment>): String {
+    fun generateSrt(segments: List<Segment>, translations: Map<Int, String> = emptyMap()): String {
         return segments.mapIndexed { index, seg ->
             val start = formatSrtTime(seg.startMs)
             val end = formatSrtTime(seg.endMs)
-            "${index + 1}\n$start --> $end\n${seg.text.trim()}\n"
+            val translation = translations[seg.id]
+            val text = if (translation != null) "${seg.text.trim()}\n→ $translation" else seg.text.trim()
+            "${index + 1}\n$start --> $end\n$text\n"
         }.joinToString("\n")
     }
 
     /**
      * Generate VTT subtitle content from segments.
+     * If translations are provided, each subtitle shows original + translation.
      */
-    fun generateVtt(segments: List<Segment>): String {
+    fun generateVtt(segments: List<Segment>, translations: Map<Int, String> = emptyMap()): String {
         val header = "WEBVTT\n\n"
         val body = segments.mapIndexed { index, seg ->
             val start = formatVttTime(seg.startMs)
             val end = formatVttTime(seg.endMs)
-            "${index + 1}\n$start --> $end\n${seg.text.trim()}\n"
+            val translation = translations[seg.id]
+            val text = if (translation != null) "${seg.text.trim()}\n→ $translation" else seg.text.trim()
+            "${index + 1}\n$start --> $end\n$text\n"
         }.joinToString("\n")
         return header + body
     }
@@ -699,9 +706,9 @@ Example: {"0": "translation", "1": "translation", ...}"""
      * Save SRT file to app-accessible Downloads directory.
      * Returns the saved file path, or null on failure.
      */
-    fun saveSrtFile(context: Context, segments: List<Segment>, videoName: String): String? {
+    fun saveSrtFile(context: Context, segments: List<Segment>, videoName: String, translations: Map<Int, String> = emptyMap()): String? {
         return try {
-            val srtContent = generateSrt(segments)
+            val srtContent = generateSrt(segments, translations)
             val srtName = videoName.substringBeforeLast(".") + ".srt"
             val downloadsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
             if (downloadsDir != null) {
