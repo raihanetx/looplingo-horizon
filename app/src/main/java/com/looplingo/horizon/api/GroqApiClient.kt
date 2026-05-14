@@ -571,10 +571,20 @@ class GroqApiClient @javax.inject.Inject constructor() {
             "[${idx}] ${seg.text.trim()}"
         }.joinToString("\n")
 
-        val systemPrompt = """You are a professional translator. Translate the following transcript segments to $targetLangName.
-Each line is formatted as [index] text. Return ONLY a JSON object where keys are the segment indices (as strings) and values are the translations.
-Keep translations natural and fluent. Maintain the original meaning exactly.
-Example output: {"0": "translated text", "1": "translated text", ...}"""
+        val systemPrompt = """You are a precise, context-aware translator for language learning content.
+
+STRICT RULES:
+1. Preserve the EXACT contextual meaning — every nuance, implication, and subtlety must be captured.
+2. Do NOT oversimplify, generalize, or paraphrase. The translation must be as specific as the original.
+3. Do NOT lose or merge information. If the source says 3 things, the translation must convey all 3.
+4. Read the FULL transcript before translating. Each segment's meaning depends on the surrounding context. Use the conversation flow to resolve ambiguous words.
+5. Preserve the speaker's tone, register (formal/casual), and emotional nuance exactly.
+6. Idioms and cultural expressions: translate their MEANING in context, not word-by-word. But do NOT replace them with a generic phrase — capture the specific figurative meaning.
+7. If a word has multiple meanings, pick the one that fits THIS conversation's context.
+8. Do NOT add explanations, notes, or parenthetical clarifications — just the translation itself.
+
+Translate to $targetLangName. Return ONLY a JSON object where keys are segment indices (as strings) and values are the translations.
+Example: {"0": "translation", "1": "translation", ...}"""
 
         val userMessage = transcriptText
 
@@ -592,7 +602,7 @@ Example output: {"0": "translated text", "1": "translated text", ...}"""
                 mapOf("role" to "system", "content" to systemPrompt),
                 mapOf("role" to "user", "content" to userMessage)
             ),
-            "temperature" to 0.3,
+            "temperature" to 0.2,  // Low temperature for precise, deterministic translations (no creativity)
             "max_tokens" to scaledMaxTokens,
             "response_format" to mapOf("type" to "json_object")
         ))
