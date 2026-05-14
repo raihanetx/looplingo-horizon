@@ -564,22 +564,28 @@ class PlaybackSettingsFragment : Fragment() {
                     // - any language → transcription + translation (2 API calls)
                     val segments: List<Segment>
                     val finalTranslatedTexts: Map<Int, String>
-                    val finalTranslationLanguage: String?
+                    var finalTranslationLanguage: String?
+
+                    // Shared progress callback — safely updates UI from IO thread.
+                    // Launched coroutines are children of viewLifecycleOwner.lifecycleScope,
+                    // so they're cancelled when the lifecycle is destroyed.
+                    val onProgress = GroqApiClient.ProgressCallback { step ->
+                        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                            if (_binding != null) {
+                                binding.tvSubtitleStatus.text = step
+                                appendDebugLog(step)
+                            }
+                        }
+                    }
 
                     if (wantsTranslation) {
                         // Full pipeline: transcribe + translate (2 API calls)
                         val result = withContext(Dispatchers.IO) {
                             groqApiClient.transcribeAndTranslate(
                                 requireContext(), apiKey, effectivePath,
-                                selectedLanguageCode, selectedTranslationCode
-                            ) { step ->
-                                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                                    if (_binding != null) {
-                                        binding.tvSubtitleStatus.text = step
-                                        appendDebugLog(step)
-                                    }
-                                }
-                            }
+                                selectedLanguageCode, selectedTranslationCode,
+                                onProgress
+                            )
                         }
                         segments = result.segments
                         finalTranslatedTexts = result.translatedTexts
@@ -590,15 +596,8 @@ class PlaybackSettingsFragment : Fragment() {
                         segments = withContext(Dispatchers.IO) {
                             groqApiClient.transcribeAudio(
                                 requireContext(), apiKey, effectivePath,
-                                selectedLanguageCode
-                            ) { step ->
-                                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                                    if (_binding != null) {
-                                        binding.tvSubtitleStatus.text = step
-                                        appendDebugLog(step)
-                                    }
-                                }
-                            }
+                                selectedLanguageCode, onProgress
+                            )
                         }
                         finalTranslatedTexts = emptyMap()
                         finalTranslationLanguage = null
@@ -653,16 +652,21 @@ class PlaybackSettingsFragment : Fragment() {
 
                         showDialogueList(segments)
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    // Coroutine was cancelled (e.g., screen rotation) — don't touch UI, just rethrow
+                    isGeneratingSubtitles = false
+                    throw e
                 } catch (e: ApiKeyException) {
                     // API key is dead — show clear message, no retry
                     Timber.e(e, "API key is invalid/forbidden")
                     isGeneratingSubtitles = false
-                    binding.progressSubtitles.visibility = View.GONE
-                    val errorMsg = e.message ?: "API key error"
-                    binding.tvSubtitleStatus.text = "✗ API KEY ERROR"
+                    if (_binding != null) {
+                        binding.progressSubtitles.visibility = View.GONE
+                        binding.tvSubtitleStatus.text = "✗ API KEY ERROR"
+                    }
                     appendDebugLog("")
                     appendDebugLog("═══ API KEY ERROR ═══")
-                    appendDebugLog(errorMsg)
+                    appendDebugLog(e.message ?: "API key error")
                     appendDebugLog("")
                     appendDebugLog("WHAT TO DO:")
                     appendDebugLog("1. Go to console.groq.com")
@@ -670,39 +674,39 @@ class PlaybackSettingsFragment : Fragment() {
                     appendDebugLog("3. Create a new key")
                     appendDebugLog("4. Paste it in the API key field above")
                     appendDebugLog("5. Click 'Save API Key'")
-                    showSnackbar("API key is invalid — check the debug log for details")
                 } catch (e: SubtitleException) {
                     Timber.e(e, "Subtitle generation failed")
                     isGeneratingSubtitles = false
-                    binding.progressSubtitles.visibility = View.GONE
-                    val errorMsg = e.message ?: getString(R.string.subtitle_error_short)
-                    binding.tvSubtitleStatus.text = errorMsg
-                    appendDebugLog("FAILED: $errorMsg")
+                    if (_binding != null) {
+                        binding.progressSubtitles.visibility = View.GONE
+                        binding.tvSubtitleStatus.text = e.message ?: getString(R.string.subtitle_error_short)
+                    }
+                    appendDebugLog("FAILED: ${e.message}")
                     appendDebugLog("Exception type: ${e.javaClass.simpleName}")
-                    // Also show the last Whisper API response for debugging
                     val lastResp = groqApiClient.getLastWhisperResponse()
                     if (lastResp.isNotBlank() && lastResp != "(null)") {
                         appendDebugLog("")
                         appendDebugLog("Last Whisper API response:")
                         appendDebugLog(lastResp.take(300))
                     }
-                    showSnackbar(errorMsg)
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to generate subtitles")
                     isGeneratingSubtitles = false
-                    binding.progressSubtitles.visibility = View.GONE
-                    val errorMsg = e.message ?: "Unknown error"
-                    binding.tvSubtitleStatus.text = getString(R.string.subtitle_error, errorMsg)
-                    appendDebugLog("ERROR: $errorMsg")
+                    if (_binding != null) {
+                        binding.progressSubtitles.visibility = View.GONE
+                        binding.tvSubtitleStatus.text = getString(R.string.subtitle_error, e.message ?: "Unknown error")
+                    }
+                    appendDebugLog("ERROR: ${e.message}")
                     appendDebugLog("Exception: ${e.javaClass.simpleName}")
-                    // Show full stack trace for debugging
                     val stackLines = e.stackTraceToString().lines().take(5)
                     for (line in stackLines) {
                         appendDebugLog("  $line")
                     }
-                    showSnackbar(getString(R.string.subtitle_error_short))
                 } finally {
-                    binding.btnGenerateSubtitles.isEnabled = true
+                    isGeneratingSubtitles = false
+                    if (_binding != null) {
+                        binding.btnGenerateSubtitles.isEnabled = true
+                    }
                 }
         }
     }

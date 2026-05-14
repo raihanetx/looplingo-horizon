@@ -231,10 +231,7 @@ class TranscriptRepository @Inject constructor(
     ) {
         withContext(Dispatchers.IO) {
             try {
-                // Delete existing transcriptions for this video (replace strategy)
-                transcriptionDao.deleteTranscriptionsForVideo(videoPath)
-
-                // Convert and insert new segments
+                // Convert segments to entities first
                 val entities = segments.map { segment ->
                     TranscriptionEntity(
                         videoPath = videoPath,
@@ -249,7 +246,10 @@ class TranscriptRepository @Inject constructor(
                         translationLanguage = translationLanguage
                     )
                 }
-                transcriptionDao.insertSegments(entities)
+
+                // Atomic replace: delete old + insert new in a single transaction.
+                // Prevents data loss if the app crashes between delete and insert.
+                transcriptionDao.replaceTranscriptionsForVideo(videoPath, entities)
 
                 // Update in-memory cache immediately
                 val cues = entities.mapIndexed { index, entity ->
@@ -283,14 +283,17 @@ class TranscriptRepository @Inject constructor(
 
     /**
      * Evict oldest cache entries when the cache exceeds [MAX_CACHE_ENTRIES].
-     * Removes enough entries to bring the cache well below the limit.
+     * Uses synchronized block because the check-then-act pattern (size check → key removal)
+     * is not atomic even with ConcurrentHashMap.
      */
     private fun trimCache() {
-        if (cache.size > MAX_CACHE_ENTRIES) {
-            val keysToRemove = cache.keys.take(cache.size - MAX_CACHE_ENTRIES + 10)
-            keysToRemove.forEach { cache.remove(it) }
-            Timber.d("Trimmed %d entries from subtitle cache (was %d, limit %d)",
-                keysToRemove.size, cache.size + keysToRemove.size, MAX_CACHE_ENTRIES)
+        synchronized(cache) {
+            if (cache.size > MAX_CACHE_ENTRIES) {
+                val keysToRemove = cache.keys.toList().take(cache.size - MAX_CACHE_ENTRIES + 10)
+                keysToRemove.forEach { cache.remove(it) }
+                Timber.d("Trimmed %d entries from subtitle cache (was %d, limit %d)",
+                    keysToRemove.size, cache.size + keysToRemove.size, MAX_CACHE_ENTRIES)
+            }
         }
     }
 

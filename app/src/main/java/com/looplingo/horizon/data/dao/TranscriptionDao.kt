@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.looplingo.horizon.data.entity.TranscriptionEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -81,6 +82,17 @@ interface TranscriptionDao {
      */
     @Query("DELETE FROM transcriptions WHERE videoPath = :videoPath")
     suspend fun deleteTranscriptionsForVideo(videoPath: String)
+
+    /**
+     * Atomically replace all transcriptions for a video.
+     * Deletes existing segments and inserts new ones in a SINGLE transaction.
+     * This prevents data loss if the app crashes between delete and insert.
+     */
+    @Transaction
+    suspend fun replaceTranscriptionsForVideo(videoPath: String, segments: List<TranscriptionEntity>) {
+        deleteTranscriptionsForVideo(videoPath)
+        insertSegments(segments)
+    }
 
     /**
      * Delete a single transcription segment by ID.
