@@ -30,6 +30,7 @@ import com.looplingo.horizon.api.GroqApiClient.Segment
 import com.looplingo.horizon.api.GroqApiClient.SubtitleException
 import com.looplingo.horizon.databinding.FragmentPlaybackSettingsBinding
 import com.looplingo.horizon.model.SpeedPresets
+import com.looplingo.horizon.model.SubtitleCue
 import com.looplingo.horizon.playback.AudioPlaybackService
 import com.looplingo.horizon.ui.viewmodel.PlaybackSettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -370,6 +371,10 @@ class PlaybackSettingsFragment : Fragment() {
         updateApiKeyBanner()
         setupLanguageSelector()
 
+        // AUTO-LOAD: Check for cached transcriptions immediately on open.
+        // If found, display them without making any API call — saves credits!
+        tryAutoLoadCachedSubtitles()
+
         // Save API key button — explicit save action
         binding.btnSaveApiKey.setOnClickListener {
             val key = binding.etGroqApiKey.text.toString().trim()
@@ -396,108 +401,123 @@ class PlaybackSettingsFragment : Fragment() {
         binding.btnGenerateSubtitles.setOnClickListener {
             if (isGeneratingSubtitles) return@setOnClickListener
 
-            val enteredKey = binding.etGroqApiKey.text.toString().trim()
-            if (enteredKey.isNotBlank()) {
-                saveGroqApiKey(enteredKey)
-                updateApiKeyBanner()
-            }
-
-            val apiKey = getGroqApiKey()
-            if (apiKey.isBlank()) {
-                showSnackbar(getString(R.string.error_no_api_key))
-                return@setOnClickListener
-            }
-
-            // Get selected languages
-            selectedLanguageCode = getSelectedLanguageCode()
-            selectedTranslationCode = getSelectedTranslationCode()
-
-            val videoPath = args.videoPath
-            val contentUri = args.contentUri
-            // Use contentUri if available (scoped storage), otherwise use file path
-            val effectivePath = if (contentUri.isNotBlank()) contentUri else videoPath
-            if (videoPath.isBlank()) {
-                showSnackbar(getString(R.string.error_invalid_video_path))
-                return@setOnClickListener
-            }
-
-            // Check if transcriptions already exist in DB — offer to use cached
-            if (!isGeneratingSubtitles) {
-                viewLifecycleOwner.lifecycleScope.launch {
-                    val hasCached = withContext(Dispatchers.IO) {
-                        try {
-                            viewModel.hasTranscriptions(videoPath)
-                        } catch (_: Exception) { false }
+            // If subtitles are already showing, this is a "Re-generate" action.
+            // Confirm before burning credits.
+            if (dialogueSegments.isNotEmpty()) {
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(getString(R.string.btn_regenerate_subtitles))
+                    .setMessage("This will replace the current subtitles and use your Groq API credits. Continue?")
+                    .setPositiveButton("Re-generate") { _, _ ->
+                        triggerSubtitleGeneration()
                     }
-                    if (hasCached && !isGeneratingSubtitles) {
-                        // Show dialog asking user if they want to re-transcribe
-                        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-                            .setTitle("Transcriptions Found")
-                            .setMessage("This file already has transcriptions saved. Do you want to re-transcribe and replace them?")
-                            .setPositiveButton("Re-transcribe") { _, _ ->
-                                startSubtitleGeneration(apiKey, effectivePath, videoPath)
-                            }
-                            .setNegativeButton(android.R.string.cancel, null)
-                            .setNeutralButton("Use Cached") { _, _ ->
-                                loadCachedTranscriptions(videoPath)
-                            }
-                            .show()
-                        return@launch
-                    }
-                    // No cached transcriptions — proceed directly
-                    startSubtitleGeneration(apiKey, effectivePath, videoPath)
-                }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
                 return@setOnClickListener
             }
+
+            // No existing subtitles — generate directly
+            triggerSubtitleGeneration()
         }
     }
 
     /**
-     * Load cached transcriptions from the database and display them.
-     * Avoids making a redundant API call when transcriptions already exist.
+     * AUTO-LOAD: Automatically load cached transcriptions from Room DB
+     * when the user opens the playback settings screen.
+     *
+     * This is the KEY credit-saving feature — if we already transcribed
+     * this video before, we show the results instantly with ZERO API calls.
+     * The user only needs to click "Generate" if no cache exists.
      */
-    private fun loadCachedTranscriptions(videoPath: String) {
+    private fun tryAutoLoadCachedSubtitles() {
+        val videoPath = args.videoPath
+        binding.tvSubtitleStatus.visibility = View.VISIBLE
+        binding.tvSubtitleStatus.text = getString(R.string.subtitle_loading_cached)
+
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val cues = withContext(Dispatchers.IO) {
                     viewModel.getTranscriptionCues(videoPath)
                 }
                 if (cues.isNotEmpty()) {
-                    // Convert SubtitleCue back to Segment for the dialogue list
-                    dialogueSegments = cues.mapIndexed { index, cue ->
-                        Segment(
-                            id = index,
-                            text = cue.text.substringBefore("\n→"),  // Remove translation part for segment text
-                            startSec = cue.startMs / 1000.0,
-                            endSec = cue.endMs / 1000.0
-                        )
-                    }
-                    translatedTexts = cues.mapIndexedNotNull { index, cue ->
-                        val translationLine = cue.text.substringAfter("\n→ ", "")
-                        if (translationLine.isNotEmpty() && dialogueSegments.getOrNull(index) != null) {
-                            dialogueSegments[index].id to translationLine
-                        } else null
-                    }.toMap()
-                    selectedSegmentIndex = -1
-                    binding.tvSubtitleStatus.text = getString(R.string.subtitle_generated, cues.size)
-                    appendDebugLog("Loaded ${cues.size} cached transcriptions from database")
-                    showDialogueList(dialogueSegments)
+                    // CACHE HIT — show subtitles immediately, no API call needed!
+                    loadSubtitleCues(cues, fromCache = true)
                 } else {
-                    showSnackbar("No cached transcriptions found — generating new ones")
-                    val apiKey = getGroqApiKey()
-                    val contentUri = args.contentUri
-                    val effectivePath = if (contentUri.isNotBlank()) contentUri else videoPath
-                    startSubtitleGeneration(apiKey, effectivePath, videoPath)
+                    // No cache — show "Generate" prompt
+                    binding.tvSubtitleStatus.text = getString(R.string.btn_generate_subtitles)
                 }
             } catch (e: Exception) {
-                Timber.e(e, "Failed to load cached transcriptions")
-                showSnackbar("Failed to load cached — generating new ones")
-                val apiKey = getGroqApiKey()
-                val contentUri = args.contentUri
-                val effectivePath = if (contentUri.isNotBlank()) contentUri else videoPath
-                startSubtitleGeneration(apiKey, effectivePath, videoPath)
+                Timber.w(e, "Failed to auto-load cached subtitles")
+                binding.tvSubtitleStatus.text = getString(R.string.btn_generate_subtitles)
             }
         }
+    }
+
+    /**
+     * Trigger the subtitle generation process (API call to Groq).
+     * Validates API key and resolves the video path before starting.
+     */
+    private fun triggerSubtitleGeneration() {
+        val enteredKey = binding.etGroqApiKey.text.toString().trim()
+        if (enteredKey.isNotBlank()) {
+            saveGroqApiKey(enteredKey)
+            updateApiKeyBanner()
+        }
+
+        val apiKey = getGroqApiKey()
+        if (apiKey.isBlank()) {
+            showSnackbar(getString(R.string.error_no_api_key))
+            return
+        }
+
+        selectedLanguageCode = getSelectedLanguageCode()
+        selectedTranslationCode = getSelectedTranslationCode()
+
+        val videoPath = args.videoPath
+        val contentUri = args.contentUri
+        val effectivePath = if (contentUri.isNotBlank()) contentUri else videoPath
+        if (videoPath.isBlank()) {
+            showSnackbar(getString(R.string.error_invalid_video_path))
+            return
+        }
+
+        startSubtitleGeneration(apiKey, effectivePath, videoPath)
+    }
+
+    /**
+     * Load subtitle cues into the UI — used both for auto-load (cache hit)
+     * and for manual "Use Cached" action.
+     *
+     * @param cues The subtitle cues to display.
+     * @param fromCache If true, shows "cached" status (no API call). If false, shows "generated".
+     */
+    private fun loadSubtitleCues(cues: List<SubtitleCue>, fromCache: Boolean = true) {
+        // Convert SubtitleCue back to Segment for the dialogue list
+        dialogueSegments = cues.mapIndexed { index, cue ->
+            Segment(
+                id = index,
+                text = cue.text.substringBefore("\n→"),  // Remove translation part for segment text
+                startSec = cue.startMs / 1000.0,
+                endSec = cue.endMs / 1000.0
+            )
+        }
+        translatedTexts = cues.mapIndexedNotNull { index, cue ->
+            val translationLine = cue.text.substringAfter("\n→ ", "")
+            if (translationLine.isNotEmpty() && dialogueSegments.getOrNull(index) != null) {
+                dialogueSegments[index].id to translationLine
+            } else null
+        }.toMap()
+        selectedSegmentIndex = -1
+
+        if (fromCache) {
+            // Cache hit — show this clearly so the user knows NO API call was made
+            binding.tvSubtitleStatus.text = getString(R.string.subtitle_cached_loaded, cues.size)
+            appendDebugLog("AUTO-LOADED: ${cues.size} segments from database (0 API calls, 0 credits)")
+        } else {
+            binding.tvSubtitleStatus.text = getString(R.string.subtitle_generated, cues.size)
+            appendDebugLog("Loaded ${cues.size} cached transcriptions")
+        }
+
+        showDialogueList(dialogueSegments)
     }
 
     /**

@@ -80,6 +80,9 @@
     <!-- AI Subtitles -->
     <string name="section_ai_subtitles">AI Subtitles</string>
     <string name="btn_generate_subtitles">Generate Subtitles</string>
+    <string name="btn_regenerate_subtitles">Re-generate Subtitles</string>
+    <string name="subtitle_cached_loaded">Loaded %d cached segments (no API call)</string>
+    <string name="subtitle_loading_cached">Loading saved subtitles…</string>
     <string name="subtitle_step_preparing">Preparing audio for transcription…</string>
     <string name="subtitle_generating">Generating subtitles…</string>
     <string name="subtitle_generated">%d dialogue segments found</string>
@@ -98,6 +101,7 @@
     <string name="btn_loop_dialogue">Loop</string>
     <string name="dialogue_selected">Selected: %s…</string>
     <string name="dialogue_loop_active">Looping x%d: %s…</string>
+    <string name="dialogue_loop_active_with_translation">Looping x%d: %s… → %s</string>
     <string name="error_no_dialogue_selected">Select a dialogue line first</string>
 
     <!-- Transport Controls (Detail Screen) -->
