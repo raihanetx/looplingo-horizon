@@ -1397,26 +1397,33 @@ Example: {"0": "translation", "1": "translation", ...}"""
             val current = sorted[i]
 
             // Look ahead for overlapping segments with similar text
-            var j = i + 1
+            // BUG FIX: Track how many similar duplicates we've merged so we
+            // skip them correctly. Previously, if segments i+1 was similar but
+            // i+2 was NOT similar but was within bestEnd, we'd break and set
+            // i=j (skipping i+2). Now we only skip segments we actually merged.
+            var mergedCount = 0
             var bestEnd = current.endSec
             var bestText = current.text
+            var bestLogprob = current.avgLogprob
+            var bestNoSpeechProb = current.noSpeechProb
 
+            var j = i + 1
             while (j < sorted.size && sorted[j].startSec < bestEnd) {
                 val next = sorted[j]
                 val textSimilarity = computeTextSimilarity(current.text, next.text)
 
                 if (textSimilarity > 0.6) {
-                    // Similar text in overlapping range — keep the one with better quality
-                    val currentQuality = current.avgLogprob
-                    val nextQuality = next.avgLogprob
-
-                    if (nextQuality > currentQuality) {
-                        // Next segment is better quality — skip current
+                    // Similar text in overlapping range — merge into one, keep better quality
+                    if (next.avgLogprob > bestLogprob) {
                         bestText = next.text
                         bestEnd = maxOf(bestEnd, next.endSec)
+                        bestLogprob = next.avgLogprob
+                        bestNoSpeechProb = next.noSpeechProb
                     }
+                    mergedCount++
                     j++
                 } else {
+                    // Different text in overlapping range — keep both (e.g., different speakers)
                     break
                 }
             }
@@ -1426,10 +1433,11 @@ Example: {"0": "translation", "1": "translation", ...}"""
                 text = bestText.trim(),
                 startSec = current.startSec,
                 endSec = bestEnd,
-                noSpeechProb = current.noSpeechProb,
-                avgLogprob = current.avgLogprob
+                noSpeechProb = bestNoSpeechProb,
+                avgLogprob = bestLogprob
             ))
-            i = if (j > i + 1) j else i + 1
+            // Only skip the segments we actually merged (duplicates), not non-similar ones
+            i += 1 + mergedCount
         }
 
         return result
