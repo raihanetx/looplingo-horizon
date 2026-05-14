@@ -52,3 +52,29 @@ Stage Summary:
 - Both Debug APK and Release APK builds pass on GitHub Actions
 - Release APK available as artifact on GitHub Actions
 - GitHub Release created automatically by the release workflow
+---
+Task ID: 3
+Agent: Main Agent (Super Z)
+Task: Fix subtitle caching issue + remove unwanted Bangla translation
+
+Work Log:
+- Investigated the subtitle caching system — code exists but has issues
+- Diagnosed: Default translation was Bangla ("bn"), wasting API credits for users who don't need it
+- Diagnosed: Cache lookup didn't validate translationLanguage match
+- Added "No Translation (subtitles only)" as the first option in TRANSLATION_LANGUAGES
+- Changed default translation language from "bn" to "none" (saves credits!)
+- Modified startSubtitleGeneration() to call transcribeAudio() when translation is "none" (1 API call vs 2)
+- Added CachedTranscriptionData class with translationLanguage and sourceLanguage
+- Added getSubtitlesWithMetaAsync() to TranscriptRepository
+- Added getTranscriptionMetaForVideo() DAO query with TranscriptionMeta POJO
+- Added translation language mismatch detection in tryAutoLoadCachedSubtitles()
+- When cached translation doesn't match current selection, shows hint to re-generate
+- Version bumped: 2.0.0 → 2.1.0 (versionCode 23 → 24)
+- Pushed to GitHub as commit b46f1a4
+
+Stage Summary:
+- 6 files changed, +198/-30 lines
+- Key behavior change: Default is now "No Translation" instead of Bangla
+- Subtitle caching now validates translation language match
+- Users save 1 API call (translation) when they only need subtitles
+- GitHub Actions build triggered automatically
