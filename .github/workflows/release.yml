@@ -90,19 +90,18 @@ jobs:
             Built on ${{ steps.version.outputs.date }}
             Version code: ${{ steps.version.outputs.code }}
 
-            What's new in v3.4.0:
-            - FIXED: Dialogue loop audio bleed-through — no more next-dialogue
-              snippet playing at the end of each repetition
-            - FIXED: Proper silence gap between dialogue repetitions — smooth
-              pause-then-repeat experience (dialogue → silence → dialogue)
-            - Trim cue endMs by 200ms to compensate for Whisper timing overlap
-            - Immediate ExoPlayer pause on dialogue boundary detection
-            - Selective dialogue loop (checkboxes to pick specific dialogues)
-            - Natural pause duration control (configurable silence gap)
-            - Real-time subtitle display during playback (English + Bangla)
-            - Dialogue auto-loop (repeat each dialogue x N times)
-            - Loop templates (save & reuse loop configurations)
-            - Search bar on homepage with real-time filtering
+            What's new in v3.5.0:
+            - NATURAL FADE-OUT: Audio gradually fades out in the last 500ms
+              before dialogue ends — like a person finishing a sentence, not a cut
+            - NATURAL FADE-IN: Audio fades in smoothly at the start of each
+              dialogue repeat — soft entry like natural speech
+            - ZERO BLEED: 400ms end trim + early stop 100ms before boundary
+              guarantees zero next-dialogue audio bleed-through
+            - 50ms LEAD-IN: Each dialogue starts 50ms early for a natural
+              breath-in entry instead of a hard cut
+            - 1.2s DEFAULT PAUSE: Longer natural breathing gap between repeats
+              (configurable 200ms–3000ms)
+            - Ultra-precise 50ms A-B monitoring in dialogue mode for smooth fades
 
             Download the APK below ⬇️
           files: |
