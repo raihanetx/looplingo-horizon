@@ -14,8 +14,8 @@ android {
         applicationId "com.looplingo.horizon"
         minSdk 26
         targetSdk 34
-        versionCode 33
-        versionName "3.6.0"
+        versionCode 31
+        versionName "4.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Export Room schemas for migration verification (KSP version)

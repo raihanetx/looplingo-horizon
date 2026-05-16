@@ -1,339 +1,120 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Mini Player — a compact floating bar shown at the top of the main screen
-     when audio is playing. Provides quick access to transport controls, seek bar,
-     speed control, A-B loop, loop count stepper, and play/pause. -->
+<!-- Mini Player — compact bottom bar (Spotify/YouTube Music style)
+     Shows at the top of the main screen when audio is playing.
+     Tap to expand to full player (navigate to PlaybackSettings). -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/mini_player_card"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="@dimen/space_lg"
+    android:layout_marginHorizontal="@dimen/space_sm"
     android:layout_marginVertical="@dimen/space_xs"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="3dp"
-    app:cardBackgroundColor="@color/colorPrimaryContainer"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp"
+    app:cardBackgroundColor="@color/colorSurfaceContainerLow"
     app:strokeColor="@color/colorOutlineVariant"
-    app:strokeWidth="0dp">
+    app:strokeWidth="0dp"
+    app:rippleColor="@color/colorPrimary"
+    android:clickable="true"
+    android:focusable="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="@dimen/space_md"
-        android:paddingVertical="@dimen/space_sm">
+        android:orientation="vertical">
 
-        <!-- Row 1: Title + Position/Duration + Close -->
-        <LinearLayout
+        <!-- Thin progress line at top -->
+        <ProgressBar
+            android:id="@+id/progress_mini_bar"
+            style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/tv_mini_title"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                android:textColor="@color/colorOnPrimaryContainer" />
-
-            <TextView
-                android:id="@+id/tv_mini_position"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/space_sm"
-                android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                android:textColor="@color/colorOnPrimaryContainer" />
-
-            <ImageView
-                android:id="@+id/iv_mini_close"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_marginStart="@dimen/space_sm"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/content_desc_stop_playback"
-                android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_close"
-                app:tint="@color/colorOnPrimaryContainer" />
-
-        </LinearLayout>
-
-        <!-- Row 1.5: Mini subtitle (visible when subtitles exist) -->
-        <LinearLayout
-            android:id="@+id/layout_mini_subtitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone"
-            android:paddingHorizontal="@dimen/space_xs"
-            android:paddingVertical="@dimen/space_xs"
-            android:background="@color/colorSurfaceContainerHighest"
-            android:layout_marginTop="@dimen/space_xs">
-
-            <TextView
-                android:id="@+id/tv_mini_subtitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                android:textColor="@color/colorOnSurface"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tv_mini_subtitle_translation"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
-                android:textColor="@color/colorPrimary"
-                android:visibility="gone" />
-
-        </LinearLayout>
-
-        <!-- Row 2: Seek bar -->
-        <SeekBar
-            android:id="@+id/seek_bar_mini"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_xs"
+            android:layout_height="2dp"
             android:max="1000"
             android:progress="0"
-            android:contentDescription="@string/content_desc_seek_bar"
-            android:splitTrack="false" />
+            android:progressTint="@color/colorPrimary"
+            android:progressBackgroundTint="@color/colorSurfaceVariant"
+            android:indeterminate="false" />
 
-        <!-- Row 3: Transport controls (rewind 5s, rewind 10s, play/pause, forward 10s, forward 5s) -->
+        <!-- Content row: icon + title + time + play/pause + close -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_xs"
-            android:gravity="center"
-            android:orientation="horizontal">
-
-            <ImageView
-                android:id="@+id/iv_mini_rewind_10"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/content_desc_rewind_10"
-                android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_rewind_10"
-                app:tint="@color/colorOnPrimaryContainer" />
-
-            <ImageView
-                android:id="@+id/iv_mini_rewind_5"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginStart="@dimen/space_sm"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/content_desc_rewind_5"
-                android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_rewind_5"
-                app:tint="@color/colorOnPrimaryContainer" />
-
-            <ImageView
-                android:id="@+id/iv_mini_play_pause"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginHorizontal="@dimen/space_sm"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/content_desc_play_pause"
-                android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_pause"
-                app:tint="@color/colorOnPrimaryContainer" />
-
-            <ImageView
-                android:id="@+id/iv_mini_forward_5"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/content_desc_forward_5"
-                android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_forward_5"
-                app:tint="@color/colorOnPrimaryContainer" />
-
-            <ImageView
-                android:id="@+id/iv_mini_forward_10"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginStart="@dimen/space_sm"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/content_desc_forward_10"
-                android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_forward_10"
-                app:tint="@color/colorOnPrimaryContainer" />
-
-        </LinearLayout>
-
-        <!-- Row 4: Speed chips (horizontal scroll) + Loop count stepper + A-B indicator -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_xs"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/space_md"
+            android:paddingVertical="@dimen/space_sm">
 
-            <HorizontalScrollView
+            <!-- Audio track icon -->
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:contentDescription="@string/content_desc_video_icon"
+                android:scaleType="centerInside"
+                app:srcCompat="@drawable/ic_audio_track"
+                app:tint="@color/colorPrimary" />
+
+            <!-- Title + time -->
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:scrollbars="none">
-
-                <com.google.android.material.chip.ChipGroup
-                    android:id="@+id/chip_group_mini_speed"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    app:singleSelection="true"
-                    app:chipSpacingHorizontal="4dp" />
-
-            </HorizontalScrollView>
-
-            <!-- Loop count stepper -->
-            <LinearLayout
-                android:id="@+id/layout_mini_loop_stepper"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/space_sm"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:visibility="gone">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_mini_loop_minus"
-                    style="@style/Widget.Material3.Button.TonalButton"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:minWidth="32dp"
-                    android:padding="0dp"
-                    android:text="−"
-                    android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
+                android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/tv_mini_loop_count"
+                    android:id="@+id/tv_mini_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                    android:textColor="@color/colorOnSurface" />
+
+                <TextView
+                    android:id="@+id/tv_mini_position"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="4dp"
-                    android:text="5"
                     android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                    android:textColor="@color/colorOnPrimaryContainer" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_mini_loop_plus"
-                    style="@style/Widget.Material3.Button.TonalButton"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:minWidth="32dp"
-                    android:padding="0dp"
-                    android:text="+"
-                    android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
+                    android:textColor="@color/colorOnSurfaceVariant" />
 
             </LinearLayout>
 
+            <!-- AB indicator badge (shown when AB loop is active) -->
             <TextView
                 android:id="@+id/tv_mini_ab_indicator"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/space_sm"
+                android:layout_marginEnd="@dimen/space_sm"
                 android:background="@drawable/badge_background"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="2dp"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="1dp"
                 android:text="AB"
                 android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
                 android:textColor="@color/colorOnPrimary"
                 android:visibility="gone" />
 
-        </LinearLayout>
+            <!-- Play/Pause -->
+            <ImageView
+                android:id="@+id/iv_mini_play_pause"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/content_desc_play_pause"
+                android:scaleType="centerInside"
+                app:srcCompat="@drawable/ic_pause"
+                app:tint="@color/colorOnSurface" />
 
-        <!-- Row 5: A-B loop quick controls -->
-        <LinearLayout
-            android:id="@+id/layout_mini_ab_controls"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_xs"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:visibility="gone">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_mini_set_a"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="wrap_content"
+            <!-- Close/Stop -->
+            <ImageView
+                android:id="@+id/iv_mini_close"
+                android:layout_width="32dp"
                 android:layout_height="32dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:minWidth="48dp"
-                android:paddingHorizontal="8dp"
-                android:text="A"
-                android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
-
-            <TextView
-                android:id="@+id/tv_mini_a_time"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                android:textColor="@color/colorOnPrimaryContainer" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="4dp"
-                android:text="→"
-                android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                android:textColor="@color/colorOnPrimaryContainer" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_mini_set_b"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="wrap_content"
-                android:layout_height="32dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:minWidth="48dp"
-                android:paddingHorizontal="8dp"
-                android:text="B"
-                android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
-
-            <TextView
-                android:id="@+id/tv_mini_b_time"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                android:textColor="@color/colorOnPrimaryContainer" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_mini_try_loop"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="wrap_content"
-                android:layout_height="32dp"
-                android:layout_marginStart="@dimen/space_sm"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:minWidth="48dp"
-                android:paddingHorizontal="8dp"
-                android:text="@string/btn_try"
-                android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_mini_save_loop"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="wrap_content"
-                android:layout_height="32dp"
-                android:layout_marginStart="4dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:minWidth="48dp"
-                android:paddingHorizontal="8dp"
-                android:text="@string/btn_save"
-                android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
+                android:layout_marginStart="@dimen/space_xs"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/content_desc_stop_playback"
+                android:scaleType="centerInside"
+                app:srcCompat="@drawable/ic_close"
+                app:tint="@color/colorOnSurfaceVariant" />
 
         </LinearLayout>
 

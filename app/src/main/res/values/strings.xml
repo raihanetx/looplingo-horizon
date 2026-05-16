@@ -105,10 +105,13 @@
     <string name="error_no_dialogue_selected">Select a dialogue line first</string>
 
     <!-- Transport Controls (Detail Screen) -->
-    <string name="section_transport_controls">Playback Controls</string>
+    <string name="section_transport_controls">Now Playing</string>
     <string name="content_desc_play">Play</string>
     <string name="content_desc_stop">Stop playback</string>
     <string name="now_playing_idle">Tap play to start listening</string>
+    <string name="content_desc_skip_previous">Skip to previous</string>
+    <string name="content_desc_skip_next">Skip to next</string>
+    <string name="speed_toggle_hint">Tap to change speed</string>
 
     <!-- Live Subtitle Overlay -->
     <string name="section_live_subtitle">Live Subtitle</string>

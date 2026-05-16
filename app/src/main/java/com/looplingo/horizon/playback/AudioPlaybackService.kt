@@ -31,7 +31,6 @@ import com.looplingo.horizon.R
 import com.looplingo.horizon.model.PlaybackConfig
 import com.looplingo.horizon.model.PlaybackConfigValidator
 import com.looplingo.horizon.model.SpeedPresets
-import com.looplingo.horizon.model.SubtitleCue
 import com.looplingo.horizon.repository.PlaybackRepository
 import com.looplingo.horizon.repository.VideoRepository
 import com.looplingo.horizon.ui.MainActivity
@@ -79,7 +78,6 @@ class AudioPlaybackService : LifecycleService() {
         const val ACTION_SET_AB_LOOP = "com.looplingo.horizon.SET_AB_LOOP"
         const val ACTION_SEEK_FORWARD = "com.looplingo.horizon.SEEK_FORWARD"
         const val ACTION_SEEK_BACKWARD = "com.looplingo.horizon.SEEK_BACKWARD"
-        const val ACTION_SET_DIALOGUE_AUTO_LOOP = "com.looplingo.horizon.SET_DIALOGUE_AUTO_LOOP"
         const val EXTRA_VIDEO_PATH = "video_path"
         const val EXTRA_SEEK_POSITION_MS = "seek_position_ms"
         const val EXTRA_SEEK_OFFSET_MS = "seek_offset_ms"
@@ -87,9 +85,6 @@ class AudioPlaybackService : LifecycleService() {
         const val EXTRA_RANGE_START_MS = "range_start_ms"
         const val EXTRA_RANGE_END_MS = "range_end_ms"
         const val EXTRA_LOOP_COUNT = "loop_count"
-        const val EXTRA_DIALOGUE_CUES_JSON = "dialogue_cues_json"
-        const val EXTRA_DIALOGUE_PAUSE_MS = "dialogue_pause_ms"
-        const val EXTRA_DIALOGUE_SELECTED_INDICES = "dialogue_selected_indices"
 
         private const val WAKELOCK_TIMEOUT_MS = 6 * 60 * 60 * 1000L  // 6 hours — for long study sessions
         private const val MAX_RETRY_ATTEMPTS = 3
@@ -97,15 +92,11 @@ class AudioPlaybackService : LifecycleService() {
 
         // A-B monitoring: check interval increases as we get closer to B
         // Optimized for minimal CPU wake-ups during long background playback
-        private const val AB_CHECK_FAR_MS = 10_000L     // >10s away: check every 10s
+        private const val AB_CHECK_FAR_MS = 10_000L     // >10s away: check every 10s (was 5s)
         private const val AB_CHECK_MID_MS = 3000L        // 3-10s away: check every 3s
-        private const val AB_CHECK_NEAR_MS = 500L        // <3s away: check every 500ms (normal A-B)
-        private const val AB_CHECK_DIALOGUE_NEAR_MS = 50L  // <2s away in dialogue mode: 50ms ultra-precise
-        private const val AB_NEAR_THRESHOLD_MS = 3000L   // Switch to frequent checks within 3s of B
+        private const val AB_CHECK_NEAR_MS = 500L        // <3s away: check every 500ms (precise)
+        private const val AB_NEAR_THRESHOLD_MS = 3000L   // Switch to frequent checks within 3s of B (was 5s)
         private const val AB_MID_THRESHOLD_MS = 10_000L  // Switch to medium checks within 10s
-        private const val AB_DIALOGUE_NEAR_THRESHOLD_MS = 2000L // Dialogue mode: 2s threshold for frequent checks
-        private const val CUE_BOUNDARY_GAP_MS = 150L  // Gap before next cue's startMs — guarantees zero bleed
-        private const val DEFAULT_DIALOGUE_PAUSE_MS = 1000L  // 1 second pause — like a human pause between sentences
 
         // ══════════════════════════════════════════════════════════════════════
         // STATIC PLAYBACK STATE — readable by UI for transcript sync
@@ -266,37 +257,6 @@ class AudioPlaybackService : LifecycleService() {
                 Timber.e(e, "Failed to send toggle playback request")
             }
         }
-
-        /**
-         * Set dialogue auto-loop mode. When active, the service will automatically
-         * loop each subtitle cue from startMs to endMs, N times each, then advance
-         * to the next cue sequentially.
-         *
-         * @param context Context for starting the service
-         * @param videoPath Video path to match
-         * @param cuesJson JSON array of SubtitleCue objects
-         * @param loopCount Number of times to repeat each dialogue
-         */
-        fun setDialogueAutoLoop(
-            context: Context, videoPath: String, cuesJson: String,
-            loopCount: Int, pauseMs: Long = 1000L, selectedIndices: IntArray? = null
-        ) {
-            val intent = Intent(context, AudioPlaybackService::class.java).apply {
-                action = ACTION_SET_DIALOGUE_AUTO_LOOP
-                putExtra(EXTRA_VIDEO_PATH, videoPath)
-                putExtra(EXTRA_DIALOGUE_CUES_JSON, cuesJson)
-                putExtra(EXTRA_LOOP_COUNT, loopCount)
-                putExtra(EXTRA_DIALOGUE_PAUSE_MS, pauseMs)
-                if (selectedIndices != null) {
-                    putExtra(EXTRA_DIALOGUE_SELECTED_INDICES, selectedIndices)
-                }
-            }
-            try {
-                context.startService(intent)
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to send dialogue auto-loop request")
-            }
-        }
     }
 
     private var exoPlayer: ExoPlayer? = null
@@ -315,16 +275,6 @@ class AudioPlaybackService : LifecycleService() {
     private var abLoopCompleted: Boolean = false
     private var isHandlingPlaybackEnded: Boolean = false  // Guard against re-entrant calls
     private var isReceiverRegistered: Boolean = false     // Guard against double unregistration
-
-    // Dialogue auto-loop state
-    private var dialogueAutoLoopCues: List<SubtitleCue> = emptyList()
-    private var dialogueAutoLoopAllCues: List<SubtitleCue> = emptyList()  // Full list for smart boundary calculation
-    private var dialogueAutoLoopCount: Int = 3
-    private var dialogueAutoLoopCurrentIndex: Int = 0
-    private var dialogueAutoLoopCurrentIteration: Int = 0
-    private var isDialogueAutoLoopActive: Boolean = false
-    private var dialogueAutoLoopPauseMs: Long = DEFAULT_DIALOGUE_PAUSE_MS  // Pause gap between dialogue repetitions
-    private var isDialoguePauseActive: Boolean = false  // True during the pause gap between repetitions
 
     // Handler-based A-B monitoring (replaces wasteful coroutine polling)
     private val abHandler = Handler(Looper.getMainLooper())
@@ -433,16 +383,6 @@ class AudioPlaybackService : LifecycleService() {
             ACTION_SEEK_BACKWARD -> {
                 val offsetMs = intent.getLongExtra(EXTRA_SEEK_OFFSET_MS, 5000L)
                 handleSeekBackward(offsetMs)
-            }
-            ACTION_SET_DIALOGUE_AUTO_LOOP -> {
-                val videoPath = intent.getStringExtra(EXTRA_VIDEO_PATH)
-                val cuesJson = intent.getStringExtra(EXTRA_DIALOGUE_CUES_JSON)
-                val loopCount = intent.getIntExtra(EXTRA_LOOP_COUNT, 3)
-                val pauseMs = intent.getLongExtra(EXTRA_DIALOGUE_PAUSE_MS, 800L)
-                val selectedIndices = intent.getIntArrayExtra(EXTRA_DIALOGUE_SELECTED_INDICES)
-                if (!videoPath.isNullOrBlank() && !cuesJson.isNullOrBlank()) {
-                    handleDialogueAutoLoop(videoPath, cuesJson, loopCount, pauseMs, selectedIndices)
-                }
             }
             ACTION_TOGGLE_PLAYBACK -> togglePlayback()
             ACTION_STOP -> stopSelf()
@@ -812,18 +752,21 @@ class AudioPlaybackService : LifecycleService() {
                     advanceToNextVideo()
                 } else {
                     // STATE_ENDED fired before A-B monitor caught B (e.g. short video or overshoot)
-                    cancelAbMonitor()
-                    if (isDialogueAutoLoopActive) {
-                        // In dialogue mode, use the natural transition with fade + pause
-                        handleDialogueBoundaryReached()
-                    } else if (currentLoopIteration < currentConfig.loopCount) {
+                    // DON'T increment currentLoopIteration here — the A-B monitor already
+                    // incremented it when it caught position >= B. If we increment again,
+                    // we double-count the iteration and the loop ends prematurely.
+                    // Instead, just seek back to A and let the monitor handle counting.
+                    if (currentLoopIteration < currentConfig.loopCount) {
                         Timber.d("A-B loop: STATE_ENDED before monitor, iteration %d/%d — seeking to A",
                             currentLoopIteration + 1, currentConfig.loopCount)
+                        cancelAbMonitor()
                         seekToA()
                         scheduleAbCheck()
                     } else {
+                        // Loop count reached — continue from B to end instead of skipping
                         Timber.d("A-B loop completed after %d iterations, continuing from B to end", currentConfig.loopCount)
                         abLoopCompleted = true
+                        cancelAbMonitor()
                         exoPlayer?.seekTo(currentConfig.rangeEndMs)
                         exoPlayer?.play()
                     }
@@ -860,55 +803,28 @@ class AudioPlaybackService : LifecycleService() {
     }
 
     /**
-     * Insert a natural silence gap between dialogue repetitions.
+     * Pause for 1 second after dialogue ends, then seek back to A and resume.
      *
-     * Flow: dialogue boundary detected → player already paused by caller →
-     * silence gap (1 second) → seek to start → play.
-     *
-     * Simple and clean — like a human pausing between sentences.
+     * This creates a natural pause — like a human takes a breath after saying
+     * something — before repeating the dialogue. The pause ensures:
+     * 1. No next-dialogue words bleed into the current one
+     * 2. The listener has time to process what they just heard
+     * 3. The repeat feels natural, not jarring
      */
     private fun pauseForDialogueRepeat() {
-        isDialoguePauseActive = true
-        Timber.d("Dialogue pause: %dms silence before next repeat", dialogueAutoLoopPauseMs)
         abHandler.postDelayed({
             try {
-                isDialoguePauseActive = false
                 isABSeeking = true
                 exoPlayer?.seekTo(currentConfig.rangeStartMs)
                 exoPlayer?.play()
-                scheduleAbCheck()
+                Timber.d("Dialogue repeat: seeking to A (%dms) and resuming", currentConfig.rangeStartMs)
             } catch (e: Exception) {
                 isABSeeking = false
-                isDialoguePauseActive = false
                 Timber.e(e, "Failed to resume after dialogue pause")
             }
-        }, dialogueAutoLoopPauseMs)
-    }
-
-    /**
-     * Handle dialogue boundary reached — player paused, now decide next action.
-     *
-     * Same logic as reaching B in dialogue mode, but extracted for reuse
-     * by checkABPositionAndReschedule and handlePlaybackEnded.
-     */
-    private fun handleDialogueBoundaryReached() {
-        currentLoopIteration++
-        Timber.d("Dialogue boundary reached, iteration %d/%d", currentLoopIteration, currentConfig.loopCount)
-
-        if (currentLoopIteration < currentConfig.loopCount) {
-            // More repetitions → pause gap then seek back to start
-            if (dialogueAutoLoopPauseMs > 0) {
-                pauseForDialogueRepeat()
-            } else {
-                isABSeeking = true
-                exoPlayer?.seekTo(currentConfig.rangeStartMs)
-                exoPlayer?.play()
-                scheduleAbCheck()
-            }
-        } else {
-            // All repetitions done — advance to next cue
-            advanceToNextDialogueCue()
-        }
+            scheduleAbCheck()
+            updateNotification()
+        }, DIALOGUE_PAUSE_MS)
     }
 
     private fun advanceToNextVideo() {
@@ -981,194 +897,6 @@ class AudioPlaybackService : LifecycleService() {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // DIALOGUE AUTO-LOOP — Sequential A-B loop across all cues
-    // ══════════════════════════════════════════════════════════════════════
-
-    /**
-     * Handle a dialogue auto-loop request.
-     *
-     * Parses the JSON cues, optionally filters by selected indices, sets up the
-     * auto-loop state, and starts playing from the first cue.
-     *
-     * SMART BOUNDARY: Instead of blindly using Whisper's endMs (which overlaps
-     * into the next dialogue's audio), we use the NEXT cue's startMs as the
-     * upper boundary. This guarantees zero bleed-through — the current dialogue
-     * ends BEFORE the next one starts, with a 150ms gap for safety.
-     *
-     * @param videoPath Video path to match against current playback
-     * @param cuesJson JSON array of SubtitleCue objects
-     * @param loopCount Number of times to repeat each dialogue
-     * @param pauseMs Silence gap in ms between repetitions (default 1000ms = 1 second)
-     * @param selectedIndices Optional array of cue indices to include (null = all)
-     */
-    private fun handleDialogueAutoLoop(
-        videoPath: String, cuesJson: String, loopCount: Int,
-        pauseMs: Long = 1000L, selectedIndices: IntArray? = null
-    ) {
-        if (videoPath != currentConfig.videoPath) return
-
-        try {
-            // Parse cues from JSON — keep ALL cues for boundary calculation
-            val jsonArray = org.json.JSONArray(cuesJson)
-            val allCues = mutableListOf<SubtitleCue>()
-            for (i in 0 until jsonArray.length()) {
-                val obj = jsonArray.getJSONObject(i)
-                allCues.add(SubtitleCue(
-                    index = obj.getInt("index"),
-                    startMs = obj.getLong("startMs"),
-                    endMs = obj.getLong("endMs"),
-                    text = obj.getString("text")
-                ))
-            }
-
-            if (allCues.isEmpty()) {
-                Timber.w("Dialogue auto-loop: no cues provided")
-                return
-            }
-
-            // Filter cues by selected indices if provided
-            val cues = if (selectedIndices != null && selectedIndices.isNotEmpty()) {
-                val indexSet = selectedIndices.toSet()
-                allCues.filterIndexed { idx, _ -> idx in indexSet }
-            } else {
-                allCues
-            }
-
-            if (cues.isEmpty()) {
-                Timber.w("Dialogue auto-loop: no cues after filtering by selected indices")
-                return
-            }
-
-            dialogueAutoLoopCues = cues
-            // Keep ALL cues for boundary calculation (even if not all are selected for looping)
-            dialogueAutoLoopAllCues = allCues
-            dialogueAutoLoopCount = loopCount.coerceAtLeast(1)
-            dialogueAutoLoopPauseMs = pauseMs.coerceIn(200L, 5000L)
-            dialogueAutoLoopCurrentIndex = 0
-            dialogueAutoLoopCurrentIteration = 0
-            isDialogueAutoLoopActive = true
-            isDialoguePauseActive = false
-
-            // Calculate smart boundary for the first cue
-            val firstCue = cues[0]
-            val safeEnd = calculateSafeEndMs(firstCue, allCues)
-
-            currentConfig = currentConfig.copy(
-                rangeStartMs = firstCue.startMs,
-                rangeEndMs = safeEnd,
-                loopCount = loopCount
-            )
-            currentLoopIteration = 0
-            abLoopCompleted = false
-
-            // Seek to the start of the first cue
-            exoPlayer?.seekTo(firstCue.startMs)
-            exoPlayer?.play()
-            scheduleAbCheck()
-
-            Timber.i("Dialogue auto-loop started: %d cues, x%d each, %dms pause, first cue end: %dms→%dms (smart boundary)",
-                cues.size, loopCount, dialogueAutoLoopPauseMs, firstCue.endMs, safeEnd)
-            updateNotification()
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to set up dialogue auto-loop")
-        }
-    }
-
-    /**
-     * Calculate the safe end time for a dialogue cue.
-     *
-     * CRITICAL: Whisper's endMs often extends past the actual speech into the
-     * next dialogue's audio. This causes the "next word bleed" problem where
-     * the user hears the first word of the next dialogue at the end of each
-     * repetition.
-     *
-     * Solution: Use the NEXT cue's startMs (from the full unfiltered list)
-     * as the upper boundary. The effective end is:
-     *   min(cue.endMs, nextCue.startMs - CUE_BOUNDARY_GAP_MS)
-     *
-     * This guarantees the current dialogue ends BEFORE the next one starts,
-     * with a 150ms safety gap. If there's no next cue, fall back to the
-     * cue's own endMs.
-     */
-    private fun calculateSafeEndMs(cue: SubtitleCue, allCues: List<SubtitleCue>): Long {
-        // Find the next cue in the full list (not filtered) by start time
-        val nextCue = allCues
-            .filter { it.startMs > cue.startMs }
-            .minByOrNull { it.startMs }
-
-        val safeEnd = if (nextCue != null) {
-            // Use next cue's startMs as upper boundary — this is the REAL guarantee
-            // that no next-dialogue audio will bleed through
-            val boundaryFromNext = nextCue.startMs - CUE_BOUNDARY_GAP_MS
-            // Take the earlier of: Whisper's endMs or next cue's start - gap
-            // This handles cases where Whisper's endMs is correct (no overlap)
-            minOf(cue.endMs, boundaryFromNext)
-        } else {
-            // Last cue — no next cue to reference, use Whisper's endMs
-            cue.endMs
-        }
-
-        // Ensure end is after start (minimum 200ms dialogue duration)
-        return safeEnd.coerceAtLeast(cue.startMs + 200L)
-    }
-
-    /**
-     * Advance to the next dialogue cue in the auto-loop sequence.
-     * Called by the A-B monitor when a cue has completed its loops.
-     * If all cues are done, stops the auto-loop and continues normal playback.
-     */
-    private fun advanceToNextDialogueCue() {
-        if (!isDialogueAutoLoopActive || dialogueAutoLoopCues.isEmpty()) return
-
-        dialogueAutoLoopCurrentIndex++
-        if (dialogueAutoLoopCurrentIndex >= dialogueAutoLoopCues.size) {
-            // All dialogues done — stop auto-loop and continue playback
-            isDialogueAutoLoopActive = false
-            cancelAbMonitor()
-            Timber.i("Dialogue auto-loop completed: all %d cues done", dialogueAutoLoopCues.size)
-            return
-        }
-
-        val nextCue = dialogueAutoLoopCues[dialogueAutoLoopCurrentIndex]
-        val safeEnd = calculateSafeEndMs(nextCue, dialogueAutoLoopAllCues)
-
-        currentConfig = currentConfig.copy(
-            rangeStartMs = nextCue.startMs,
-            rangeEndMs = safeEnd,
-            loopCount = dialogueAutoLoopCount
-        )
-        currentLoopIteration = 0
-        abLoopCompleted = false
-
-        // Silence gap before advancing to next dialogue — like a human pause.
-        // Player is already paused by checkABPositionAndReschedule.
-        if (dialogueAutoLoopPauseMs > 0) {
-            isDialoguePauseActive = true
-            Timber.d("Dialogue pause: %dms silence before advancing to next cue", dialogueAutoLoopPauseMs)
-            abHandler.postDelayed({
-                try {
-                    isDialoguePauseActive = false
-                    isABSeeking = true
-                    exoPlayer?.seekTo(nextCue.startMs)
-                    exoPlayer?.play()
-                    scheduleAbCheck()
-                    Timber.d("Dialogue auto-loop: advancing to cue %d/%d", dialogueAutoLoopCurrentIndex + 1, dialogueAutoLoopCues.size)
-                } catch (e: Exception) {
-                    isABSeeking = false
-                    isDialoguePauseActive = false
-                    Timber.e(e, "Failed to advance after pause")
-                }
-            }, dialogueAutoLoopPauseMs)
-        } else {
-            isABSeeking = true
-            exoPlayer?.seekTo(nextCue.startMs)
-            exoPlayer?.play()
-            scheduleAbCheck()
-            Timber.d("Dialogue auto-loop: advancing to cue %d/%d", dialogueAutoLoopCurrentIndex + 1, dialogueAutoLoopCues.size)
-        }
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
     // A-B POSITION MONITOR — SMART SCHEDULING (no polling)
     // ══════════════════════════════════════════════════════════════════════
 
@@ -1202,65 +930,52 @@ class AudioPlaybackService : LifecycleService() {
      * Check if playback has reached the B marker, then schedule the next check.
      *
      * Adaptive scheduling:
-     *  - Far from B (>10s): next check in 10 seconds (minimal CPU)
-     *  - Mid distance (3-10s): next check in 3 seconds
-     *  - Near B (<2s): next check in 50ms (dialogue mode) or 500ms (normal A-B)
-     *
-     * In dialogue mode: when position reaches the safe boundary (calculated
-     * using next cue's startMs), immediately pause the player to guarantee
-     * ZERO bleed-through from the next dialogue. Then start the silence gap.
+     *  - Far from B (>5s): next check in 5 seconds (minimal CPU)
+     *  - Near B (<5s): next check in 500ms (precise loop detection)
      */
+    /**
+     * Dialogue pause duration — 1 second of silence after each dialogue ends,
+     * like a human takes a pause after saying something. This prevents the
+     * next dialogue's words from bleeding into the current one.
+     */
+    private val DIALOGUE_PAUSE_MS = 1000L
+
     private fun checkABPositionAndReschedule() {
         if (!currentConfig.hasABLoop || abLoopCompleted) return
-        // Skip checks during dialogue pause — the pause callback handles rescheduling
-        if (isDialoguePauseActive) return
 
         val currentPosition = exoPlayer?.currentPosition ?: return
         val distanceToB = currentConfig.rangeEndMs - currentPosition
 
-        // ═══════════════════════════════════════════════════════════════════
-        // DIALOGUE MODE: Immediate pause on boundary — zero bleed
-        // ═══════════════════════════════════════════════════════════════════
-        if (isDialogueAutoLoopActive && currentPosition >= currentConfig.rangeEndMs) {
-            // Reached the safe boundary (calculated using next cue's startMs)
-            // IMMEDIATELY pause — this guarantees no next-dialogue audio bleeds through
+        if (currentPosition >= currentConfig.rangeEndMs) {
+            // Reached B — immediately pause to prevent next dialogue from bleeding in.
+            // The user wants: dialogue ends → clean cut → 1 second silence → repeat.
+            // Like a human takes a pause after saying something.
             exoPlayer?.pause()
-            cancelAbMonitor()
-            handleDialogueBoundaryReached()
-            return
-        }
-
-        // ═══════════════════════════════════════════════════════════════════
-        // NORMAL A-B MODE: Standard boundary check
-        // ═══════════════════════════════════════════════════════════════════
-        if (!isDialogueAutoLoopActive && currentPosition >= currentConfig.rangeEndMs) {
             currentLoopIteration++
-            Timber.d("A-B: reached B at %dms, iteration %d/%d", currentConfig.rangeEndMs, currentLoopIteration, currentConfig.loopCount)
+            Timber.d("A-B: reached B at %dms, iteration %d/%d — pausing for %dms",
+                currentConfig.rangeEndMs, currentLoopIteration, currentConfig.loopCount, DIALOGUE_PAUSE_MS)
 
             if (currentLoopIteration < currentConfig.loopCount) {
-                seekToA()
-                scheduleAbCheck()
+                // More loops → wait 1 second of silence, then seek back to A and resume
+                pauseForDialogueRepeat()
             } else {
-                Timber.d("A-B loop done, continuing playback from B to end")
-                abLoopCompleted = true
+                // Loop complete → wait 1 second then continue from B to end
+                Timber.d("A-B loop done after %d iterations — pausing then continuing", currentConfig.loopCount)
+                abHandler.postDelayed({
+                    abLoopCompleted = true
+                    isABSeeking = true
+                    exoPlayer?.seekTo(currentConfig.rangeEndMs)
+                    exoPlayer?.play()
+                }, DIALOGUE_PAUSE_MS)
             }
             return
         }
 
-        // Schedule next check with adaptive interval
-        // Dialogue mode: ultra-precise 50ms when close to boundary
-        val nextDelay = if (isDialogueAutoLoopActive) {
-            when {
-                distanceToB <= AB_DIALOGUE_NEAR_THRESHOLD_MS -> AB_CHECK_DIALOGUE_NEAR_MS  // <2s: 50ms ultra-precise
-                distanceToB <= AB_MID_THRESHOLD_MS -> AB_CHECK_MID_MS                       // 2-10s: 3s
-                else -> AB_CHECK_FAR_MS                                                       // >10s: 10s
-            }
-        } else {
-            when {
-                distanceToB <= AB_NEAR_THRESHOLD_MS -> AB_CHECK_NEAR_MS   // <3s: 500ms
-                distanceToB <= AB_MID_THRESHOLD_MS -> AB_CHECK_MID_MS     // 3-10s: 3s
-                else -> AB_CHECK_FAR_MS                                    // >10s: 10s
-            }
+        // Schedule next check with 3-tier adaptive interval
+        val nextDelay = when {
+            distanceToB <= AB_NEAR_THRESHOLD_MS -> AB_CHECK_NEAR_MS   // <3s: precise checks
+            distanceToB <= AB_MID_THRESHOLD_MS -> AB_CHECK_MID_MS     // 3-10s: medium checks
+            else -> AB_CHECK_FAR_MS                                      // >10s: rare checks
         }
 
         abCheckRunnable = Runnable { checkABPositionAndReschedule() }

@@ -12,9 +12,8 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
-import android.text.TextWatcher
 import android.widget.ImageView
-import android.widget.SeekBar
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -25,21 +24,17 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.chip.Chip
 import com.google.android.material.snackbar.Snackbar
 import com.looplingo.horizon.R
 import com.looplingo.horizon.databinding.FragmentMainBinding
-import com.looplingo.horizon.model.SpeedPresets
 import com.looplingo.horizon.playback.AudioPlaybackService
 import com.looplingo.horizon.model.SortOrder
-import com.looplingo.horizon.repository.TranscriptRepository
 import com.looplingo.horizon.ui.adapter.VideoAdapter
 import com.looplingo.horizon.ui.viewmodel.MainViewModel
 import com.looplingo.horizon.util.TimeUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * Main screen showing the list of video files found on the device.
@@ -49,7 +44,8 @@ import javax.inject.Inject
  *  - Click a video to start audio playback via [AudioPlaybackService]
  *  - Long-press a video to open its playback settings
  *  - Pull-to-refresh to rescan the media library
- *  - Mini player bar with instant speed control and A-B loop when audio is playing
+ *  - Compact mini player bar at top with play/pause, close, progress line
+ *  - Tap mini player → navigate to full Now Playing screen
  *  - Shows loading, empty, and error states with user feedback
  *  - Toolbar with sort and stop-playback actions
  */
@@ -66,12 +62,6 @@ class MainFragment : Fragment() {
     // Mini player state
     private val miniPlayerHandler = Handler(Looper.getMainLooper())
     private var miniPlayerPollingRunnable: Runnable? = null
-    private var miniABStartMs: Long = 0L
-    private var miniABEndMs: Long = -1L
-    private var miniABLoopCount: Int = 3
-    private var isABControlsVisible: Boolean = false
-
-    @Inject lateinit var transcriptRepository: TranscriptRepository
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -111,7 +101,6 @@ class MainFragment : Fragment() {
         setupSwipeRefresh()
         setupObservers()
         setupSettingsButton()
-        setupSearchBar()
         setupMiniPlayer()
         checkPermissionsAndScan()
     }
@@ -224,41 +213,7 @@ class MainFragment : Fragment() {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // SEARCH BAR
-    // ══════════════════════════════════════════════════════════════════════
-
-    private fun setupSearchBar() {
-        val etSearch = binding.etSearch
-        val ivClearSearch = binding.ivClearSearch
-
-        etSearch.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                val query = s?.toString() ?: ""
-                viewModel.setSearchQuery(query)
-                ivClearSearch.visibility = if (query.isNotEmpty()) View.VISIBLE else View.GONE
-            }
-            override fun afterTextChanged(s: android.text.Editable?) {}
-        })
-
-        etSearch.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
-                etSearch.clearFocus()
-                val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
-                imm?.hideSoftInputFromWindow(etSearch.windowToken, 0)
-                true
-            } else false
-        }
-
-        ivClearSearch.setOnClickListener {
-            etSearch.text?.clear()
-            viewModel.clearSearch()
-            etSearch.clearFocus()
-        }
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // MINI PLAYER
+    // MINI PLAYER — Compact bottom bar (Spotify style)
     // ══════════════════════════════════════════════════════════════════════
 
     /**
@@ -269,15 +224,13 @@ class MainFragment : Fragment() {
     private fun getMiniPlayerView(): View? =
         binding.root.findViewById(R.id.mini_player)
 
-    private var isSeekBarTracking: Boolean = false
-
     private fun setupMiniPlayer() {
         val miniPlayer = getMiniPlayerView() ?: run {
             Timber.w("Mini player view not available in this layout configuration")
             return
         }
 
-        // Play/Pause toggle — uses static togglePlayback()
+        // Play/Pause toggle
         miniPlayer.findViewById<View>(R.id.iv_mini_play_pause).setOnClickListener {
             try {
                 AudioPlaybackService.togglePlayback(requireContext())
@@ -291,168 +244,29 @@ class MainFragment : Fragment() {
             AudioPlaybackService.stopService(requireContext())
         }
 
-        // Transport controls — seek forward/backward
-        miniPlayer.findViewById<View>(R.id.iv_mini_rewind_5).setOnClickListener {
-            AudioPlaybackService.seekBackward(requireContext(), 5000L)
-        }
-        miniPlayer.findViewById<View>(R.id.iv_mini_rewind_10).setOnClickListener {
-            AudioPlaybackService.seekBackward(requireContext(), 10000L)
-        }
-        miniPlayer.findViewById<View>(R.id.iv_mini_forward_5).setOnClickListener {
-            AudioPlaybackService.seekForward(requireContext(), 5000L)
-        }
-        miniPlayer.findViewById<View>(R.id.iv_mini_forward_10).setOnClickListener {
-            AudioPlaybackService.seekForward(requireContext(), 10000L)
-        }
-
-        // Seek bar — drag to seek, update position on progress
-        miniPlayer.findViewById<SeekBar>(R.id.seek_bar_mini).setOnSeekBarChangeListener(
-            object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    if (fromUser) {
-                        val duration = AudioPlaybackService.durationMs
-                        if (duration > 0) {
-                            val newPos = (progress.toLong() * duration) / 1000
-                            miniPlayer.findViewById<TextView>(R.id.tv_mini_position).text = formatMsToTime(newPos)
-                        }
-                    }
-                }
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {
-                    isSeekBarTracking = true
-                }
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                    isSeekBarTracking = false
-                    val duration = AudioPlaybackService.durationMs
-                    if (duration > 0 && seekBar != null) {
-                        val newPos = (seekBar.progress.toLong() * duration) / 1000
-                        val videoPath = AudioPlaybackService.currentVideoPath
-                        if (videoPath.isNotBlank()) {
-                            AudioPlaybackService.seekToPosition(requireContext(), videoPath, newPos)
-                        }
-                    }
-                }
-            }
-        )
-
-        // Loop count stepper
-        miniPlayer.findViewById<View>(R.id.btn_mini_loop_minus).setOnClickListener {
-            if (miniABLoopCount > 1) {
-                miniABLoopCount--
-                miniPlayer.findViewById<TextView>(R.id.tv_mini_loop_count).text = miniABLoopCount.toString()
-            }
-        }
-        miniPlayer.findViewById<View>(R.id.btn_mini_loop_plus).setOnClickListener {
-            if (miniABLoopCount < 100) {
-                miniABLoopCount++
-                miniPlayer.findViewById<TextView>(R.id.tv_mini_loop_count).text = miniABLoopCount.toString()
-            }
-        }
-
-        // Speed chips — instant apply
-        val chipGroup = miniPlayer.findViewById<com.google.android.material.chip.ChipGroup>(R.id.chip_group_mini_speed)
-        chipGroup.removeAllViews()
-        for (preset in SpeedPresets.ALL) {
-            val chip = Chip(requireContext()).apply {
-                text = preset.label
-                isCheckable = true
-                id = View.generateViewId()
-                tag = preset.speed
-            }
-            chip.setOnClickListener {
-                // Instant speed change — no save needed
-                AudioPlaybackService.setSpeed(requireContext(), preset.speed)
-                Timber.d("Mini player speed changed to %s", preset.label)
-            }
-            chipGroup.addView(chip)
-        }
-
-        // A/B controls
-        miniPlayer.findViewById<View>(R.id.btn_mini_set_a).setOnClickListener {
-            val pos = AudioPlaybackService.currentPositionMs
-            miniABStartMs = pos
-            miniPlayer.findViewById<TextView>(R.id.tv_mini_a_time).text = formatMsToTime(pos)
-            updateMiniABIndicator()
-            showSnackbar(getString(R.string.mini_player_a_set, formatMsToTime(pos)))
-        }
-
-        miniPlayer.findViewById<View>(R.id.btn_mini_set_b).setOnClickListener {
-            val pos = AudioPlaybackService.currentPositionMs
-            miniABEndMs = pos
-            miniPlayer.findViewById<TextView>(R.id.tv_mini_b_time).text = formatMsToTime(pos)
-            updateMiniABIndicator()
-        }
-
-        // Try loop — preview without saving
-        miniPlayer.findViewById<View>(R.id.btn_mini_try_loop).setOnClickListener {
-            tryLoopFromMiniPlayer()
-        }
-
-        // Save loop — commit to database
-        miniPlayer.findViewById<View>(R.id.btn_mini_save_loop).setOnClickListener {
-            saveLoopFromMiniPlayer()
-        }
-
-        // Toggle A-B controls visibility on indicator click
-        miniPlayer.findViewById<View>(R.id.tv_mini_ab_indicator).setOnClickListener {
-            isABControlsVisible = !isABControlsVisible
-            miniPlayer.findViewById<View>(R.id.layout_mini_ab_controls).visibility =
-                if (isABControlsVisible) View.VISIBLE else View.GONE
-        }
-    }
-
-    private fun tryLoopFromMiniPlayer() {
-        val videoPath = AudioPlaybackService.currentVideoPath
-        if (videoPath.isBlank()) return
-
-        if (miniABEndMs > 0 && miniABEndMs > miniABStartMs) {
-            AudioPlaybackService.setABLoop(
-                requireContext(), videoPath,
-                miniABStartMs, miniABEndMs, miniABLoopCount
-            )
-            showSnackbar(getString(R.string.loop_preview_active))
-        } else {
-            showSnackbar(getString(R.string.mini_player_set_both_points))
-        }
-    }
-
-    private fun saveLoopFromMiniPlayer() {
-        val videoPath = AudioPlaybackService.currentVideoPath
-        if (videoPath.isBlank()) return
-
-        if (miniABEndMs > 0 && miniABEndMs > miniABStartMs) {
-            // Save to repository via the service's config, then persist
-            AudioPlaybackService.setABLoop(
-                requireContext(), videoPath,
-                miniABStartMs, miniABEndMs, miniABLoopCount
-            )
-            // Also persist to database
-            viewLifecycleOwner.lifecycleScope.launch {
+        // Tap on card → navigate to full Now Playing screen
+        miniPlayer.setOnClickListener {
+            val videoPath = AudioPlaybackService.currentVideoPath
+            if (videoPath.isNotBlank()) {
                 try {
-                    viewModel.savePlaybackConfig(
-                        videoPath, miniABStartMs, miniABEndMs, miniABLoopCount
-                    )
-                    showSnackbar(getString(R.string.settings_saved))
+                    val action = MainFragmentDirections.actionMainToPlaybackSettings(videoPath, "")
+                    findNavController().navigate(action)
                 } catch (e: Exception) {
-                    Timber.e(e, "Failed to save loop from mini player")
-                    showSnackbar(getString(R.string.error_save_failed))
+                    Timber.e(e, "Failed to navigate from mini player")
                 }
             }
-        } else {
-            showSnackbar(getString(R.string.mini_player_set_both_points))
         }
-    }
 
-    private fun updateMiniABIndicator() {
-        val miniPlayer = getMiniPlayerView() ?: return
-        val indicator = miniPlayer.findViewById<TextView>(R.id.tv_mini_ab_indicator)
-        if (miniABEndMs > 0 && miniABEndMs > miniABStartMs) {
-            indicator.visibility = View.VISIBLE
-            indicator.text = "AB"
-        } else if (miniABStartMs > 0) {
-            indicator.visibility = View.VISIBLE
-            indicator.text = "A"
-        } else {
-            indicator.visibility = View.GONE
+        // Prevent play/pause and close from triggering card navigation
+        miniPlayer.findViewById<View>(R.id.iv_mini_play_pause).setOnClickListener {
+            try {
+                AudioPlaybackService.togglePlayback(requireContext())
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to toggle playback from mini player")
+            }
+        }
+        miniPlayer.findViewById<View>(R.id.iv_mini_close).setOnClickListener {
+            AudioPlaybackService.stopService(requireContext())
         }
     }
 
@@ -483,39 +297,15 @@ class MainFragment : Fragment() {
                         val posText = if (duration > 0) "${formatMsToTime(position)} / ${formatMsToTime(duration)}" else formatMsToTime(position)
                         miniPlayer.findViewById<TextView>(R.id.tv_mini_position).text = posText
 
-                        // Update seek bar (only if user is not dragging)
-                        if (!isSeekBarTracking && duration > 0) {
-                            val seekProgress = ((position * 1000) / duration).toInt().coerceIn(0, 1000)
-                            miniPlayer.findViewById<SeekBar>(R.id.seek_bar_mini).progress = seekProgress
+                        // Update thin progress line
+                        if (duration > 0) {
+                            val progress = ((position * 1000) / duration).toInt().coerceIn(0, 1000)
+                            miniPlayer.findViewById<ProgressBar>(R.id.progress_mini_bar).progress = progress
                         }
 
                         // Update play/pause icon
                         val playPauseIcon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
                         miniPlayer.findViewById<ImageView>(R.id.iv_mini_play_pause).setImageResource(playPauseIcon)
-
-                        // Update mini subtitle from transcript repository
-                        val miniSubtitleLayout = miniPlayer.findViewById<View>(R.id.layout_mini_subtitle)
-                        val miniSubtitleOriginal = miniPlayer.findViewById<TextView>(R.id.tv_mini_subtitle)
-                        val miniSubtitleTranslation = miniPlayer.findViewById<TextView>(R.id.tv_mini_subtitle_translation)
-                        val activeCue = transcriptRepository.getActiveCue(currentPath, position)
-                        if (activeCue != null) {
-                            val (original, translation) = activeCue.splitOriginalAndTranslation()
-                            miniSubtitleOriginal.text = original
-                            if (translation != null) {
-                                miniSubtitleTranslation.text = "→ $translation"
-                                miniSubtitleTranslation.visibility = View.VISIBLE
-                            } else {
-                                miniSubtitleTranslation.visibility = View.GONE
-                            }
-                            miniSubtitleLayout.visibility = View.VISIBLE
-                        } else {
-                            miniSubtitleLayout.visibility = View.GONE
-                        }
-
-                        // Show loop stepper when A-B controls are visible
-                        miniPlayer.findViewById<View>(R.id.layout_mini_loop_stepper).visibility =
-                            if (isABControlsVisible) View.VISIBLE else View.GONE
-                        miniPlayer.findViewById<TextView>(R.id.tv_mini_loop_count).text = miniABLoopCount.toString()
                     } else {
                         miniPlayer.visibility = View.GONE
                     }
@@ -546,16 +336,6 @@ class MainFragment : Fragment() {
                 launch {
                     viewModel.videos.collect { videoList ->
                         videoAdapter.submitList(videoList)
-                        // Update search result count
-                        val statsBar = binding.layoutStatsBar
-                        val resultCount = binding.tvResultCount
-                        val query = viewModel.searchQuery.value
-                        if (query.isNotBlank()) {
-                            statsBar.visibility = View.VISIBLE
-                            resultCount.text = "${videoList.size} result${if (videoList.size != 1) "s" else ""}"
-                        } else {
-                            statsBar.visibility = View.GONE
-                        }
                         updateEmptyState(videoList.isEmpty(), isPermError = false)
                     }
                 }
@@ -608,8 +388,6 @@ class MainFragment : Fragment() {
         requestNotificationPermissionIfNeeded()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Android 13+: Request both video AND audio permissions
-            // The app scans both video and audio files, so both are needed.
             val videoGranted = ContextCompat.checkSelfPermission(
                 requireContext(), Manifest.permission.READ_MEDIA_VIDEO
             ) == PackageManager.PERMISSION_GRANTED
@@ -621,7 +399,6 @@ class MainFragment : Fragment() {
                 Timber.d("Both media permissions granted, scanning videos")
                 viewModel.refreshVideos()
             } else {
-                // Request both permissions using the multiple permissions launcher
                 val permissionsToRequest = mutableListOf<String>()
                 if (!videoGranted) permissionsToRequest.add(Manifest.permission.READ_MEDIA_VIDEO)
                 if (!audioGranted) permissionsToRequest.add(Manifest.permission.READ_MEDIA_AUDIO)
@@ -631,7 +408,6 @@ class MainFragment : Fragment() {
                 }
             }
         } else {
-            // Android 12 and below: single storage permission covers everything
             val permission = Manifest.permission.READ_EXTERNAL_STORAGE
 
             when {
@@ -655,11 +431,6 @@ class MainFragment : Fragment() {
         }
     }
 
-    /**
-     * Launcher for requesting multiple permissions at once (Android 13+).
-     * Requests READ_MEDIA_VIDEO and READ_MEDIA_AUDIO together since the app
-     * scans both video and audio files.
-     */
     private val requestMultiplePermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->

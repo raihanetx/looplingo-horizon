@@ -28,6 +28,7 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:fillViewport="true"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
@@ -35,15 +36,11 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="@dimen/space_lg"
-            android:paddingVertical="@dimen/space_lg">
+            android:paddingVertical="@dimen/space_md">
 
-            <!-- ════════ Now Playing + Transport Controls ════════ -->
-            <TextView
-                style="@style/Widget.Horizon.SectionHeader"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/section_transport_controls" />
-
+            <!-- ══════════════════════════════════════════════════════════════
+                 NOW PLAYING — Hero Player Card
+                 ══════════════════════════════════════════════════════════════ -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/card_now_playing"
                 style="@style/Widget.Horizon.CardView.Elevated"
@@ -56,54 +53,81 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="@dimen/space_md">
+                    android:paddingVertical="@dimen/space_xl"
+                    android:paddingHorizontal="@dimen/space_lg">
 
-                    <!-- Row 1: Title + Position -->
+                    <!-- Track title -->
+                    <TextView
+                        android:id="@+id/tv_now_playing_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:ellipsize="end"
+                        android:maxLines="2"
+                        android:textAppearance="@style/TextAppearance.Horizon.HeadlineMedium"
+                        android:textColor="@color/colorOnPrimaryContainer" />
+
+                    <!-- Seek bar -->
+                    <SeekBar
+                        android:id="@+id/seek_bar_player"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_lg"
+                        android:max="1000"
+                        android:progress="0"
+                        android:contentDescription="@string/content_desc_seek_bar"
+                        android:splitTrack="false" />
+
+                    <!-- Position / Duration timestamps -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
                         android:orientation="horizontal">
 
-                        <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_audio_track"
-                            app:tint="@color/colorOnPrimaryContainer" />
-
                         <TextView
-                            android:id="@+id/tv_now_playing_title"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="@dimen/space_sm"
-                            android:ellipsize="end"
-                            android:maxLines="1"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                            android:textColor="@color/colorOnPrimaryContainer" />
-
-                        <TextView
-                            android:id="@+id/tv_now_playing_position"
+                            android:id="@+id/tv_current_position"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/space_sm"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                            android:textColor="@color/colorOnPrimaryContainer" />
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <TextView
+                            android:id="@+id/tv_duration"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
                             android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
                             android:textColor="@color/colorOnPrimaryContainer" />
 
                     </LinearLayout>
 
-                    <!-- Row 2: Transport controls (rewind 5s, play/pause, stop, forward 5s) -->
+                    <!-- Transport controls: Previous | Rewind 5s | Play/Pause | Forward 5s | Next -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_sm"
+                        android:layout_marginTop="@dimen/space_md"
                         android:gravity="center"
                         android:orientation="horizontal">
+
+                        <ImageView
+                            android:id="@+id/iv_skip_previous"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/notification_previous"
+                            android:scaleType="centerInside"
+                            app:srcCompat="@drawable/ic_skip_previous"
+                            app:tint="@color/colorOnPrimaryContainer" />
 
                         <ImageView
                             android:id="@+id/iv_rewind_5"
                             android:layout_width="48dp"
                             android:layout_height="48dp"
+                            android:layout_marginStart="@dimen/space_md"
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:contentDescription="@string/content_desc_rewind_5"
                             android:scaleType="centerInside"
@@ -112,8 +136,8 @@
 
                         <ImageView
                             android:id="@+id/iv_play_pause"
-                            android:layout_width="56dp"
-                            android:layout_height="56dp"
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
                             android:layout_marginHorizontal="@dimen/space_md"
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:contentDescription="@string/content_desc_play_pause"
@@ -122,25 +146,78 @@
                             app:tint="@color/colorOnPrimaryContainer" />
 
                         <ImageView
-                            android:id="@+id/iv_stop"
+                            android:id="@+id/iv_forward_5"
                             android:layout_width="48dp"
                             android:layout_height="48dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/content_desc_forward_5"
+                            android:scaleType="centerInside"
+                            app:srcCompat="@drawable/ic_forward_5"
+                            app:tint="@color/colorOnPrimaryContainer" />
+
+                        <ImageView
+                            android:id="@+id/iv_skip_next"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:layout_marginStart="@dimen/space_md"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/notification_next"
+                            android:scaleType="centerInside"
+                            app:srcCompat="@drawable/ic_skip_next"
+                            app:tint="@color/colorOnPrimaryContainer" />
+
+                    </LinearLayout>
+
+                    <!-- Speed toggle + AB Loop indicator row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_md"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <!-- Speed toggle button — cycles through speeds on tap -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_speed_toggle"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minWidth="56dp"
+                            android:paddingHorizontal="12dp"
+                            android:text="1.0x"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <!-- Stop button -->
+                        <ImageView
+                            android:id="@+id/iv_stop"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginEnd="@dimen/space_sm"
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:contentDescription="@string/content_desc_stop"
                             android:scaleType="centerInside"
                             app:srcCompat="@drawable/ic_stop"
                             app:tint="@color/colorOnPrimaryContainer" />
 
-                        <ImageView
-                            android:id="@+id/iv_forward_5"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:layout_marginStart="@dimen/space_md"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:contentDescription="@string/content_desc_forward_5"
-                            android:scaleType="centerInside"
-                            app:srcCompat="@drawable/ic_forward_5"
-                            app:tint="@color/colorOnPrimaryContainer" />
+                        <!-- AB loop indicator badge -->
+                        <TextView
+                            android:id="@+id/tv_ab_indicator"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/badge_background"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="2dp"
+                            android:text="AB"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                            android:textColor="@color/colorOnPrimary"
+                            android:visibility="gone" />
 
                     </LinearLayout>
 
@@ -148,64 +225,14 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- ════════ Subtitle Overlay ════════ -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/card_subtitle_overlay"
-                style="@style/Widget.Horizon.CardView.Elevated"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/space_lg"
-                android:visibility="gone"
-                app:cardBackgroundColor="@color/colorSurfaceContainerHighest">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/space_md">
-
-                    <TextView
-                        style="@style/Widget.Horizon.SectionHeader"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/section_live_subtitle" />
-
-                    <TextView
-                        android:id="@+id/tv_subtitle_original"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
-                        android:textColor="@color/colorOnSurface"
-                        android:textStyle="bold"
-                        android:minHeight="28dp"
-                        android:gravity="center_vertical" />
-
-                    <TextView
-                        android:id="@+id/tv_subtitle_translation"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_xs"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                        android:textColor="@color/colorPrimary"
-                        android:minHeight="24dp"
-                        android:gravity="center_vertical" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- ════════ A-B Loop Range ════════ -->
-            <TextView
-                style="@style/Widget.Horizon.SectionHeader"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/section_loop_range" />
-
+            <!-- ══════════════════════════════════════════════════════════════
+                 A-B LOOP RANGE — Compact section
+                 ══════════════════════════════════════════════════════════════ -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.Horizon.CardView.Filled"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/space_lg">
+                android:layout_marginBottom="@dimen/space_md">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -213,10 +240,20 @@
                     android:orientation="vertical"
                     android:padding="@dimen/space_md">
 
+                    <!-- Section header -->
+                    <TextView
+                        style="@style/Widget.Horizon.SectionHeader"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingTop="0dp"
+                        android:text="@string/section_loop_range" />
+
+                    <!-- A/B time inputs row -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/til_range_start"
@@ -270,92 +307,88 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_sm"
+                        android:layout_marginTop="@dimen/space_xs"
                         android:text="@string/hint_time_format"
                         android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
                         android:textColor="@color/colorOnSurfaceVariant" />
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/til_loop_count"
-                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                    <!-- Loop count + Try/Save buttons -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/space_md"
-                        android:hint="@string/loop_count_label"
-                        app:errorEnabled="true">
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/et_loop_count"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="number"
-                            android:maxLength="5"
-                            android:text="5"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- Try loop button — preview before saving -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_try_loop"
-                        style="@style/Widget.Horizon.Button.Tonal"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_md"
-                        android:text="@string/btn_try_loop"
-                        app:icon="@drawable/ic_play"
-                        app:iconGravity="textStart" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- ════════ Speed Control (instant apply) ════════ -->
-            <TextView
-                style="@style/Widget.Horizon.SectionHeader"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/section_speed" />
-
-            <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.Horizon.CardView.Filled"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/space_lg">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/space_md">
-
-                    <HorizontalScrollView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:scrollbars="none">
-
-                        <com.google.android.material.chip.ChipGroup
-                            android:id="@+id/chip_group_speed"
+                        <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            app:singleSelection="true"
-                            app:chipSpacingHorizontal="@dimen/space_sm" />
+                            android:text="@string/loop_count_label"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                            android:textColor="@color/colorOnSurface" />
 
-                    </HorizontalScrollView>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_loop_minus"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="@dimen/space_sm"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minWidth="32dp"
+                            android:padding="0dp"
+                            android:text="−"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_sm"
-                        android:text="@string/speed_instant_hint"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
-                        android:textColor="@color/colorOnSurfaceVariant" />
+                        <TextView
+                            android:id="@+id/tv_loop_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="6dp"
+                            android:text="3"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                            android:textColor="@color/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_loop_plus"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minWidth="32dp"
+                            android:padding="0dp"
+                            android:text="+"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_try_loop"
+                            style="@style/Widget.Horizon.Button.Tonal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minWidth="64dp"
+                            android:paddingHorizontal="12dp"
+                            android:text="@string/btn_try_loop"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                            app:icon="@drawable/ic_play"
+                            app:iconGravity="textStart" />
+
+                    </LinearLayout>
 
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- ════════ Saved Timestamps ════════ -->
+            <!-- ══════════════════════════════════════════════════════════════
+                 SAVED TIMESTAMPS (conditionally visible)
+                 ══════════════════════════════════════════════════════════════ -->
             <LinearLayout
                 android:id="@+id/layout_saved_timestamps"
                 android:layout_width="match_parent"
@@ -373,7 +406,7 @@
                     style="@style/Widget.Horizon.CardView.Filled"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="@dimen/space_lg">
+                    android:layout_marginBottom="@dimen/space_md">
 
                     <LinearLayout
                         android:id="@+id/saved_timestamps_container"
@@ -386,13 +419,9 @@
 
             </LinearLayout>
 
-            <!-- ════════ AI Subtitles ════════ -->
-            <TextView
-                style="@style/Widget.Horizon.SectionHeader"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/section_ai_subtitles" />
-
+            <!-- ══════════════════════════════════════════════════════════════
+                 AI SUBTITLES + DIALOGUE LIST
+                 ══════════════════════════════════════════════════════════════ -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.Horizon.CardView.Filled"
                 android:layout_width="match_parent"
@@ -405,7 +434,15 @@
                     android:orientation="vertical"
                     android:padding="@dimen/space_md">
 
-                    <!-- API Key banner — prominent warning when no key is set -->
+                    <!-- Section header -->
+                    <TextView
+                        style="@style/Widget.Horizon.SectionHeader"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingTop="0dp"
+                        android:text="@string/section_ai_subtitles" />
+
+                    <!-- API Key banner — warning when no key is set -->
                     <TextView
                         android:id="@+id/tv_api_key_banner"
                         android:layout_width="match_parent"
@@ -415,11 +452,11 @@
                         android:textColor="@color/colorOnErrorContainer"
                         android:background="@color/colorErrorContainer"
                         android:paddingHorizontal="@dimen/space_md"
-                        android:paddingVertical="@dimen/space_md"
+                        android:paddingVertical="@dimen/space_sm"
                         android:layout_marginBottom="@dimen/space_md"
                         android:visibility="gone" />
 
-                    <!-- Groq API Key input — always visible and prominent -->
+                    <!-- Groq API Key input -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/til_groq_api_key"
                         style="@style/Widget.Horizon.TextInputLayout.Filled"
@@ -453,48 +490,56 @@
                         app:icon="@drawable/ic_check"
                         app:iconGravity="textStart" />
 
-                    <!-- Language selector for Whisper transcription -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/til_language"
-                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                    <!-- Language selectors row -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/space_md"
-                        android:hint="Transcription Language"
-                        app:helperText="Select language for better accuracy"
-                        app:helperTextEnabled="true"
-                        app:startIconDrawable="@drawable/ic_language">
+                        android:orientation="horizontal">
 
-                        <AutoCompleteTextView
-                            android:id="@+id/actv_language"
-                            android:layout_width="match_parent"
+                        <!-- Transcription language -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_language"
+                            style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:inputType="none"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
+                            android:layout_weight="1"
+                            android:layout_marginEnd="@dimen/space_xs"
+                            android:hint="Language"
+                            app:startIconDrawable="@drawable/ic_language">
 
-                    </com.google.android.material.textfield.TextInputLayout>
+                            <AutoCompleteTextView
+                                android:id="@+id/actv_language"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="none"
+                                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
 
-                    <!-- Translation language selector -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/til_translation_language"
-                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_sm"
-                        android:hint="Translation Language"
-                        app:helperText="Target language for AI translation"
-                        app:helperTextEnabled="true"
-                        app:startIconDrawable="@drawable/ic_translate">
+                        </com.google.android.material.textfield.TextInputLayout>
 
-                        <AutoCompleteTextView
-                            android:id="@+id/actv_translation_language"
-                            android:layout_width="match_parent"
+                        <!-- Translation language -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_translation_language"
+                            style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:inputType="none"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
+                            android:layout_weight="1"
+                            android:layout_marginStart="@dimen/space_xs"
+                            android:hint="Translate"
+                            app:startIconDrawable="@drawable/ic_translate">
 
-                    </com.google.android.material.textfield.TextInputLayout>
+                            <AutoCompleteTextView
+                                android:id="@+id/actv_translation_language"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="none"
+                                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
 
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                    </LinearLayout>
+
+                    <!-- Generate button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_generate_subtitles"
                         style="@style/Widget.Horizon.Button.Tonal"
@@ -505,6 +550,7 @@
                         app:icon="@drawable/ic_audio_track"
                         app:iconGravity="textStart" />
 
+                    <!-- Progress -->
                     <ProgressBar
                         android:id="@+id/progress_subtitles"
                         style="?android:attr/progressBarStyleSmall"
@@ -514,6 +560,7 @@
                         android:layout_marginTop="@dimen/space_sm"
                         android:visibility="gone" />
 
+                    <!-- Status text -->
                     <TextView
                         android:id="@+id/tv_subtitle_status"
                         android:layout_width="match_parent"
@@ -523,7 +570,7 @@
                         android:textColor="@color/colorOnSurface"
                         android:visibility="gone" />
 
-                    <!-- Debug log — shows every step and exact error messages -->
+                    <!-- Debug log (debug builds only, hidden by default in release) -->
                     <TextView
                         android:id="@+id/tv_debug_log"
                         android:layout_width="match_parent"
@@ -531,7 +578,7 @@
                         android:layout_marginTop="@dimen/space_sm"
                         android:background="@color/colorSurfaceVariant"
                         android:fontFamily="monospace"
-                        android:maxLines="30"
+                        android:maxLines="20"
                         android:padding="@dimen/space_sm"
                         android:scrollbars="vertical"
                         android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
@@ -547,51 +594,6 @@
                         android:layout_marginTop="@dimen/space_md"
                         android:nestedScrollingEnabled="true"
                         android:visibility="gone" />
-
-                    <!-- Select All / Deselect All + Selection count -->
-                    <LinearLayout
-                        android:id="@+id/layout_dialogue_selection"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_sm"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:visibility="gone">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_select_all_dialogues"
-                            style="@style/Widget.Material3.Button.TextButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:minHeight="32dp"
-                            android:paddingHorizontal="8dp"
-                            android:text="@string/btn_select_all"
-                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_deselect_all_dialogues"
-                            style="@style/Widget.Material3.Button.TextButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:minHeight="32dp"
-                            android:paddingHorizontal="8dp"
-                            android:text="@string/btn_deselect_all"
-                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
-
-                        <TextView
-                            android:id="@+id/tv_selected_count"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:gravity="end"
-                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                            android:textColor="@color/colorOnSurfaceVariant"
-                            android:text="@string/dialogue_selected_count_default" />
-                    </LinearLayout>
 
                     <!-- Dialogue loop controls -->
                     <LinearLayout
@@ -628,7 +630,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginHorizontal="8dp"
-                            android:text="5"
+                            android:text="3"
                             android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
                             android:textColor="@color/colorOnSurface" />
 
@@ -648,135 +650,29 @@
                             android:id="@+id/btn_loop_dialogue"
                             style="@style/Widget.Horizon.Button.Tonal"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            android:layout_height="36dp"
                             android:layout_marginStart="@dimen/space_sm"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minWidth="64dp"
+                            android:paddingHorizontal="12dp"
                             android:text="@string/btn_loop_dialogue"
                             android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
 
                     </LinearLayout>
 
-                    <!-- Pause duration controls for natural gap between repetitions -->
-                    <LinearLayout
-                        android:id="@+id/layout_pause_controls"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_sm"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:visibility="gone">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/pause_between_label"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                            android:textColor="@color/colorOnSurface" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_pause_minus"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="36dp"
-                            android:layout_height="36dp"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:minWidth="36dp"
-                            android:padding="0dp"
-                            android:text="−"
-                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
-
-                        <TextView
-                            android:id="@+id/tv_pause_duration"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginHorizontal="8dp"
-                            android:text="0.8s"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
-                            android:textColor="@color/colorOnSurface" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_pause_plus"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="36dp"
-                            android:layout_height="36dp"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:minWidth="36dp"
-                            android:padding="0dp"
-                            android:text="+"
-                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
-                    </LinearLayout>
-
-                    <!-- Dialogue auto-loop button -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_start_dialogue_auto_loop"
-                        style="@style/Widget.Horizon.Button.Tonal"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_md"
-                        android:text="@string/btn_start_dialogue_auto_loop"
-                        app:icon="@drawable/ic_play"
-                        app:iconGravity="textStart"
-                        android:visibility="gone" />
-
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- ════════ Loop Templates ════════ -->
-            <TextView
-                style="@style/Widget.Horizon.SectionHeader"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/section_loop_templates" />
-
-            <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.Horizon.CardView.Filled"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/space_lg">
-
-                <LinearLayout
-                    android:id="@+id/layout_template_container"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/space_md">
-
-                    <TextView
-                        android:id="@+id/tv_template_status"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/template_no_subtitles"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
-                        android:textColor="@color/colorOnSurfaceVariant" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_create_dialogue_template"
-                        style="@style/Widget.Horizon.Button.Tonal"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_sm"
-                        android:text="@string/btn_create_template"
-                        android:visibility="gone" />
-
-                    <!-- Template list container (dynamically populated) -->
-                    <LinearLayout
-                        android:id="@+id/layout_template_list"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:layout_marginTop="@dimen/space_sm" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- ════════ Buttons ════════ -->
+            <!-- ══════════════════════════════════════════════════════════════
+                 BOTTOM ACTION BUTTONS
+                 ══════════════════════════════════════════════════════════════ -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:layout_marginBottom="@dimen/space_xl">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_clear"
