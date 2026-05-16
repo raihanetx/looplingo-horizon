@@ -138,4 +138,16 @@
     <string name="content_desc_stop_playback">Stop current playback</string>
     <string name="content_desc_navigate_up">Navigate back</string>
     <string name="content_desc_delete">Delete</string>
+
+    <!-- Search -->
+    <string name="hint_search_videos">Search videos…</string>
+    <string name="content_desc_search">Search videos</string>
+    <string name="content_desc_clear_search">Clear search</string>
+    <string name="search_results">%d result(s)</string>
+    <string name="no_search_results">No videos match your search</string>
+
+    <!-- File type filters -->
+    <string name="filter_all">All</string>
+    <string name="filter_video">Video</string>
+    <string name="filter_audio">Audio</string>
 </resources>

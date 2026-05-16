@@ -12,6 +12,7 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.text.TextWatcher
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
@@ -110,6 +111,7 @@ class MainFragment : Fragment() {
         setupSwipeRefresh()
         setupObservers()
         setupSettingsButton()
+        setupSearchBar()
         setupMiniPlayer()
         checkPermissionsAndScan()
     }
@@ -218,6 +220,40 @@ class MainFragment : Fragment() {
 
         binding.btnEmptyRetry.setOnClickListener {
             viewModel.refreshVideos()
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SEARCH BAR
+    // ══════════════════════════════════════════════════════════════════════
+
+    private fun setupSearchBar() {
+        val etSearch = binding.etSearch
+        val ivClearSearch = binding.ivClearSearch
+
+        etSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val query = s?.toString() ?: ""
+                viewModel.setSearchQuery(query)
+                ivClearSearch.visibility = if (query.isNotEmpty()) View.VISIBLE else View.GONE
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+
+        etSearch.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                etSearch.clearFocus()
+                val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+                imm?.hideSoftInputFromWindow(etSearch.windowToken, 0)
+                true
+            } else false
+        }
+
+        ivClearSearch.setOnClickListener {
+            etSearch.text.clear()
+            viewModel.clearSearch()
+            etSearch.clearFocus()
         }
     }
 
@@ -458,18 +494,22 @@ class MainFragment : Fragment() {
                         miniPlayer.findViewById<ImageView>(R.id.iv_mini_play_pause).setImageResource(playPauseIcon)
 
                         // Update mini subtitle from transcript repository
-                        val miniSubtitle = miniPlayer.findViewById<TextView>(R.id.tv_mini_subtitle)
+                        val miniSubtitleLayout = miniPlayer.findViewById<View>(R.id.layout_mini_subtitle)
+                        val miniSubtitleOriginal = miniPlayer.findViewById<TextView>(R.id.tv_mini_subtitle)
+                        val miniSubtitleTranslation = miniPlayer.findViewById<TextView>(R.id.tv_mini_subtitle_translation)
                         val activeCue = transcriptRepository.getActiveCue(currentPath, position)
                         if (activeCue != null) {
                             val (original, translation) = activeCue.splitOriginalAndTranslation()
-                            miniSubtitle.text = if (translation != null) {
-                                "$original\n→ $translation"
+                            miniSubtitleOriginal.text = original
+                            if (translation != null) {
+                                miniSubtitleTranslation.text = "→ $translation"
+                                miniSubtitleTranslation.visibility = View.VISIBLE
                             } else {
-                                original
+                                miniSubtitleTranslation.visibility = View.GONE
                             }
-                            miniSubtitle.visibility = View.VISIBLE
+                            miniSubtitleLayout.visibility = View.VISIBLE
                         } else {
-                            miniSubtitle.visibility = View.GONE
+                            miniSubtitleLayout.visibility = View.GONE
                         }
 
                         // Show loop stepper when A-B controls are visible
@@ -506,6 +546,16 @@ class MainFragment : Fragment() {
                 launch {
                     viewModel.videos.collect { videoList ->
                         videoAdapter.submitList(videoList)
+                        // Update search result count
+                        val statsBar = binding.layoutStatsBar
+                        val resultCount = binding.tvResultCount
+                        val query = viewModel.searchQuery.value
+                        if (query.isNotBlank()) {
+                            statsBar.visibility = View.VISIBLE
+                            resultCount.text = "${videoList.size} result${if (videoList.size != 1) "s" else ""}"
+                        } else {
+                            statsBar.visibility = View.GONE
+                        }
                         updateEmptyState(videoList.isEmpty(), isPermError = false)
                     }
                 }

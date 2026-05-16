@@ -61,15 +61,38 @@
         </LinearLayout>
 
         <!-- Row 1.5: Mini subtitle (visible when subtitles exist) -->
-        <TextView
-            android:id="@+id/tv_mini_subtitle"
+        <LinearLayout
+            android:id="@+id/layout_mini_subtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:maxLines="2"
-            android:ellipsize="end"
-            android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
-            android:textColor="@color/colorOnPrimaryContainer"
-            android:visibility="gone" />
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:paddingHorizontal="@dimen/space_xs"
+            android:paddingVertical="@dimen/space_xs"
+            android:background="@color/colorSurfaceContainerHighest"
+            android:layout_marginTop="@dimen/space_xs">
+
+            <TextView
+                android:id="@+id/tv_mini_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                android:textColor="@color/colorOnSurface"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_mini_subtitle_translation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                android:textColor="@color/colorPrimary"
+                android:visibility="gone" />
+
+        </LinearLayout>
 
         <!-- Row 2: Seek bar -->
         <SeekBar
@@ -195,7 +218,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginHorizontal="4dp"
-                    android:text="3"
+                    android:text="5"
                     android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
                     android:textColor="@color/colorOnPrimaryContainer" />
 

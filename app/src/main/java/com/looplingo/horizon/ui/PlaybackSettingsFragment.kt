@@ -67,7 +67,7 @@ class PlaybackSettingsFragment : Fragment() {
     private var dialogueSegments: List<Segment> = emptyList()
     private var translatedTexts: Map<Int, String> = emptyMap()  // segment.id → translation
     private var selectedSegmentIndex: Int = -1
-    private var dialogueLoopCount: Int = 3
+    private var dialogueLoopCount: Int = 5
     private var isGeneratingSubtitles: Boolean = false
     private var subtitleGenerationJob: kotlinx.coroutines.Job? = null
     private val debugLog = StringBuilder()
@@ -78,7 +78,7 @@ class PlaybackSettingsFragment : Fragment() {
     private val keyLanguage = "whisper_language"
     private val keyTranslationLanguage = "translation_language"
     private var selectedLanguageCode = "auto"
-    private var selectedTranslationCode = "none"  // Default: No translation (saves credits!)
+    private var selectedTranslationCode = "bn"  // Default: Bangla translation
 
     // Cached EncryptedSharedPreferences — avoid re-creating on every read/write
     // (AES key derivation is expensive, ~50ms per creation)
@@ -352,7 +352,7 @@ class PlaybackSettingsFragment : Fragment() {
         binding.actvTranslationLanguage.setAdapter(translationAdapter)
 
         // Load saved translation language preference (default: none — saves credits)
-        selectedTranslationCode = prefs.getString(keyTranslationLanguage, "none") ?: "none"
+        selectedTranslationCode = prefs.getString(keyTranslationLanguage, "bn") ?: "bn"
         val savedTranslationDisplayName = TRANSLATION_LANGUAGES.find { it.first == selectedTranslationCode }?.second ?: translationDisplayNames[0]
         binding.actvTranslationLanguage.setText(savedTranslationDisplayName, false)
 

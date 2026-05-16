@@ -16,20 +16,32 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:minHeight="@dimen/video_item_height"
-        android:padding="@dimen/card_content_padding">
+        android:paddingHorizontal="@dimen/space_md"
+        android:paddingVertical="@dimen/space_md">
 
-        <!-- Audio track icon (placeholder — no thumbnail extraction needed) -->
-        <ImageView
-            android:id="@+id/iv_video_icon"
-            android:layout_width="@dimen/video_item_icon_size"
-            android:layout_height="@dimen/video_item_icon_size"
-            android:contentDescription="@string/content_desc_video_icon"
-            android:scaleType="centerInside"
+        <!-- Audio track icon with background circle -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_icon_bg"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/colorPrimaryContainer"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:srcCompat="@drawable/ic_audio_track"
-            app:tint="@color/colorPrimary" />
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/iv_video_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/content_desc_video_icon"
+                android:scaleType="centerInside"
+                app:srcCompat="@drawable/ic_audio_track"
+                app:tint="@color/colorOnPrimaryContainer" />
+
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- Loop mode badge (top-right corner of icon) -->
         <TextView
@@ -42,8 +54,8 @@
             android:textSize="10sp"
             android:visibility="gone"
             android:contentDescription="@string/content_desc_loop_badge"
-            app:layout_constraintEnd_toEndOf="@id/iv_video_icon"
-            app:layout_constraintTop_toTopOf="@id/iv_video_icon"
+            app:layout_constraintEnd_toEndOf="@id/card_icon_bg"
+            app:layout_constraintTop_toTopOf="@id/card_icon_bg"
             tools:text="∞"
             tools:visibility="visible" />
 
@@ -52,13 +64,13 @@
             android:id="@+id/tv_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/space_lg"
+            android:layout_marginStart="@dimen/space_md"
             android:ellipsize="end"
             android:maxLines="1"
             android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
             android:textColor="@color/colorOnSurface"
             app:layout_constraintEnd_toStartOf="@id/tv_duration"
-            app:layout_constraintStart_toEndOf="@id/iv_video_icon"
+            app:layout_constraintStart_toEndOf="@id/card_icon_bg"
             app:layout_constraintTop_toTopOf="parent"
             tools:text="Chapter 03 - Introducing Yourself" />
 
@@ -67,13 +79,13 @@
             android:id="@+id/tv_path"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/space_lg"
+            android:layout_marginStart="@dimen/space_md"
             android:ellipsize="middle"
             android:maxLines="1"
             android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
             android:textColor="@color/colorOnSurfaceVariant"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/iv_video_icon"
+            app:layout_constraintStart_toEndOf="@id/card_icon_bg"
             app:layout_constraintTop_toBottomOf="@id/tv_title"
             tools:text="/storage/emulated/0/Movies/lesson3.mp4" />
 
@@ -88,18 +100,39 @@
             app:layout_constraintTop_toTopOf="parent"
             tools:text="05:32" />
 
-        <!-- File size (optional, below path) -->
+        <!-- File size (below path, with icon) -->
         <TextView
             android:id="@+id/tv_size"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/space_lg"
+            android:layout_marginStart="@dimen/space_md"
             android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
             android:textColor="@color/colorOutline"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/iv_video_icon"
+            app:layout_constraintStart_toEndOf="@id/card_icon_bg"
             app:layout_constraintTop_toBottomOf="@id/tv_path"
             tools:text="24.5 MB" />
+
+        <!-- Subtitle indicator (shows if AI subtitles exist) -->
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_subtitle_status"
+            android:layout_width="wrap_content"
+            android:layout_height="24dp"
+            android:layout_marginStart="@dimen/space_md"
+            android:layout_marginTop="@dimen/space_xs"
+            android:visibility="gone"
+            app:chipMinHeight="24dp"
+            app:chipStartPadding="4dp"
+            app:chipEndPadding="4dp"
+            app:chipBackgroundColor="@color/colorTertiaryContainer"
+            app:textStartPadding="4dp"
+            app:textEndPadding="4dp"
+            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+            android:textColor="@color/colorOnTertiaryContainer"
+            app:layout_constraintStart_toEndOf="@id/card_icon_bg"
+            app:layout_constraintTop_toBottomOf="@id/tv_size"
+            tools:text="Subtitles"
+            tools:visibility="visible" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
