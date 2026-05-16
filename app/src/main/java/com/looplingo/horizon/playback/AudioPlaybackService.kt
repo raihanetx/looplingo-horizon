@@ -104,6 +104,7 @@ class AudioPlaybackService : LifecycleService() {
         private const val AB_NEAR_THRESHOLD_MS = 3000L   // Switch to frequent checks within 3s of B
         private const val AB_MID_THRESHOLD_MS = 10_000L  // Switch to medium checks within 10s
         private const val AB_DIALOGUE_NEAR_THRESHOLD_MS = 2000L // Dialogue mode: tighter 2s threshold
+        private const val CUE_END_TRIM_MS = 200L  // Trim 200ms from each dialogue cue's end to prevent next-dialogue audio bleed-through
 
         // ══════════════════════════════════════════════════════════════════════
         // STATIC PLAYBACK STATE — readable by UI for transcript sync
@@ -817,15 +818,25 @@ class AudioPlaybackService : LifecycleService() {
                         Timber.d("A-B loop: STATE_ENDED before monitor, iteration %d/%d — seeking to A",
                             currentLoopIteration + 1, currentConfig.loopCount)
                         cancelAbMonitor()
-                        seekToA()
-                        scheduleAbCheck()
+                        // In dialogue mode, use pause gap for smooth transitions
+                        if (isDialogueAutoLoopActive && dialogueAutoLoopPauseMs > 0) {
+                            pauseForDialogueRepeat()
+                        } else {
+                            seekToA()
+                            scheduleAbCheck()
+                        }
                     } else {
                         // Loop count reached — continue from B to end instead of skipping
                         Timber.d("A-B loop completed after %d iterations, continuing from B to end", currentConfig.loopCount)
                         abLoopCompleted = true
                         cancelAbMonitor()
-                        exoPlayer?.seekTo(currentConfig.rangeEndMs)
-                        exoPlayer?.play()
+                        if (isDialogueAutoLoopActive) {
+                            // All repetitions of this cue done — advance to next dialogue
+                            advanceToNextDialogueCue()
+                        } else {
+                            exoPlayer?.seekTo(currentConfig.rangeEndMs)
+                            exoPlayer?.play()
+                        }
                     }
                 }
             } else {
@@ -850,16 +861,8 @@ class AudioPlaybackService : LifecycleService() {
             // Mark that we're seeking for A-B loop so the WakeLock isn't
             // released during the brief pause between B→A transitions
             isABSeeking = true
-
-            // If dialogue auto-loop is active, add a natural pause before seeking back
-            if (isDialogueAutoLoopActive && dialogueAutoLoopPauseMs > 0) {
-                pauseForDialogueRepeat()
-                // NOTE: Do NOT call scheduleAbCheck() here — the pause callback
-                // will schedule it after the silence gap ends
-            } else {
-                exoPlayer?.seekTo(currentConfig.rangeStartMs)
-                exoPlayer?.play()
-            }
+            exoPlayer?.seekTo(currentConfig.rangeStartMs)
+            exoPlayer?.play()
         } catch (e: Exception) {
             isABSeeking = false
             Timber.e(e, "Failed to seek to A position")
@@ -868,20 +871,22 @@ class AudioPlaybackService : LifecycleService() {
     }
 
     /**
-     * Insert a natural pause between dialogue repetitions.
+     * Insert a natural silence gap between dialogue repetitions.
      *
-     * Flow: dialogue ends → IMMEDIATELY pause → silence gap → seek to A → play.
-     * The player is paused the instant we detect the dialogue end, preventing
-     * any bleed-through of the next dialogue's audio. After the configured
-     * silence gap, we seek back to the dialogue start and resume.
+     * Flow: dialogue boundary detected → player already paused by caller →
+     * silence gap → seek to A → play.
+     *
+     * IMPORTANT: The caller (checkABPositionAndReschedule or handlePlaybackEnded)
+     * MUST pause the player BEFORE calling this method. This ensures zero audio
+     * bleed-through from the next dialogue. The player is already stopped when
+     * this method runs, so we only need to start the timer and resume after.
      *
      * The A-B monitor is NOT re-scheduled during the pause — it will be
-     * re-scheduled by the resume callback, preventing any interference.
+     * re-scheduled after the silence gap ends.
      */
     private fun pauseForDialogueRepeat() {
         isDialoguePauseActive = true
-        cancelAbMonitor()  // Stop A-B checks during pause to prevent interference
-        exoPlayer?.pause()
+        // A-B monitor already cancelled by caller — don't cancel again
         Timber.d("Dialogue pause: %dms silence before next repeat", dialogueAutoLoopPauseMs)
         abHandler.postDelayed({
             try {
@@ -1033,10 +1038,15 @@ class AudioPlaybackService : LifecycleService() {
             isDialoguePauseActive = false
 
             // Start with the first cue as an A-B loop
+            // Trim endMs by CUE_END_TRIM_MS to prevent next-dialogue audio bleed-through.
+            // Whisper's endMs often overlaps with the start of the next dialogue,
+            // causing the tail of one repetition to audibly include the first word
+            // of the next line. Trimming creates a clean boundary.
             val firstCue = cues[0]
+            val firstTrimmedEnd = (firstCue.endMs - CUE_END_TRIM_MS).coerceAtLeast(firstCue.startMs + 100L)
             currentConfig = currentConfig.copy(
                 rangeStartMs = firstCue.startMs,
-                rangeEndMs = firstCue.endMs,
+                rangeEndMs = firstTrimmedEnd,
                 loopCount = loopCount
             )
             currentLoopIteration = 0
@@ -1072,19 +1082,20 @@ class AudioPlaybackService : LifecycleService() {
         }
 
         val nextCue = dialogueAutoLoopCues[dialogueAutoLoopCurrentIndex]
+        val nextTrimmedEnd = (nextCue.endMs - CUE_END_TRIM_MS).coerceAtLeast(nextCue.startMs + 100L)
         currentConfig = currentConfig.copy(
             rangeStartMs = nextCue.startMs,
-            rangeEndMs = nextCue.endMs,
+            rangeEndMs = nextTrimmedEnd,
             loopCount = dialogueAutoLoopCount
         )
         currentLoopIteration = 0
         abLoopCompleted = false
 
-        // Pause + silence gap before advancing to next dialogue for a natural feel
+        // Silence gap before advancing to next dialogue for a natural feel.
+        // Player is already paused by checkABPositionAndReschedule when it detected
+        // the boundary — we don't need to pause again here.
         if (dialogueAutoLoopPauseMs > 0) {
             isDialoguePauseActive = true
-            cancelAbMonitor()  // Stop A-B checks during pause
-            exoPlayer?.pause()  // Immediately stop audio to prevent bleed-through
             Timber.d("Dialogue pause: %dms silence before advancing to next cue", dialogueAutoLoopPauseMs)
             abHandler.postDelayed({
                 try {
@@ -1163,16 +1174,29 @@ class AudioPlaybackService : LifecycleService() {
 
         if (currentPosition >= currentConfig.rangeEndMs) {
             // Reached B — handle the loop iteration
+
+            if (isDialogueAutoLoopActive) {
+                // DIALOGUE MODE: Immediately pause the player to prevent ANY audio
+                // bleed-through from the next dialogue. This is the critical fix —
+                // without immediate pause, the player continues playing into the
+                // next dialogue's audio before we can seek back, causing an audible
+                // "snippet" of the next line that ruins the smooth loop experience.
+                exoPlayer?.pause()
+                cancelAbMonitor()
+            }
+
             currentLoopIteration++
             Timber.d("A-B: reached B at %dms, iteration %d/%d", currentConfig.rangeEndMs, currentLoopIteration, currentConfig.loopCount)
 
             if (currentLoopIteration < currentConfig.loopCount) {
                 // More loops → seek back to A
-                // seekToA() handles the pause + rescheduling for dialogue mode
-                seekToA()
-                if (!isDialogueAutoLoopActive || dialogueAutoLoopPauseMs <= 0) {
-                    // Only schedule A-B check here for non-dialogue mode
-                    // Dialogue mode: pauseForDialogueRepeat() handles rescheduling
+                if (isDialogueAutoLoopActive && dialogueAutoLoopPauseMs > 0) {
+                    // Dialogue mode with pause gap: player is already paused above,
+                    // start silence gap then seek to A and resume after the gap.
+                    // This gives a smooth: dialogue → silence → dialogue → silence → ...
+                    pauseForDialogueRepeat()
+                } else {
+                    seekToA()
                     scheduleAbCheck()
                 }
             } else {
