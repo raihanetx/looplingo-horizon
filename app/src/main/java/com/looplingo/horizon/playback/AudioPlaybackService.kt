@@ -97,11 +97,13 @@ class AudioPlaybackService : LifecycleService() {
 
         // A-B monitoring: check interval increases as we get closer to B
         // Optimized for minimal CPU wake-ups during long background playback
-        private const val AB_CHECK_FAR_MS = 10_000L     // >10s away: check every 10s (was 5s)
+        private const val AB_CHECK_FAR_MS = 10_000L     // >10s away: check every 10s
         private const val AB_CHECK_MID_MS = 3000L        // 3-10s away: check every 3s
-        private const val AB_CHECK_NEAR_MS = 500L        // <3s away: check every 500ms (precise)
-        private const val AB_NEAR_THRESHOLD_MS = 3000L   // Switch to frequent checks within 3s of B (was 5s)
+        private const val AB_CHECK_NEAR_MS = 500L        // <3s away: check every 500ms (normal A-B)
+        private const val AB_CHECK_DIALOGUE_NEAR_MS = 100L // <2s away in dialogue mode: ultra-precise 100ms
+        private const val AB_NEAR_THRESHOLD_MS = 3000L   // Switch to frequent checks within 3s of B
         private const val AB_MID_THRESHOLD_MS = 10_000L  // Switch to medium checks within 10s
+        private const val AB_DIALOGUE_NEAR_THRESHOLD_MS = 2000L // Dialogue mode: tighter 2s threshold
 
         // ══════════════════════════════════════════════════════════════════════
         // STATIC PLAYBACK STATE — readable by UI for transcript sync
@@ -852,6 +854,8 @@ class AudioPlaybackService : LifecycleService() {
             // If dialogue auto-loop is active, add a natural pause before seeking back
             if (isDialogueAutoLoopActive && dialogueAutoLoopPauseMs > 0) {
                 pauseForDialogueRepeat()
+                // NOTE: Do NOT call scheduleAbCheck() here — the pause callback
+                // will schedule it after the silence gap ends
             } else {
                 exoPlayer?.seekTo(currentConfig.rangeStartMs)
                 exoPlayer?.play()
@@ -865,21 +869,31 @@ class AudioPlaybackService : LifecycleService() {
 
     /**
      * Insert a natural pause between dialogue repetitions.
-     * Pauses playback for [dialogueAutoLoopPauseMs] milliseconds, then seeks
-     * back to A and resumes. This creates a smooth, natural breathing space
-     * so the dialogue doesn't feel abruptly cut and restarted.
+     *
+     * Flow: dialogue ends → IMMEDIATELY pause → silence gap → seek to A → play.
+     * The player is paused the instant we detect the dialogue end, preventing
+     * any bleed-through of the next dialogue's audio. After the configured
+     * silence gap, we seek back to the dialogue start and resume.
+     *
+     * The A-B monitor is NOT re-scheduled during the pause — it will be
+     * re-scheduled by the resume callback, preventing any interference.
      */
     private fun pauseForDialogueRepeat() {
         isDialoguePauseActive = true
+        cancelAbMonitor()  // Stop A-B checks during pause to prevent interference
         exoPlayer?.pause()
-        Timber.d("Dialogue pause: %dms before next repeat", dialogueAutoLoopPauseMs)
+        Timber.d("Dialogue pause: %dms silence before next repeat", dialogueAutoLoopPauseMs)
         abHandler.postDelayed({
             try {
                 isDialoguePauseActive = false
+                isABSeeking = true
                 exoPlayer?.seekTo(currentConfig.rangeStartMs)
                 exoPlayer?.play()
+                // Re-schedule A-B monitoring now that playback has resumed
+                scheduleAbCheck()
             } catch (e: Exception) {
                 isABSeeking = false
+                isDialoguePauseActive = false
                 Timber.e(e, "Failed to resume after dialogue pause")
             }
         }, dialogueAutoLoopPauseMs)
@@ -1066,21 +1080,24 @@ class AudioPlaybackService : LifecycleService() {
         currentLoopIteration = 0
         abLoopCompleted = false
 
-        // Pause briefly before advancing to next dialogue for a natural feel
+        // Pause + silence gap before advancing to next dialogue for a natural feel
         if (dialogueAutoLoopPauseMs > 0) {
             isDialoguePauseActive = true
-            exoPlayer?.pause()
-            Timber.d("Dialogue pause: %dms before advancing to next cue", dialogueAutoLoopPauseMs)
+            cancelAbMonitor()  // Stop A-B checks during pause
+            exoPlayer?.pause()  // Immediately stop audio to prevent bleed-through
+            Timber.d("Dialogue pause: %dms silence before advancing to next cue", dialogueAutoLoopPauseMs)
             abHandler.postDelayed({
                 try {
                     isDialoguePauseActive = false
                     isABSeeking = true
                     exoPlayer?.seekTo(nextCue.startMs)
                     exoPlayer?.play()
+                    // Re-schedule A-B monitoring after resume
                     scheduleAbCheck()
                     Timber.d("Dialogue auto-loop: advancing to cue %d/%d", dialogueAutoLoopCurrentIndex + 1, dialogueAutoLoopCues.size)
                 } catch (e: Exception) {
                     isABSeeking = false
+                    isDialoguePauseActive = false
                     Timber.e(e, "Failed to advance after pause")
                 }
             }, dialogueAutoLoopPauseMs)
@@ -1128,11 +1145,18 @@ class AudioPlaybackService : LifecycleService() {
      * Check if playback has reached the B marker, then schedule the next check.
      *
      * Adaptive scheduling:
-     *  - Far from B (>5s): next check in 5 seconds (minimal CPU)
-     *  - Near B (<5s): next check in 500ms (precise loop detection)
+     *  - Far from B (>10s): next check in 10 seconds (minimal CPU)
+     *  - Mid distance (3-10s): next check in 3 seconds
+     *  - Near B (<3s): next check in 500ms (normal A-B) or 100ms (dialogue auto-loop)
+     *
+     * Dialogue auto-loop uses ultra-precise 100ms checks when within 2s of B
+     * to prevent audio bleed-through from the next dialogue. When the pause
+     * is active, all checks are skipped to avoid interfering with the silence gap.
      */
     private fun checkABPositionAndReschedule() {
         if (!currentConfig.hasABLoop || abLoopCompleted) return
+        // Skip checks during dialogue pause — the pause callback handles rescheduling
+        if (isDialoguePauseActive) return
 
         val currentPosition = exoPlayer?.currentPosition ?: return
         val distanceToB = currentConfig.rangeEndMs - currentPosition
@@ -1143,9 +1167,14 @@ class AudioPlaybackService : LifecycleService() {
             Timber.d("A-B: reached B at %dms, iteration %d/%d", currentConfig.rangeEndMs, currentLoopIteration, currentConfig.loopCount)
 
             if (currentLoopIteration < currentConfig.loopCount) {
-                // More loops → seek back to A and restart monitoring
+                // More loops → seek back to A
+                // seekToA() handles the pause + rescheduling for dialogue mode
                 seekToA()
-                scheduleAbCheck()
+                if (!isDialogueAutoLoopActive || dialogueAutoLoopPauseMs <= 0) {
+                    // Only schedule A-B check here for non-dialogue mode
+                    // Dialogue mode: pauseForDialogueRepeat() handles rescheduling
+                    scheduleAbCheck()
+                }
             } else {
                 // Loop complete → check if dialogue auto-loop should advance to next cue
                 if (isDialogueAutoLoopActive) {
@@ -1160,11 +1189,20 @@ class AudioPlaybackService : LifecycleService() {
             return
         }
 
-        // Schedule next check with 3-tier adaptive interval
-        val nextDelay = when {
-            distanceToB <= AB_NEAR_THRESHOLD_MS -> AB_CHECK_NEAR_MS   // <3s: precise checks
-            distanceToB <= AB_MID_THRESHOLD_MS -> AB_CHECK_MID_MS     // 3-10s: medium checks
-            else -> AB_CHECK_FAR_MS                                      // >10s: rare checks
+        // Schedule next check with adaptive interval
+        // Dialogue auto-loop uses ultra-precise checks near B to prevent bleed-through
+        val nextDelay = if (isDialogueAutoLoopActive) {
+            when {
+                distanceToB <= AB_DIALOGUE_NEAR_THRESHOLD_MS -> AB_CHECK_DIALOGUE_NEAR_MS  // <2s: 100ms ultra-precise
+                distanceToB <= AB_MID_THRESHOLD_MS -> AB_CHECK_MID_MS                       // 2-10s: 3s
+                else -> AB_CHECK_FAR_MS                                                       // >10s: 10s
+            }
+        } else {
+            when {
+                distanceToB <= AB_NEAR_THRESHOLD_MS -> AB_CHECK_NEAR_MS   // <3s: 500ms
+                distanceToB <= AB_MID_THRESHOLD_MS -> AB_CHECK_MID_MS     // 3-10s: 3s
+                else -> AB_CHECK_FAR_MS                                    // >10s: 10s
+            }
         }
 
         abCheckRunnable = Runnable { checkABPositionAndReschedule() }
