@@ -68,6 +68,8 @@ class PlaybackSettingsFragment : Fragment() {
     private var translatedTexts: Map<Int, String> = emptyMap()  // segment.id → translation
     private var selectedSegmentIndex: Int = -1
     private var dialogueLoopCount: Int = 5
+    private var dialoguePauseMs: Long = 800L  // Natural pause between dialogue repetitions
+    private var selectedDialogueIndices: MutableSet<Int> = mutableSetOf()  // Checked dialogue indices for selective auto-loop
     private var isGeneratingSubtitles: Boolean = false
     private var subtitleGenerationJob: kotlinx.coroutines.Job? = null
     private val debugLog = StringBuilder()
@@ -737,6 +739,8 @@ class PlaybackSettingsFragment : Fragment() {
     private fun showDialogueList(segments: List<Segment>) {
         binding.rvDialogueList.visibility = View.VISIBLE
         binding.layoutDialogueLoopControls.visibility = View.VISIBLE
+        binding.layoutDialogueSelection.visibility = View.VISIBLE
+        binding.layoutPauseControls.visibility = View.VISIBLE
         binding.btnStartDialogueAutoLoop.visibility = View.VISIBLE
 
         // Enable template creation now that subtitles are loaded
@@ -750,6 +754,9 @@ class PlaybackSettingsFragment : Fragment() {
                 onDialogueSegmentSelected(segment)
             }
         }
+
+        // Initialize selection count
+        updateSelectionCount()
     }
 
     private fun onDialogueSegmentSelected(segment: Segment) {
@@ -772,6 +779,7 @@ class PlaybackSettingsFragment : Fragment() {
 
     private fun setupDialogueLoopControls() {
         binding.tvDialogueLoopCount.text = dialogueLoopCount.toString()
+        updatePauseLabel()
 
         binding.btnDialogueLoopMinus.setOnClickListener {
             if (dialogueLoopCount > 1) {
@@ -785,6 +793,32 @@ class PlaybackSettingsFragment : Fragment() {
                 dialogueLoopCount++
                 binding.tvDialogueLoopCount.text = dialogueLoopCount.toString()
             }
+        }
+
+        // Pause duration controls for natural gap between repetitions
+        binding.btnPauseMinus.setOnClickListener {
+            if (dialoguePauseMs > 0L) {
+                dialoguePauseMs = (dialoguePauseMs - 200L).coerceAtLeast(0L)
+                updatePauseLabel()
+            }
+        }
+        binding.btnPausePlus.setOnClickListener {
+            if (dialoguePauseMs < 3000L) {
+                dialoguePauseMs = (dialoguePauseMs + 200L).coerceAtMost(3000L)
+                updatePauseLabel()
+            }
+        }
+
+        // Select All / Deselect All buttons for dialogue checkboxes
+        binding.btnSelectAllDialogues.setOnClickListener {
+            selectedDialogueIndices = (0 until dialogueSegments.size).toMutableSet()
+            (binding.rvDialogueList.adapter as? DialogueAdapter)?.notifyDataSetChanged()
+            updateSelectionCount()
+        }
+        binding.btnDeselectAllDialogues.setOnClickListener {
+            selectedDialogueIndices.clear()
+            (binding.rvDialogueList.adapter as? DialogueAdapter)?.notifyDataSetChanged()
+            updateSelectionCount()
         }
 
         binding.btnLoopDialogue.setOnClickListener {
@@ -816,6 +850,23 @@ class PlaybackSettingsFragment : Fragment() {
 
             showSnackbar(getString(R.string.dialogue_loop_active, loopCount, segment.text.take(20)))
         }
+    }
+
+    private fun updatePauseLabel() {
+        val seconds = dialoguePauseMs / 1000.0
+        binding.tvPauseDuration.text = if (dialoguePauseMs == 0L) {
+            getString(R.string.pause_none)
+        } else {
+            String.format("%.1fs", seconds)
+        }
+    }
+
+    private fun updateSelectionCount() {
+        binding.tvSelectedCount.text = getString(
+            R.string.dialogue_selected_count,
+            selectedDialogueIndices.size,
+            dialogueSegments.size
+        )
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -862,6 +913,13 @@ class PlaybackSettingsFragment : Fragment() {
             return
         }
 
+        // Determine which dialogues to include
+        val indicesToInclude = if (selectedDialogueIndices.isNotEmpty()) {
+            selectedDialogueIndices.toIntArray()
+        } else {
+            null  // null means all dialogues
+        }
+
         // Serialize cues to JSON for the intent extra
         val cuesJson = JSONArray()
         for (cue in cues) {
@@ -876,18 +934,21 @@ class PlaybackSettingsFragment : Fragment() {
 
         if (isCurrentlyPlaying) {
             AudioPlaybackService.setDialogueAutoLoop(
-                requireContext(), videoPath, cuesJson.toString(), dialogueLoopCount
+                requireContext(), videoPath, cuesJson.toString(),
+                dialogueLoopCount, dialoguePauseMs, indicesToInclude
             )
         } else {
             AudioPlaybackService.startService(requireContext(), videoPath)
             positionHandler.postDelayed({
                 AudioPlaybackService.setDialogueAutoLoop(
-                    requireContext(), videoPath, cuesJson.toString(), dialogueLoopCount
+                    requireContext(), videoPath, cuesJson.toString(),
+                    dialogueLoopCount, dialoguePauseMs, indicesToInclude
                 )
             }, 1000)
         }
 
-        showSnackbar(getString(R.string.dialogue_auto_loop_active, 1, cues.size, dialogueLoopCount))
+        val count = indicesToInclude?.size ?: cues.size
+        showSnackbar(getString(R.string.dialogue_auto_loop_active, 1, count, dialogueLoopCount))
     }
 
     /**
@@ -1254,6 +1315,7 @@ class PlaybackSettingsFragment : Fragment() {
             val tvTime: TextView = view.findViewById(R.id.tv_cue_timestamp)
             val tvText: TextView = view.findViewById(R.id.tv_cue_text)
             val tvTranslation: TextView = view.findViewById(R.id.tv_cue_translation)
+            val checkBox: android.widget.CheckBox = view.findViewById(R.id.cb_dialogue_select)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DialogueViewHolder {
@@ -1277,6 +1339,18 @@ class PlaybackSettingsFragment : Fragment() {
             } else {
                 holder.tvTranslation.text = ""
                 holder.tvTranslation.visibility = View.GONE
+            }
+
+            // Checkbox for selective auto-loop (don't trigger item click)
+            holder.checkBox.setOnCheckedChangeListener(null)  // Prevent recycled listener
+            holder.checkBox.isChecked = position in selectedDialogueIndices
+            holder.checkBox.setOnCheckedChangeListener { _, isChecked ->
+                if (isChecked) {
+                    selectedDialogueIndices.add(position)
+                } else {
+                    selectedDialogueIndices.remove(position)
+                }
+                updateSelectionCount()
             }
 
             holder.itemView.isSelected = (position == selectedPos)

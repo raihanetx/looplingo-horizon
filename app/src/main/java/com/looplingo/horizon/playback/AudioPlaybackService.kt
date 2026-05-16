@@ -88,6 +88,8 @@ class AudioPlaybackService : LifecycleService() {
         const val EXTRA_RANGE_END_MS = "range_end_ms"
         const val EXTRA_LOOP_COUNT = "loop_count"
         const val EXTRA_DIALOGUE_CUES_JSON = "dialogue_cues_json"
+        const val EXTRA_DIALOGUE_PAUSE_MS = "dialogue_pause_ms"
+        const val EXTRA_DIALOGUE_SELECTED_INDICES = "dialogue_selected_indices"
 
         private const val WAKELOCK_TIMEOUT_MS = 6 * 60 * 60 * 1000L  // 6 hours — for long study sessions
         private const val MAX_RETRY_ATTEMPTS = 3
@@ -271,12 +273,19 @@ class AudioPlaybackService : LifecycleService() {
          * @param cuesJson JSON array of SubtitleCue objects
          * @param loopCount Number of times to repeat each dialogue
          */
-        fun setDialogueAutoLoop(context: Context, videoPath: String, cuesJson: String, loopCount: Int) {
+        fun setDialogueAutoLoop(
+            context: Context, videoPath: String, cuesJson: String,
+            loopCount: Int, pauseMs: Long = 800L, selectedIndices: IntArray? = null
+        ) {
             val intent = Intent(context, AudioPlaybackService::class.java).apply {
                 action = ACTION_SET_DIALOGUE_AUTO_LOOP
                 putExtra(EXTRA_VIDEO_PATH, videoPath)
                 putExtra(EXTRA_DIALOGUE_CUES_JSON, cuesJson)
                 putExtra(EXTRA_LOOP_COUNT, loopCount)
+                putExtra(EXTRA_DIALOGUE_PAUSE_MS, pauseMs)
+                if (selectedIndices != null) {
+                    putExtra(EXTRA_DIALOGUE_SELECTED_INDICES, selectedIndices)
+                }
             }
             try {
                 context.startService(intent)
@@ -309,6 +318,8 @@ class AudioPlaybackService : LifecycleService() {
     private var dialogueAutoLoopCurrentIndex: Int = 0
     private var dialogueAutoLoopCurrentIteration: Int = 0
     private var isDialogueAutoLoopActive: Boolean = false
+    private var dialogueAutoLoopPauseMs: Long = 800L   // Pause gap between dialogue repetitions (default 800ms)
+    private var isDialoguePauseActive: Boolean = false  // True during the pause gap between repetitions
 
     // Handler-based A-B monitoring (replaces wasteful coroutine polling)
     private val abHandler = Handler(Looper.getMainLooper())
@@ -422,8 +433,10 @@ class AudioPlaybackService : LifecycleService() {
                 val videoPath = intent.getStringExtra(EXTRA_VIDEO_PATH)
                 val cuesJson = intent.getStringExtra(EXTRA_DIALOGUE_CUES_JSON)
                 val loopCount = intent.getIntExtra(EXTRA_LOOP_COUNT, 3)
+                val pauseMs = intent.getLongExtra(EXTRA_DIALOGUE_PAUSE_MS, 800L)
+                val selectedIndices = intent.getIntArrayExtra(EXTRA_DIALOGUE_SELECTED_INDICES)
                 if (!videoPath.isNullOrBlank() && !cuesJson.isNullOrBlank()) {
-                    handleDialogueAutoLoop(videoPath, cuesJson, loopCount)
+                    handleDialogueAutoLoop(videoPath, cuesJson, loopCount, pauseMs, selectedIndices)
                 }
             }
             ACTION_TOGGLE_PLAYBACK -> togglePlayback()
@@ -835,13 +848,41 @@ class AudioPlaybackService : LifecycleService() {
             // Mark that we're seeking for A-B loop so the WakeLock isn't
             // released during the brief pause between B→A transitions
             isABSeeking = true
-            exoPlayer?.seekTo(currentConfig.rangeStartMs)
-            exoPlayer?.play()
+
+            // If dialogue auto-loop is active, add a natural pause before seeking back
+            if (isDialogueAutoLoopActive && dialogueAutoLoopPauseMs > 0) {
+                pauseForDialogueRepeat()
+            } else {
+                exoPlayer?.seekTo(currentConfig.rangeStartMs)
+                exoPlayer?.play()
+            }
         } catch (e: Exception) {
             isABSeeking = false
             Timber.e(e, "Failed to seek to A position")
         }
         updateNotification()
+    }
+
+    /**
+     * Insert a natural pause between dialogue repetitions.
+     * Pauses playback for [dialogueAutoLoopPauseMs] milliseconds, then seeks
+     * back to A and resumes. This creates a smooth, natural breathing space
+     * so the dialogue doesn't feel abruptly cut and restarted.
+     */
+    private fun pauseForDialogueRepeat() {
+        isDialoguePauseActive = true
+        exoPlayer?.pause()
+        Timber.d("Dialogue pause: %dms before next repeat", dialogueAutoLoopPauseMs)
+        abHandler.postDelayed({
+            try {
+                isDialoguePauseActive = false
+                exoPlayer?.seekTo(currentConfig.rangeStartMs)
+                exoPlayer?.play()
+            } catch (e: Exception) {
+                isABSeeking = false
+                Timber.e(e, "Failed to resume after dialogue pause")
+            }
+        }, dialogueAutoLoopPauseMs)
     }
 
     private fun advanceToNextVideo() {
@@ -920,24 +961,30 @@ class AudioPlaybackService : LifecycleService() {
     /**
      * Handle a dialogue auto-loop request.
      *
-     * Parses the JSON cues, sets up the auto-loop state, and starts playing
-     * from the first cue. The existing A-B monitoring logic is leveraged:
-     * when a cue finishes its N loops, the monitor advances to the next cue.
+     * Parses the JSON cues, optionally filters by selected indices, sets up the
+     * auto-loop state, and starts playing from the first cue. When a dialogue
+     * finishes its N loops, the player pauses briefly (dialogueAutoLoopPauseMs)
+     * before advancing to the next cue, creating a natural breathing space.
      *
      * @param videoPath Video path to match against current playback
      * @param cuesJson JSON array of SubtitleCue objects
      * @param loopCount Number of times to repeat each dialogue
+     * @param pauseMs Silence gap in ms between dialogue repetitions (default 800ms)
+     * @param selectedIndices Optional array of cue indices to include (null = all)
      */
-    private fun handleDialogueAutoLoop(videoPath: String, cuesJson: String, loopCount: Int) {
+    private fun handleDialogueAutoLoop(
+        videoPath: String, cuesJson: String, loopCount: Int,
+        pauseMs: Long = 800L, selectedIndices: IntArray? = null
+    ) {
         if (videoPath != currentConfig.videoPath) return
 
         try {
             // Parse cues from JSON
             val jsonArray = org.json.JSONArray(cuesJson)
-            val cues = mutableListOf<SubtitleCue>()
+            val allCues = mutableListOf<SubtitleCue>()
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
-                cues.add(SubtitleCue(
+                allCues.add(SubtitleCue(
                     index = obj.getInt("index"),
                     startMs = obj.getLong("startMs"),
                     endMs = obj.getLong("endMs"),
@@ -945,16 +992,31 @@ class AudioPlaybackService : LifecycleService() {
                 ))
             }
 
-            if (cues.isEmpty()) {
+            if (allCues.isEmpty()) {
                 Timber.w("Dialogue auto-loop: no cues provided")
+                return
+            }
+
+            // Filter cues by selected indices if provided
+            val cues = if (selectedIndices != null && selectedIndices.isNotEmpty()) {
+                val indexSet = selectedIndices.toSet()
+                allCues.filterIndexed { idx, _ -> idx in indexSet }
+            } else {
+                allCues
+            }
+
+            if (cues.isEmpty()) {
+                Timber.w("Dialogue auto-loop: no cues after filtering by selected indices")
                 return
             }
 
             dialogueAutoLoopCues = cues
             dialogueAutoLoopCount = loopCount.coerceAtLeast(1)
+            dialogueAutoLoopPauseMs = pauseMs.coerceIn(0L, 5000L)
             dialogueAutoLoopCurrentIndex = 0
             dialogueAutoLoopCurrentIteration = 0
             isDialogueAutoLoopActive = true
+            isDialoguePauseActive = false
 
             // Start with the first cue as an A-B loop
             val firstCue = cues[0]
@@ -971,7 +1033,7 @@ class AudioPlaybackService : LifecycleService() {
             exoPlayer?.play()
             scheduleAbCheck()
 
-            Timber.i("Dialogue auto-loop started: %d cues, x%d each", cues.size, loopCount)
+            Timber.i("Dialogue auto-loop started: %d cues, x%d each, %dms pause", cues.size, loopCount, dialogueAutoLoopPauseMs)
             updateNotification()
         } catch (e: Exception) {
             Timber.e(e, "Failed to set up dialogue auto-loop")
@@ -1004,13 +1066,32 @@ class AudioPlaybackService : LifecycleService() {
         currentLoopIteration = 0
         abLoopCompleted = false
 
-        // Seek to the start of the next cue
-        isABSeeking = true
-        exoPlayer?.seekTo(nextCue.startMs)
-        exoPlayer?.play()
-        scheduleAbCheck()
-
-        Timber.d("Dialogue auto-loop: advancing to cue %d/%d", dialogueAutoLoopCurrentIndex + 1, dialogueAutoLoopCues.size)
+        // Pause briefly before advancing to next dialogue for a natural feel
+        if (dialogueAutoLoopPauseMs > 0) {
+            isDialoguePauseActive = true
+            exoPlayer?.pause()
+            Timber.d("Dialogue pause: %dms before advancing to next cue", dialogueAutoLoopPauseMs)
+            abHandler.postDelayed({
+                try {
+                    isDialoguePauseActive = false
+                    isABSeeking = true
+                    exoPlayer?.seekTo(nextCue.startMs)
+                    exoPlayer?.play()
+                    scheduleAbCheck()
+                    Timber.d("Dialogue auto-loop: advancing to cue %d/%d", dialogueAutoLoopCurrentIndex + 1, dialogueAutoLoopCues.size)
+                } catch (e: Exception) {
+                    isABSeeking = false
+                    Timber.e(e, "Failed to advance after pause")
+                }
+            }, dialogueAutoLoopPauseMs)
+        } else {
+            // No pause — seek immediately
+            isABSeeking = true
+            exoPlayer?.seekTo(nextCue.startMs)
+            exoPlayer?.play()
+            scheduleAbCheck()
+            Timber.d("Dialogue auto-loop: advancing to cue %d/%d", dialogueAutoLoopCurrentIndex + 1, dialogueAutoLoopCues.size)
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════

@@ -150,4 +150,13 @@
     <string name="filter_all">All</string>
     <string name="filter_video">Video</string>
     <string name="filter_audio">Audio</string>
+
+    <!-- Dialogue Pause & Selection -->
+    <string name="pause_between_label">Pause between:</string>
+    <string name="pause_none">None</string>
+    <string name="btn_select_all">Select All</string>
+    <string name="btn_deselect_all">Deselect</string>
+    <string name="dialogue_selected_count" formatted="false">%d / %d selected</string>
+    <string name="dialogue_selected_count_default">0 / 0 selected</string>
+    <string name="content_desc_select_dialogue">Select dialogue for auto-loop</string>
 </resources>

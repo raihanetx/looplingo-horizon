@@ -548,6 +548,51 @@
                         android:nestedScrollingEnabled="true"
                         android:visibility="gone" />
 
+                    <!-- Select All / Deselect All + Selection count -->
+                    <LinearLayout
+                        android:id="@+id/layout_dialogue_selection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_sm"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_select_all_dialogues"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minHeight="32dp"
+                            android:paddingHorizontal="8dp"
+                            android:text="@string/btn_select_all"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_deselect_all_dialogues"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minHeight="32dp"
+                            android:paddingHorizontal="8dp"
+                            android:text="@string/btn_deselect_all"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
+
+                        <TextView
+                            android:id="@+id/tv_selected_count"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="end"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                            android:textColor="@color/colorOnSurfaceVariant"
+                            android:text="@string/dialogue_selected_count_default" />
+                    </LinearLayout>
+
                     <!-- Dialogue loop controls -->
                     <LinearLayout
                         android:id="@+id/layout_dialogue_loop_controls"
@@ -608,6 +653,58 @@
                             android:text="@string/btn_loop_dialogue"
                             android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
 
+                    </LinearLayout>
+
+                    <!-- Pause duration controls for natural gap between repetitions -->
+                    <LinearLayout
+                        android:id="@+id/layout_pause_controls"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_sm"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/pause_between_label"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                            android:textColor="@color/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_pause_minus"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minWidth="36dp"
+                            android:padding="0dp"
+                            android:text="−"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
+
+                        <TextView
+                            android:id="@+id/tv_pause_duration"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="8dp"
+                            android:text="0.8s"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                            android:textColor="@color/colorOnSurface" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_pause_plus"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:minWidth="36dp"
+                            android:padding="0dp"
+                            android:text="+"
+                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall" />
                     </LinearLayout>
 
                     <!-- Dialogue auto-loop button -->
