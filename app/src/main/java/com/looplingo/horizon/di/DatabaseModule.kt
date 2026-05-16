@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.looplingo.horizon.data.AppDatabase
+import com.looplingo.horizon.data.dao.LoopTemplateDao
 import com.looplingo.horizon.data.dao.PlaybackRuleDao
 import com.looplingo.horizon.data.dao.SavedTimestampDao
 import com.looplingo.horizon.data.dao.TranscriptionDao
@@ -20,6 +21,42 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+
+    /**
+     * Migration from v7 → v8: Added LoopTemplateEntity and LoopTemplateRangeEntity
+     * tables for the loop template system (dialogue_repeat and time_range templates).
+     */
+    private val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `loop_templates` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `videoPath` TEXT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `type` TEXT NOT NULL,
+                    `defaultLoopCount` INTEGER NOT NULL DEFAULT 3,
+                    `createdAt` INTEGER NOT NULL
+                )
+            """.trimIndent())
+            db.execSQL("""
+                CREATE INDEX IF NOT EXISTS `index_loop_templates_videoPath` ON `loop_templates` (`videoPath`)
+            """.trimIndent())
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `loop_template_ranges` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `templateId` INTEGER NOT NULL,
+                    `startMs` INTEGER NOT NULL,
+                    `endMs` INTEGER NOT NULL,
+                    `loopCount` INTEGER NOT NULL,
+                    FOREIGN KEY (`templateId`) REFERENCES `loop_templates` (`id`) ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("""
+                CREATE INDEX IF NOT EXISTS `index_loop_template_ranges_templateId` ON `loop_template_ranges` (`templateId`)
+            """.trimIndent())
+            Timber.i("Migration 7→8: created loop_templates + loop_template_ranges tables")
+        }
+    }
 
     /**
      * Migration from v6 → v7: Added translatedText and translationLanguage
@@ -135,11 +172,12 @@ object DatabaseModule {
         )
             .addMigrations(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
-                MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7
+                MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+                MIGRATION_7_8
             )
             // REMOVED fallbackToDestructiveMigration() — it silently destroys user data
             // when an unmapped migration path is encountered. All migration paths from
-            // v1→v7 are now explicitly defined. If a future version adds a new migration,
+            // v1→v8 are now explicitly defined. If a future version adds a new migration,
             // it MUST be added here explicitly. The app will crash on unknown versions
             // rather than silently losing data — this is intentional (fail-loudly principle).
             .build()
@@ -163,5 +201,10 @@ object DatabaseModule {
     @Provides
     fun provideTranscriptionDao(database: AppDatabase): TranscriptionDao {
         return database.transcriptionDao()
+    }
+
+    @Provides
+    fun provideLoopTemplateDao(database: AppDatabase): LoopTemplateDao {
+        return database.loopTemplateDao()
     }
 }

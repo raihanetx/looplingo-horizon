@@ -60,6 +60,17 @@
 
         </LinearLayout>
 
+        <!-- Row 1.5: Mini subtitle (visible when subtitles exist) -->
+        <TextView
+            android:id="@+id/tv_mini_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+            android:textColor="@color/colorOnPrimaryContainer"
+            android:visibility="gone" />
+
         <!-- Row 2: Seek bar -->
         <SeekBar
             android:id="@+id/seek_bar_mini"

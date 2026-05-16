@@ -47,6 +47,40 @@ data class SubtitleCue(
     val endLabel: String
         get() = formatMs(endMs)
 
+    /**
+     * Split the text into original and translation parts.
+     *
+     * When translations are stored, the text field contains:
+     *   "Original text\n→ Translated text"
+     *
+     * This helper splits them for display in separate TextViews
+     * (tv_subtitle_original and tv_subtitle_translation).
+     *
+     * @return Pair of (originalText, translationTextOrNull)
+     */
+    fun splitOriginalAndTranslation(): Pair<String, String?> {
+        val separator = "\n→ "
+        return if (text.contains(separator)) {
+            val original = text.substringBefore(separator)
+            val translation = text.substringAfter(separator)
+            Pair(original, translation)
+        } else {
+            Pair(text, null)
+        }
+    }
+
+    /** The original text (without translation prefix). */
+    val originalText: String
+        get() = splitOriginalAndTranslation().first
+
+    /** The translation text, or null if no translation exists. */
+    val translationText: String?
+        get() = splitOriginalAndTranslation().second
+
+    /** Whether this cue has a translation. */
+    val hasTranslation: Boolean
+        get() = text.contains("\n→ ")
+
     companion object {
         /** Format milliseconds to "m:ss" or "h:mm:ss". Delegates to shared TimeUtils. */
         fun formatMs(ms: Long): String = TimeUtils.formatMsToTime(ms)

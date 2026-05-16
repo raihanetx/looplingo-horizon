@@ -110,6 +110,26 @@
     <string name="content_desc_stop">Stop playback</string>
     <string name="now_playing_idle">Tap play to start listening</string>
 
+    <!-- Live Subtitle Overlay -->
+    <string name="section_live_subtitle">Live Subtitle</string>
+    <string name="subtitle_no_active_cue">—</string>
+
+    <!-- Loop Templates -->
+    <string name="section_loop_templates">Loop Templates</string>
+    <string name="template_dialogue_repeat">Repeat All Dialogues × %d</string>
+    <string name="template_time_range">Time-Frame Based</string>
+    <string name="btn_create_template">Create Template</string>
+    <string name="btn_start_dialogue_auto_loop">Start Auto-Loop</string>
+    <string name="btn_stop_dialogue_auto_loop">Stop Auto-Loop</string>
+    <string name="dialogue_auto_loop_active">Auto-looping: Dialogue %d/%d (x%d)</string>
+    <string name="template_type_dialogue_repeat">dialogue_repeat</string>
+    <string name="template_type_time_range">time_range</string>
+    <string name="template_name_hint">Template name</string>
+    <string name="template_default_loop_count">3</string>
+    <string name="template_no_subtitles">Generate subtitles first to use templates</string>
+    <string name="template_saved">Template saved</string>
+    <string name="template_deleted">Template deleted</string>
+
     <!-- Accessibility -->
     <string name="content_desc_video_icon">Audio track icon</string>
     <string name="content_desc_loop_badge">Loop mode badge</string>

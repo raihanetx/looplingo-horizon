@@ -29,15 +29,35 @@
         android:minWidth="48dp"
         tools:text="1:23" />
 
-    <!-- Subtitle text -->
-    <TextView
-        android:id="@+id/tv_cue_text"
+    <!-- Text container: original + translation -->
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:layout_marginStart="@dimen/space_md"
-        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-        android:textColor="@color/colorOnSurface"
-        tools:text="Hello, how are you today?" />
+        android:orientation="vertical">
+
+        <!-- Original text -->
+        <TextView
+            android:id="@+id/tv_cue_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+            android:textColor="@color/colorOnSurface"
+            tools:text="Hello, how are you today?" />
+
+        <!-- Translation text (visible only when translation exists) -->
+        <TextView
+            android:id="@+id/tv_cue_translation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+            android:textColor="@color/colorPrimary"
+            android:visibility="gone"
+            tools:text="→ হ্যালো, আজ কেমন আছেন?"
+            tools:visibility="visible" />
+
+    </LinearLayout>
 
 </LinearLayout>

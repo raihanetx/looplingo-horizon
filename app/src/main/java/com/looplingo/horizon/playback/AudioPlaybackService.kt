@@ -31,6 +31,7 @@ import com.looplingo.horizon.R
 import com.looplingo.horizon.model.PlaybackConfig
 import com.looplingo.horizon.model.PlaybackConfigValidator
 import com.looplingo.horizon.model.SpeedPresets
+import com.looplingo.horizon.model.SubtitleCue
 import com.looplingo.horizon.repository.PlaybackRepository
 import com.looplingo.horizon.repository.VideoRepository
 import com.looplingo.horizon.ui.MainActivity
@@ -78,6 +79,7 @@ class AudioPlaybackService : LifecycleService() {
         const val ACTION_SET_AB_LOOP = "com.looplingo.horizon.SET_AB_LOOP"
         const val ACTION_SEEK_FORWARD = "com.looplingo.horizon.SEEK_FORWARD"
         const val ACTION_SEEK_BACKWARD = "com.looplingo.horizon.SEEK_BACKWARD"
+        const val ACTION_SET_DIALOGUE_AUTO_LOOP = "com.looplingo.horizon.SET_DIALOGUE_AUTO_LOOP"
         const val EXTRA_VIDEO_PATH = "video_path"
         const val EXTRA_SEEK_POSITION_MS = "seek_position_ms"
         const val EXTRA_SEEK_OFFSET_MS = "seek_offset_ms"
@@ -85,6 +87,7 @@ class AudioPlaybackService : LifecycleService() {
         const val EXTRA_RANGE_START_MS = "range_start_ms"
         const val EXTRA_RANGE_END_MS = "range_end_ms"
         const val EXTRA_LOOP_COUNT = "loop_count"
+        const val EXTRA_DIALOGUE_CUES_JSON = "dialogue_cues_json"
 
         private const val WAKELOCK_TIMEOUT_MS = 6 * 60 * 60 * 1000L  // 6 hours — for long study sessions
         private const val MAX_RETRY_ATTEMPTS = 3
@@ -257,6 +260,30 @@ class AudioPlaybackService : LifecycleService() {
                 Timber.e(e, "Failed to send toggle playback request")
             }
         }
+
+        /**
+         * Set dialogue auto-loop mode. When active, the service will automatically
+         * loop each subtitle cue from startMs to endMs, N times each, then advance
+         * to the next cue sequentially.
+         *
+         * @param context Context for starting the service
+         * @param videoPath Video path to match
+         * @param cuesJson JSON array of SubtitleCue objects
+         * @param loopCount Number of times to repeat each dialogue
+         */
+        fun setDialogueAutoLoop(context: Context, videoPath: String, cuesJson: String, loopCount: Int) {
+            val intent = Intent(context, AudioPlaybackService::class.java).apply {
+                action = ACTION_SET_DIALOGUE_AUTO_LOOP
+                putExtra(EXTRA_VIDEO_PATH, videoPath)
+                putExtra(EXTRA_DIALOGUE_CUES_JSON, cuesJson)
+                putExtra(EXTRA_LOOP_COUNT, loopCount)
+            }
+            try {
+                context.startService(intent)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to send dialogue auto-loop request")
+            }
+        }
     }
 
     private var exoPlayer: ExoPlayer? = null
@@ -275,6 +302,13 @@ class AudioPlaybackService : LifecycleService() {
     private var abLoopCompleted: Boolean = false
     private var isHandlingPlaybackEnded: Boolean = false  // Guard against re-entrant calls
     private var isReceiverRegistered: Boolean = false     // Guard against double unregistration
+
+    // Dialogue auto-loop state
+    private var dialogueAutoLoopCues: List<SubtitleCue> = emptyList()
+    private var dialogueAutoLoopCount: Int = 3
+    private var dialogueAutoLoopCurrentIndex: Int = 0
+    private var dialogueAutoLoopCurrentIteration: Int = 0
+    private var isDialogueAutoLoopActive: Boolean = false
 
     // Handler-based A-B monitoring (replaces wasteful coroutine polling)
     private val abHandler = Handler(Looper.getMainLooper())
@@ -383,6 +417,14 @@ class AudioPlaybackService : LifecycleService() {
             ACTION_SEEK_BACKWARD -> {
                 val offsetMs = intent.getLongExtra(EXTRA_SEEK_OFFSET_MS, 5000L)
                 handleSeekBackward(offsetMs)
+            }
+            ACTION_SET_DIALOGUE_AUTO_LOOP -> {
+                val videoPath = intent.getStringExtra(EXTRA_VIDEO_PATH)
+                val cuesJson = intent.getStringExtra(EXTRA_DIALOGUE_CUES_JSON)
+                val loopCount = intent.getIntExtra(EXTRA_LOOP_COUNT, 3)
+                if (!videoPath.isNullOrBlank() && !cuesJson.isNullOrBlank()) {
+                    handleDialogueAutoLoop(videoPath, cuesJson, loopCount)
+                }
             }
             ACTION_TOGGLE_PLAYBACK -> togglePlayback()
             ACTION_STOP -> stopSelf()
@@ -872,6 +914,106 @@ class AudioPlaybackService : LifecycleService() {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // DIALOGUE AUTO-LOOP — Sequential A-B loop across all cues
+    // ══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Handle a dialogue auto-loop request.
+     *
+     * Parses the JSON cues, sets up the auto-loop state, and starts playing
+     * from the first cue. The existing A-B monitoring logic is leveraged:
+     * when a cue finishes its N loops, the monitor advances to the next cue.
+     *
+     * @param videoPath Video path to match against current playback
+     * @param cuesJson JSON array of SubtitleCue objects
+     * @param loopCount Number of times to repeat each dialogue
+     */
+    private fun handleDialogueAutoLoop(videoPath: String, cuesJson: String, loopCount: Int) {
+        if (videoPath != currentConfig.videoPath) return
+
+        try {
+            // Parse cues from JSON
+            val jsonArray = org.json.JSONArray(cuesJson)
+            val cues = mutableListOf<SubtitleCue>()
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                cues.add(SubtitleCue(
+                    index = obj.getInt("index"),
+                    startMs = obj.getLong("startMs"),
+                    endMs = obj.getLong("endMs"),
+                    text = obj.getString("text")
+                ))
+            }
+
+            if (cues.isEmpty()) {
+                Timber.w("Dialogue auto-loop: no cues provided")
+                return
+            }
+
+            dialogueAutoLoopCues = cues
+            dialogueAutoLoopCount = loopCount.coerceAtLeast(1)
+            dialogueAutoLoopCurrentIndex = 0
+            dialogueAutoLoopCurrentIteration = 0
+            isDialogueAutoLoopActive = true
+
+            // Start with the first cue as an A-B loop
+            val firstCue = cues[0]
+            currentConfig = currentConfig.copy(
+                rangeStartMs = firstCue.startMs,
+                rangeEndMs = firstCue.endMs,
+                loopCount = loopCount
+            )
+            currentLoopIteration = 0
+            abLoopCompleted = false
+
+            // Seek to the start of the first cue
+            exoPlayer?.seekTo(firstCue.startMs)
+            exoPlayer?.play()
+            scheduleAbCheck()
+
+            Timber.i("Dialogue auto-loop started: %d cues, x%d each", cues.size, loopCount)
+            updateNotification()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to set up dialogue auto-loop")
+        }
+    }
+
+    /**
+     * Advance to the next dialogue cue in the auto-loop sequence.
+     * Called by the A-B monitor when a cue has completed its loops.
+     * If all cues are done, stops the auto-loop and continues normal playback.
+     */
+    private fun advanceToNextDialogueCue() {
+        if (!isDialogueAutoLoopActive || dialogueAutoLoopCues.isEmpty()) return
+
+        dialogueAutoLoopCurrentIndex++
+        if (dialogueAutoLoopCurrentIndex >= dialogueAutoLoopCues.size) {
+            // All dialogues done — stop auto-loop and continue playback
+            isDialogueAutoLoopActive = false
+            cancelAbMonitor()
+            Timber.i("Dialogue auto-loop completed: all %d cues done", dialogueAutoLoopCues.size)
+            return
+        }
+
+        val nextCue = dialogueAutoLoopCues[dialogueAutoLoopCurrentIndex]
+        currentConfig = currentConfig.copy(
+            rangeStartMs = nextCue.startMs,
+            rangeEndMs = nextCue.endMs,
+            loopCount = dialogueAutoLoopCount
+        )
+        currentLoopIteration = 0
+        abLoopCompleted = false
+
+        // Seek to the start of the next cue
+        isABSeeking = true
+        exoPlayer?.seekTo(nextCue.startMs)
+        exoPlayer?.play()
+        scheduleAbCheck()
+
+        Timber.d("Dialogue auto-loop: advancing to cue %d/%d", dialogueAutoLoopCurrentIndex + 1, dialogueAutoLoopCues.size)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // A-B POSITION MONITOR — SMART SCHEDULING (no polling)
     // ══════════════════════════════════════════════════════════════════════
 
@@ -924,10 +1066,15 @@ class AudioPlaybackService : LifecycleService() {
                 seekToA()
                 scheduleAbCheck()
             } else {
-                // Loop complete → continue from B to end
-                Timber.d("A-B loop done, continuing playback from B to end")
-                abLoopCompleted = true
-                // No more scheduling needed
+                // Loop complete → check if dialogue auto-loop should advance to next cue
+                if (isDialogueAutoLoopActive) {
+                    advanceToNextDialogueCue()
+                } else {
+                    // Normal A-B loop done → continue from B to end
+                    Timber.d("A-B loop done, continuing playback from B to end")
+                    abLoopCompleted = true
+                    // No more scheduling needed
+                }
             }
             return
         }

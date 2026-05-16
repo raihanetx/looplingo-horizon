@@ -29,9 +29,12 @@ import com.looplingo.horizon.api.GroqApiClient.ApiKeyException
 import com.looplingo.horizon.api.GroqApiClient.Segment
 import com.looplingo.horizon.api.GroqApiClient.SubtitleException
 import com.looplingo.horizon.databinding.FragmentPlaybackSettingsBinding
+import com.looplingo.horizon.model.LoopTemplate
 import com.looplingo.horizon.model.SpeedPresets
 import com.looplingo.horizon.model.SubtitleCue
 import com.looplingo.horizon.playback.AudioPlaybackService
+import com.looplingo.horizon.repository.LoopTemplateRepository
+import com.looplingo.horizon.repository.TranscriptRepository
 import com.looplingo.horizon.ui.viewmodel.PlaybackSettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +43,8 @@ import kotlinx.coroutines.withContext
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.looplingo.horizon.util.TimeUtils
+import org.json.JSONArray
+import org.json.JSONObject
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -57,6 +62,8 @@ class PlaybackSettingsFragment : Fragment() {
     private val POSITION_POLL_INTERVAL_MS = 500L
 
     @Inject lateinit var groqApiClient: GroqApiClient
+    @Inject lateinit var transcriptRepository: TranscriptRepository
+    @Inject lateinit var loopTemplateRepository: LoopTemplateRepository
     private var dialogueSegments: List<Segment> = emptyList()
     private var translatedTexts: Map<Int, String> = emptyMap()  // segment.id → translation
     private var selectedSegmentIndex: Int = -1
@@ -64,6 +71,7 @@ class PlaybackSettingsFragment : Fragment() {
     private var isGeneratingSubtitles: Boolean = false
     private var subtitleGenerationJob: kotlinx.coroutines.Job? = null
     private val debugLog = StringBuilder()
+    private var lastActiveCueIndex: Int = -1  // Track last active cue for auto-scroll
 
     private val securePrefsName = "looplingo_secure_prefs"
     private val keyGroqApiKey = "groq_api_key"
@@ -100,6 +108,7 @@ class PlaybackSettingsFragment : Fragment() {
         setupNowPlayingCard()
         setupSubtitleGeneration()
         setupDialogueLoopControls()
+        setupLoopTemplateUI()
         setupObservers()
     }
 
@@ -728,6 +737,11 @@ class PlaybackSettingsFragment : Fragment() {
     private fun showDialogueList(segments: List<Segment>) {
         binding.rvDialogueList.visibility = View.VISIBLE
         binding.layoutDialogueLoopControls.visibility = View.VISIBLE
+        binding.btnStartDialogueAutoLoop.visibility = View.VISIBLE
+
+        // Enable template creation now that subtitles are loaded
+        binding.btnCreateDialogueTemplate.visibility = View.VISIBLE
+        binding.tvTemplateStatus.text = getString(R.string.subtitle_generated, segments.size)
 
         binding.rvDialogueList.apply {
             layoutManager = LinearLayoutManager(requireContext())
@@ -805,6 +819,154 @@ class PlaybackSettingsFragment : Fragment() {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // LOOP TEMPLATES — Create, manage, and activate loop templates
+    // ══════════════════════════════════════════════════════════════════════
+
+    private fun setupLoopTemplateUI() {
+        // Dialogue auto-loop button — starts sequential looping of all cues
+        binding.btnStartDialogueAutoLoop.setOnClickListener {
+            if (dialogueSegments.isEmpty()) {
+                showSnackbar(getString(R.string.template_no_subtitles))
+                return@setOnClickListener
+            }
+            startDialogueAutoLoop()
+        }
+
+        // Create dialogue repeat template
+        binding.btnCreateDialogueTemplate.setOnClickListener {
+            if (dialogueSegments.isEmpty()) {
+                showSnackbar(getString(R.string.template_no_subtitles))
+                return@setOnClickListener
+            }
+            createDialogueRepeatTemplate()
+        }
+
+        // Load existing templates for this video
+        loadTemplates()
+    }
+
+    /**
+     * Start the dialogue auto-loop mode.
+     * Serializes subtitle cues as JSON and sends them to AudioPlaybackService
+     * which will loop each dialogue × N times sequentially.
+     */
+    private fun startDialogueAutoLoop() {
+        val videoPath = args.videoPath
+        val isCurrentlyPlaying = AudioPlaybackService.isPlaying &&
+            AudioPlaybackService.currentVideoPath == videoPath
+
+        // Get cues from the transcript repository cache
+        val cues = transcriptRepository.getSubtitlesForVideo(videoPath)
+        if (cues.isEmpty()) {
+            showSnackbar(getString(R.string.template_no_subtitles))
+            return
+        }
+
+        // Serialize cues to JSON for the intent extra
+        val cuesJson = JSONArray()
+        for (cue in cues) {
+            val obj = JSONObject().apply {
+                put("index", cue.index)
+                put("startMs", cue.startMs)
+                put("endMs", cue.endMs)
+                put("text", cue.text)
+            }
+            cuesJson.put(obj)
+        }
+
+        if (isCurrentlyPlaying) {
+            AudioPlaybackService.setDialogueAutoLoop(
+                requireContext(), videoPath, cuesJson.toString(), dialogueLoopCount
+            )
+        } else {
+            AudioPlaybackService.startService(requireContext(), videoPath)
+            positionHandler.postDelayed({
+                AudioPlaybackService.setDialogueAutoLoop(
+                    requireContext(), videoPath, cuesJson.toString(), dialogueLoopCount
+                )
+            }, 1000)
+        }
+
+        showSnackbar(getString(R.string.dialogue_auto_loop_active, 1, cues.size, dialogueLoopCount))
+    }
+
+    /**
+     * Create a dialogue_repeat template and save it to the database.
+     */
+    private fun createDialogueRepeatTemplate() {
+        val templateName = getString(R.string.template_dialogue_repeat, dialogueLoopCount)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val template = LoopTemplate(
+                    videoPath = args.videoPath,
+                    name = templateName,
+                    type = "dialogue_repeat",
+                    defaultLoopCount = dialogueLoopCount
+                )
+                loopTemplateRepository.saveTemplate(template)
+                showSnackbar(getString(R.string.template_saved))
+                loadTemplates()
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to save template")
+            }
+        }
+    }
+
+    /**
+     * Load templates for this video and display them in the template list.
+     */
+    private fun loadTemplates() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val templates = withContext(Dispatchers.IO) {
+                    loopTemplateRepository.getTemplatesForVideo(args.videoPath)
+                }
+                displayTemplates(templates)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load templates")
+            }
+        }
+    }
+
+    /**
+     * Display templates in the template list container.
+     */
+    private fun displayTemplates(templates: List<LoopTemplate>) {
+        val container = binding.layoutTemplateList
+        container.removeAllViews()
+
+        if (templates.isEmpty()) return
+
+        for (template in templates) {
+            val itemView = layoutInflater.inflate(R.layout.item_saved_timestamp, container, false)
+
+            itemView.findViewById<TextView>(R.id.tv_timestamp_label).text = template.name
+            val typeLabel = if (template.type == "dialogue_repeat") "Dialogue ×${template.defaultLoopCount}" else "Time-Range"
+            itemView.findViewById<TextView>(R.id.tv_timestamp_range).text = typeLabel
+
+            itemView.findViewById<View>(R.id.btn_use_timestamp).setOnClickListener {
+                // Activate this template
+                if (template.type == "dialogue_repeat") {
+                    dialogueLoopCount = template.defaultLoopCount
+                    binding.tvDialogueLoopCount.text = dialogueLoopCount.toString()
+                    startDialogueAutoLoop()
+                }
+            }
+
+            itemView.findViewById<View>(R.id.btn_delete_timestamp).setOnClickListener {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    loopTemplateRepository.deleteTemplate(template.id)
+                    showSnackbar(getString(R.string.template_deleted))
+                    loadTemplates()
+                }
+            }
+
+            container.addView(itemView)
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // NOW PLAYING CARD
     // ══════════════════════════════════════════════════════════════════════
 
@@ -820,6 +982,7 @@ class PlaybackSettingsFragment : Fragment() {
             override fun run() {
                 try {
                     updateTransportControlState()
+                    updateSubtitleOverlay()
                 } catch (e: Exception) {
                     Timber.w(e, "Position polling error")
                 }
@@ -832,6 +995,55 @@ class PlaybackSettingsFragment : Fragment() {
     private fun stopPositionPolling() {
         positionPollingRunnable?.let { positionHandler.removeCallbacks(it) }
         positionPollingRunnable = null
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SUBTITLE OVERLAY — Real-time synced display during playback
+    // ══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Update the subtitle overlay card with the active cue at the current
+     * playback position. Called every 500ms from the position polling runnable.
+     *
+     * Uses TranscriptRepository.getActiveCue() for efficient binary search.
+     * The overlay card is shown only when:
+     *  - Audio is playing for this video
+     *  - Subtitles are loaded in the cache
+     */
+    private fun updateSubtitleOverlay() {
+        val isCurrentlyPlaying = AudioPlaybackService.isPlaying &&
+            AudioPlaybackService.currentVideoPath == args.videoPath
+        val position = AudioPlaybackService.currentPositionMs
+
+        if (!isCurrentlyPlaying || dialogueSegments.isEmpty()) {
+            binding.cardSubtitleOverlay.visibility = View.GONE
+            return
+        }
+
+        val activeCue = transcriptRepository.getActiveCue(args.videoPath, position)
+
+        if (activeCue != null) {
+            binding.cardSubtitleOverlay.visibility = View.VISIBLE
+            val (original, translation) = activeCue.splitOriginalAndTranslation()
+            binding.tvSubtitleOriginal.text = original
+            binding.tvSubtitleTranslation.text = translation ?: ""
+            binding.tvSubtitleTranslation.visibility =
+                if (translation != null) View.VISIBLE else View.GONE
+
+            // Auto-scroll the dialogue RecyclerView to highlight the active cue
+            val activeIndex = transcriptRepository.getActiveCueIndex(args.videoPath, position)
+            if (activeIndex >= 0 && activeIndex != lastActiveCueIndex) {
+                lastActiveCueIndex = activeIndex
+                val layoutManager = binding.rvDialogueList.layoutManager as? LinearLayoutManager
+                layoutManager?.scrollToPositionWithOffset(activeIndex, 0)
+            }
+        } else {
+            // No active cue at current position — show placeholder
+            binding.cardSubtitleOverlay.visibility = View.VISIBLE
+            binding.tvSubtitleOriginal.text = getString(R.string.subtitle_no_active_cue)
+            binding.tvSubtitleTranslation.text = ""
+            binding.tvSubtitleTranslation.visibility = View.GONE
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1041,6 +1253,7 @@ class PlaybackSettingsFragment : Fragment() {
         inner class DialogueViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val tvTime: TextView = view.findViewById(R.id.tv_cue_timestamp)
             val tvText: TextView = view.findViewById(R.id.tv_cue_text)
+            val tvTranslation: TextView = view.findViewById(R.id.tv_cue_translation)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DialogueViewHolder {
@@ -1053,12 +1266,17 @@ class PlaybackSettingsFragment : Fragment() {
             val segment = segments[position]
             holder.tvTime.text = "${formatMsToTime(segment.startMs)} → ${formatMsToTime(segment.endMs)}"
 
-            // Show original text + translation if available
+            // Show original text
+            holder.tvText.text = segment.text
+
+            // Show translation if available in a separate TextView
             val translation = translations[segment.id]
-            holder.tvText.text = if (translation != null) {
-                "${segment.text}\n→ $translation"
+            if (translation != null) {
+                holder.tvTranslation.text = "→ $translation"
+                holder.tvTranslation.visibility = View.VISIBLE
             } else {
-                segment.text
+                holder.tvTranslation.text = ""
+                holder.tvTranslation.visibility = View.GONE
             }
 
             holder.itemView.isSelected = (position == selectedPos)

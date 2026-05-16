@@ -31,12 +31,14 @@ import com.looplingo.horizon.databinding.FragmentMainBinding
 import com.looplingo.horizon.model.SpeedPresets
 import com.looplingo.horizon.playback.AudioPlaybackService
 import com.looplingo.horizon.model.SortOrder
+import com.looplingo.horizon.repository.TranscriptRepository
 import com.looplingo.horizon.ui.adapter.VideoAdapter
 import com.looplingo.horizon.ui.viewmodel.MainViewModel
 import com.looplingo.horizon.util.TimeUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import javax.inject.Inject
 
 /**
  * Main screen showing the list of video files found on the device.
@@ -67,6 +69,8 @@ class MainFragment : Fragment() {
     private var miniABEndMs: Long = -1L
     private var miniABLoopCount: Int = 3
     private var isABControlsVisible: Boolean = false
+
+    @Inject lateinit var transcriptRepository: TranscriptRepository
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -452,6 +456,21 @@ class MainFragment : Fragment() {
                         // Update play/pause icon
                         val playPauseIcon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
                         miniPlayer.findViewById<ImageView>(R.id.iv_mini_play_pause).setImageResource(playPauseIcon)
+
+                        // Update mini subtitle from transcript repository
+                        val miniSubtitle = miniPlayer.findViewById<TextView>(R.id.tv_mini_subtitle)
+                        val activeCue = transcriptRepository.getActiveCue(currentPath, position)
+                        if (activeCue != null) {
+                            val (original, translation) = activeCue.splitOriginalAndTranslation()
+                            miniSubtitle.text = if (translation != null) {
+                                "$original\n→ $translation"
+                            } else {
+                                original
+                            }
+                            miniSubtitle.visibility = View.VISIBLE
+                        } else {
+                            miniSubtitle.visibility = View.GONE
+                        }
 
                         // Show loop stepper when A-B controls are visible
                         miniPlayer.findViewById<View>(R.id.layout_mini_loop_stepper).visibility =
