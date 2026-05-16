@@ -90,16 +90,19 @@ jobs:
             Built on ${{ steps.version.outputs.date }}
             Version code: ${{ steps.version.outputs.code }}
 
-            What's new in v3.2.0:
-            - Fixed build compilation error (nullable Editable safe call)
-            - Fixed string resource format warnings
-            - Search bar on homepage with real-time filtering
+            What's new in v3.4.0:
+            - FIXED: Dialogue loop audio bleed-through — no more next-dialogue
+              snippet playing at the end of each repetition
+            - FIXED: Proper silence gap between dialogue repetitions — smooth
+              pause-then-repeat experience (dialogue → silence → dialogue)
+            - Trim cue endMs by 200ms to compensate for Whisper timing overlap
+            - Immediate ExoPlayer pause on dialogue boundary detection
+            - Selective dialogue loop (checkboxes to pick specific dialogues)
+            - Natural pause duration control (configurable silence gap)
             - Real-time subtitle display during playback (English + Bangla)
-            - Mini player subtitle display
             - Dialogue auto-loop (repeat each dialogue x N times)
             - Loop templates (save & reuse loop configurations)
-            - Time-frame based looping (different repeats per time range)
-            - Production-level homepage UI
+            - Search bar on homepage with real-time filtering
 
             Download the APK below ⬇️
           files: |
