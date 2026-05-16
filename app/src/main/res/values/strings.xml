@@ -100,8 +100,8 @@
     <string name="dialogue_loop_count_label">Loop count:</string>
     <string name="btn_loop_dialogue">Loop</string>
     <string name="dialogue_selected">Selected: %s…</string>
-    <string name="dialogue_loop_active">Looping x%d: %s…</string>
-    <string name="dialogue_loop_active_with_translation">Looping x%d: %s… → %s</string>
+    <string name="dialogue_loop_active" formatted="false">Looping x%d: %s…</string>
+    <string name="dialogue_loop_active_with_translation" formatted="false">Looping x%d: %s… → %s</string>
     <string name="error_no_dialogue_selected">Select a dialogue line first</string>
 
     <!-- Transport Controls (Detail Screen) -->
@@ -121,7 +121,7 @@
     <string name="btn_create_template">Create Template</string>
     <string name="btn_start_dialogue_auto_loop">Start Auto-Loop</string>
     <string name="btn_stop_dialogue_auto_loop">Stop Auto-Loop</string>
-    <string name="dialogue_auto_loop_active">Auto-looping: Dialogue %d/%d (x%d)</string>
+    <string name="dialogue_auto_loop_active" formatted="false">Auto-looping: Dialogue %d/%d (x%d)</string>
     <string name="template_type_dialogue_repeat">dialogue_repeat</string>
     <string name="template_type_time_range">time_range</string>
     <string name="template_name_hint">Template name</string>

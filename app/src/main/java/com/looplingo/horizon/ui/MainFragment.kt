@@ -251,7 +251,7 @@ class MainFragment : Fragment() {
         }
 
         ivClearSearch.setOnClickListener {
-            etSearch.text.clear()
+            etSearch.text?.clear()
             viewModel.clearSearch()
             etSearch.clearFocus()
         }

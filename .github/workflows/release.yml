@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -52,6 +54,17 @@ jobs:
           echo "name=v${VERSION_NAME}" >> $GITHUB_OUTPUT
           echo "code=${VERSION_CODE}" >> $GITHUB_OUTPUT
           echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+          echo "Building release v${VERSION_NAME} (code ${VERSION_CODE})"
+
+      - name: Delete existing release if present
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.name }}"
+          echo "Checking for existing release with tag $TAG..."
+          gh release delete "$TAG" --yes --repo ${{ github.repository }} 2>/dev/null || true
+          git push origin :refs/tags/"$TAG" 2>/dev/null || true
 
       - name: Upload Debug APK as artifact
         uses: actions/upload-artifact@v4
@@ -77,14 +90,18 @@ jobs:
             Built on ${{ steps.version.outputs.date }}
             Version code: ${{ steps.version.outputs.code }}
 
-            What's new in v3.0.0:
-            - Real-time subtitle display during playback (English + Bangla translation)
+            What's new in v3.2.0:
+            - Fixed build compilation error (nullable Editable safe call)
+            - Fixed string resource format warnings
+            - Search bar on homepage with real-time filtering
+            - Real-time subtitle display during playback (English + Bangla)
             - Mini player subtitle display
             - Dialogue auto-loop (repeat each dialogue x N times)
             - Loop templates (save & reuse loop configurations)
             - Time-frame based looping (different repeats per time range)
+            - Production-level homepage UI
 
-            Download the APK below
+            Download the APK below ⬇️
           files: |
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
