@@ -90,18 +90,13 @@ jobs:
             Built on ${{ steps.version.outputs.date }}
             Version code: ${{ steps.version.outputs.code }}
 
-            What's new in v3.5.0:
-            - NATURAL FADE-OUT: Audio gradually fades out in the last 500ms
-              before dialogue ends — like a person finishing a sentence, not a cut
-            - NATURAL FADE-IN: Audio fades in smoothly at the start of each
-              dialogue repeat — soft entry like natural speech
-            - ZERO BLEED: 400ms end trim + early stop 100ms before boundary
-              guarantees zero next-dialogue audio bleed-through
-            - 50ms LEAD-IN: Each dialogue starts 50ms early for a natural
-              breath-in entry instead of a hard cut
-            - 1.2s DEFAULT PAUSE: Longer natural breathing gap between repeats
-              (configurable 200ms–3000ms)
-            - Ultra-precise 50ms A-B monitoring in dialogue mode for smooth fades
+            What's new in v3.6.0:
+            - SMART BOUNDARY: Uses NEXT dialogue's startMs as the end limit
+              instead of a fixed trim — guarantees ZERO next-word bleed-through
+            - SIMPLE & CLEAN: Removed fade-in/fade-out/lead-in — just dialogue
+              plays → 1 second pause → repeat (like a human speaks)
+            - 1 second default pause — exactly what a natural human pause feels like
+            - Ultra-precise 50ms boundary detection for immediate stop
 
             Download the APK below ⬇️
           files: |

@@ -68,7 +68,7 @@ class PlaybackSettingsFragment : Fragment() {
     private var translatedTexts: Map<Int, String> = emptyMap()  // segment.id → translation
     private var selectedSegmentIndex: Int = -1
     private var dialogueLoopCount: Int = 5
-    private var dialoguePauseMs: Long = 1200L  // Natural pause between dialogue repetitions (1.2s default — feels human)
+    private var dialoguePauseMs: Long = 1000L  // Natural pause between dialogue repetitions (1 second — like human speech)
     private var selectedDialogueIndices: MutableSet<Int> = mutableSetOf()  // Checked dialogue indices for selective auto-loop
     private var isGeneratingSubtitles: Boolean = false
     private var subtitleGenerationJob: kotlinx.coroutines.Job? = null
