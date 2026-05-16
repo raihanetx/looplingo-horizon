@@ -1,11 +1,11 @@
 <resources>
-    <string name="app_name">LoopLingo</string>
+    <string name="app_name">Horizon Loop</string>
 
     <!-- Main screen -->
     <string name="no_videos_found">No videos found</string>
     <string name="permission_required">Permission required to scan videos</string>
     <string name="permission_denied_message">Storage permission is needed to find videos on your device</string>
-    <string name="permission_rationale">LoopLingo needs access to your video files to provide audio playback for language learning.</string>
+    <string name="permission_rationale">Horizon Loop needs access to your video files to provide audio playback for language learning.</string>
 
     <!-- Error messages -->
     <string name="retry">Retry</string>
@@ -15,7 +15,7 @@
     <string name="error_save_failed">Failed to save settings. Please try again.</string>
 
     <!-- Playback settings — simplified -->
-    <string name="playback_settings">Loop Settings</string>
+    <string name="playback_settings">Now Playing</string>
     <string name="section_loop_range">A-B Loop Range</string>
     <string name="hint_start_time">Start (A)</string>
     <string name="hint_end_time">End (B)</string>
@@ -50,14 +50,14 @@
     <string name="error_range_end_before_start">End time must be after start time</string>
 
     <!-- Notification -->
-    <string name="notification_channel_name">LoopLingo Audio Playback</string>
+    <string name="notification_channel_name">Horizon Loop Audio Playback</string>
     <string name="notification_channel_description">Notifications for audio playback</string>
     <string name="notification_pause">Pause</string>
     <string name="notification_play">Play</string>
     <string name="notification_previous">Previous</string>
     <string name="notification_next">Next</string>
     <string name="notification_stop">Stop</string>
-    <string name="notification_error_title">LoopLingo — Playback Error</string>
+    <string name="notification_error_title">Horizon Loop — Playback Error</string>
     <string name="notification_error_unknown">Unknown playback error</string>
     <string name="notification_loading">Loading audio…</string>
 
@@ -106,6 +106,8 @@
 
     <!-- Transport Controls (Detail Screen) -->
     <string name="section_transport_controls">Now Playing</string>
+    <string name="section_loop_controls">Loop Controls</string>
+    <string name="section_subtitles_and_dialogue">Subtitles &amp; Dialogue</string>
     <string name="content_desc_play">Play</string>
     <string name="content_desc_stop">Stop playback</string>
     <string name="now_playing_idle">Tap play to start listening</string>
@@ -162,4 +164,9 @@
     <string name="dialogue_selected_count" formatted="false">%d / %d selected</string>
     <string name="dialogue_selected_count_default">0 / 0 selected</string>
     <string name="content_desc_select_dialogue">Select dialogue for auto-loop</string>
+    <!-- Speed -->
+    <string name="speed_label">Speed</string>
+
+    <!-- Loop -->
+    <string name="loop_label">Loops</string>
 </resources>

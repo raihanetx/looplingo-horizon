@@ -90,13 +90,15 @@ jobs:
             Built on ${{ steps.version.outputs.date }}
             Version code: ${{ steps.version.outputs.code }}
 
-            What's new in v3.6.0:
-            - SMART BOUNDARY: Uses NEXT dialogue's startMs as the end limit
-              instead of a fixed trim — guarantees ZERO next-word bleed-through
-            - SIMPLE & CLEAN: Removed fade-in/fade-out/lead-in — just dialogue
-              plays → 1 second pause → repeat (like a human speaks)
-            - 1 second default pause — exactly what a natural human pause feels like
-            - Ultra-precise 50ms boundary detection for immediate stop
+            What's new in v4.1.0:
+            - RENAMED: App is now "Horizon Loop"
+            - REDESIGNED: Audio player UI — Spotify/YouTube Music inspired layout
+              · Hero "Now Playing" card with track info + speed + AB badge
+              · Fixed bottom player bar (seekbar + transport controls always visible)
+              · Clean visual hierarchy with proper section separation
+              · Stop button now in the bottom transport bar
+            - Clean A-B loop section with compact layout
+            - All "LoopLingo" references updated to "Horizon Loop"
 
             Download the APK below ⬇️
           files: |

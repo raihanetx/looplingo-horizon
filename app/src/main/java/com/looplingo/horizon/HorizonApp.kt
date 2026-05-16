@@ -6,7 +6,7 @@ import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 
 /**
- * Application class for LoopLingo Horizon.
+ * Application class for Horizon Loop.
  *
  * Annotated with @HiltAndroidApp to trigger Hilt's code generation
  * and set up the application-level dependency container.
@@ -23,7 +23,7 @@ class HorizonApp : Application() {
         // Clean up old temp files from transcription cache
         com.looplingo.horizon.api.GroqApiClient.cleanupTempFiles(this)
         if (BuildConfig.DEBUG) {
-            Timber.i("LoopLingo Horizon application initialized")
+            Timber.i("Horizon Loop application initialized")
         }
     }
 
@@ -53,9 +53,9 @@ class HorizonApp : Application() {
                 // In production, just log to Android Logcat for crash reporting
                 // ProGuard already strips Timber.d/v/i calls
                 if (t != null) {
-                    Log.println(priority, tag ?: "LoopLingo", "$message\n${Log.getStackTraceString(t)}")
+                    Log.println(priority, tag ?: "HorizonLoop", "$message\n${Log.getStackTraceString(t)}")
                 } else {
-                    Log.println(priority, tag ?: "LoopLingo", message)
+                    Log.println(priority, tag ?: "HorizonLoop", message)
                 }
             }
         }

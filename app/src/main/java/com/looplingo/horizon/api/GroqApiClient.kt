@@ -59,7 +59,7 @@ import java.util.concurrent.Semaphore
  *      → Remove hallucinated segments where no_speech_prob > 0.6.
  *
  *   8. Translation endpoint (/v1/audio/translations) for any-language → English.
- *      → whisper-large-v3 supports this. App is called "LoopLingo" — needs translation.
+ *      → whisper-large-v3 supports this. App is called "Horizon Loop" — needs translation.
  *
  *   PIPELINE (2 steps, each with pre-processing):
  *

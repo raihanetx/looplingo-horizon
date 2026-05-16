@@ -1057,7 +1057,7 @@ class AudioPlaybackService : LifecycleService() {
 
     private fun setupWakeLock() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "LoopLingo::PlaybackWakeLock")
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "HorizonLoop::PlaybackWakeLock")
             .apply { setReferenceCounted(false) }
     }
 

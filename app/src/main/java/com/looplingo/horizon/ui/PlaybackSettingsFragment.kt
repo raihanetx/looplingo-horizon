@@ -42,9 +42,9 @@ import javax.inject.Inject
 /**
  * Now Playing / Playback Settings screen.
  *
- * Redesigned with proper "Now Playing" experience:
- *  - Hero player card with seek bar, timestamps, transport controls
- *  - Speed toggle button that cycles through presets
+ * Production-quality audio player UI (Spotify/YouTube Music inspired):
+ *  - Hero "Now Playing" card with track info + speed + AB badge
+ *  - Fixed bottom player bar with seek bar + transport controls
  *  - A-B Loop range section with compact stepper
  *  - AI Subtitles + dialogue list
  *  - Debug log hidden in release builds
