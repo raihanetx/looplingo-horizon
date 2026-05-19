@@ -14,8 +14,8 @@ android {
         applicationId "com.looplingo.horizon"
         minSdk 26
         targetSdk 34
-        versionCode 35
-        versionName "5.0.0"
+        versionCode 36
+        versionName "5.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Export Room schemas for migration verification (KSP version)
@@ -145,6 +145,9 @@ dependencies {
     // Networking — OkHttp + Gson for Groq API
     implementation libs.okhttp
     implementation libs.gson
+
+    // PyTorch Mobile — for Silero VAD neural network speech detection
+    implementation libs.pytorch.android
 
     // LeakCanary (debug only — memory leak detection)
     debugImplementation libs.leakcanary
