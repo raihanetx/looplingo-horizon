@@ -25,7 +25,6 @@ okhttp = "4.12.0"
 gson = "2.10.1"
 leakcanary = "2.13"
 security-crypto = "1.1.0-alpha06"
-pytorch = "2.1.0"
 
 # Testing
 junit = "4.13.2"
@@ -93,9 +92,6 @@ gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 # Security
 security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "security-crypto" }
 
-# PyTorch Mobile (for Silero VAD neural network speech detection)
-pytorch-android = { group = "org.pytorch", name = "pytorch_android_lite", version.ref = "pytorch" }
-pytorch-torchvision = { group = "org.pytorch", name = "torchvision_ops", version.ref = "pytorch" }
 
 # Debug tools
 leakcanary = { group = "com.squareup.leakcanary", name = "leakcanary-android", version.ref = "leakcanary" }

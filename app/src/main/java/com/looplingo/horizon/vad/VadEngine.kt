@@ -16,52 +16,43 @@ import java.nio.ByteOrder
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.abs
-import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
- * Voice Activity Detection engine — hybrid Silero VAD + energy boundary refinement.
+ * Voice Activity Detection engine — Simple Silence Midpoint Detection (v3.0).
  *
- * ARCHITECTURE (v2.0 — Silero VAD Neural Network):
+ * ARCHITECTURE:
  *
- *   This engine uses a TWO-STAGE approach for maximum accuracy:
+ *   The audio waveform looks like:
  *
- *   STAGE 1: Silero VAD Neural Network
- *   - A pre-trained deep learning model (silero_vad.onnx, ~300KB)
- *   - Trained on 6,000+ hours of multilingual speech data
- *   - Detects speech vs non-speech with >95% accuracy
- *   - Processes audio in 32ms chunks with LSTM temporal context
- *   - Produces well-calibrated speech probabilities per chunk
- *   - Uses hysteresis thresholding to prevent rapid on/off switching
+ *   --------||||||||||--|||---|||||||||||----------|||||||||-------
+ *     silence   speech    speech    speech   silence   speech
  *
- *   STAGE 2: Fine-Grained Energy Boundary Refinement
- *   - Silero VAD gives ~32ms resolution (one prediction per 512-sample chunk)
- *   - For dialogue loop boundaries, we need ~5ms precision
- *   - After Silero identifies a speech segment, we zoom into the boundary
- *     region with 5ms frames and use energy onset/offset detection
- *   - This gives us neural-network accuracy + sub-frame boundary precision
+ *   Between any two speech segments, there's a silence gap.
+ *   We find that gap and place the boundary at its MIDPOINT.
+ *   That's it. No neural network, no model file, no extra RAM.
  *
  *   PIPELINE:
- *   1. Decode audio → 16KHz mono PCM float array
- *   2. Run Silero VAD → detect all speech segments with confidence
- *   3. Align each Whisper segment with nearest Silero VAD segment
- *   4. Refine boundaries with fine-grained energy analysis (5ms frames)
- *   5. Post-process: no overlaps, minimum gaps, sane duration
+ *   1. Decode audio -> 16KHz mono PCM float array
+ *   2. For each pair of consecutive Whisper segments:
+ *      - Scan the region between them with RMS energy frames
+ *      - Find the silence gap
+ *      - Boundary = midpoint of the silence gap
+ *   3. For first/last segments: use energy onset/offset detection
+ *   4. Post-process: no overlaps, minimum gaps
  *
- *   WHY THIS IS BETTER THAN THE PREVIOUS CUSTOM VAD:
- *   - Previous: Hand-crafted heuristics (energy, ZCR, spectral flatness) = 70-80% accurate
- *   - Now: Neural network trained on 6K+ hours = >95% accurate
- *   - Previous: Fixed thresholds fail on quiet speech, background noise, etc.
- *   - Now: Learned features handle all these cases robustly
- *   - Previous: No temporal context — each frame analyzed independently
- *   - Now: LSTM captures temporal patterns (speech has characteristic rhythm)
+ *   WHY THIS WORKS FOR LANGUAGE LEARNING AUDIO:
+ *   - Clean recordings with clear speech/silence boundaries
+ *   - No noisy backgrounds that fool energy detection
+ *   - The silence gap between dialogues is always clearly visible
+ *   - Midpoint of silence = natural, perfect boundary
  *
- *   FALLBACK:
- *   If Silero VAD fails to initialize (missing model, ONNX error), we fall
- *   back to energy-only boundary detection. This gives ~70% accuracy instead
- *   of >95%, but the app still works.
+ *   PREVIOUS APPROACHES (removed):
+ *   - v1: Hand-crafted heuristics (energy, ZCR, spectral flatness) — over-engineered
+ *   - v2: Silero VAD neural network (2MB model, PyTorch Mobile) — unnecessary complexity
+ *   - v3: Simple silence midpoint — exactly what's needed, nothing more
  */
 @Singleton
 class VadEngine @Inject constructor(
@@ -73,38 +64,23 @@ class VadEngine @Inject constructor(
         private const val SAMPLE_RATE = 16000       // 16KHz — Whisper's rate
         private const val CODEC_TIMEOUT_US = 10_000L
 
-        // ── Analysis Window for boundary refinement ──────────────────────
-        private const val PRE_ROLL_MS = 800L        // Search 800ms before Whisper's startMs (wider for larger Whisper errors)
-        private const val POST_ROLL_MS = 800L       // Search 800ms after Whisper's endMs
+        // ── Energy Analysis ──────────────────────────────────────────────
+        private const val FRAME_SIZE_MS = 10        // 10ms frames for boundary scanning
+        private const val FRAME_SIZE_SAMPLES = SAMPLE_RATE * FRAME_SIZE_MS / 1000  // 160 samples
+        private const val FINE_FRAME_SIZE_MS = 5    // 5ms frames for onset/offset precision
+        private const val FINE_FRAME_SIZE_SAMPLES = SAMPLE_RATE * FINE_FRAME_SIZE_MS / 1000  // 80 samples
+
+        // ── Search Window ────────────────────────────────────────────────
+        // How far to search around Whisper's boundaries
+        private const val SEARCH_PADDING_MS = 600L  // Search 600ms around boundary region
 
         // ── Post-Processing ───────────────────────────────────────────────
         private const val MIN_SPEECH_DURATION_MS = 50L
-        private const val INTER_SEGMENT_GAP_MS = 80L   // Minimum gap between consecutive segments — prevents bleed-through
+        private const val INTER_SEGMENT_GAP_MS = 80L   // Minimum gap between segments
 
-        // ── Energy Boundary Refinement ────────────────────────────────────
-        private const val FINE_FRAME_SIZE_MS = 5     // 5ms frames for sub-chunk precision
-        private const val FINE_FRAME_SIZE_SAMPLES = SAMPLE_RATE * FINE_FRAME_SIZE_MS / 1000  // 80 samples
-
-        // ── Boundary Refinement Constraints ──────────────────────────────
-        // Energy onset/offset can refine VAD boundaries for sub-chunk precision,
-        // but must NOT extend segments beyond VAD's neural network boundaries
-        // by more than this margin. VAD is >95% accurate; extending beyond
-        // it risks bleeding into adjacent dialogues.
-        private const val MAX_START_EXTENSION_MS = 40L   // Max extension before VAD start
-        private const val MAX_END_EXTENSION_MS = 40L     // Max extension after VAD end
-    }
-
-    /**
-     * A speech segment detected by VAD.
-     */
-    data class SpeechSegment(
-        val startMs: Long,
-        val endMs: Long,
-        val confidence: Float,
-        val avgEnergy: Float,
-        val speechBandRatio: Float
-    ) {
-        val durationMs: Long get() = endMs - startMs
+        // ── Silence Detection ────────────────────────────────────────────
+        // A silence gap must be at least this long to be a boundary
+        private const val MIN_SILENCE_GAP_MS = 40L
     }
 
     /**
@@ -118,21 +94,16 @@ class VadEngine @Inject constructor(
         val method: String
     )
 
-    // Silero VAD detector — lazy initialization
-    private var sileroDetector: SileroVadDetector? = null
-    private var sileroInitAttempted = false
-    private var sileroAvailable = false
-
     // ══════════════════════════════════════════════════════════════════════
     // MAIN PUBLIC API
     // ══════════════════════════════════════════════════════════════════════
 
     /**
-     * Refine Whisper segment timestamps using VAD analysis.
+     * Refine Whisper segment timestamps using silence midpoint detection.
      *
      * Given an audio/video file and Whisper's rough segments, returns
-     * refined segments where startMs/endMs precisely match where speech
-     * actually starts and ends in the audio.
+     * refined segments where boundaries are placed at the midpoint of
+     * the silence gap between consecutive speech segments.
      */
     suspend fun refineSegments(
         filePath: String,
@@ -142,7 +113,7 @@ class VadEngine @Inject constructor(
 
         if (segments.isEmpty()) return@withContext emptyList()
 
-        Timber.i("═══ VAD REFINEMENT v2.0 (Silero Neural VAD): %d Whisper segments ═══", segments.size)
+        Timber.i("═══ VAD v3.0 (Silence Midpoint): %d Whisper segments ═══", segments.size)
         onProgress?.onProgress("[VAD] Loading audio for boundary analysis…")
 
         // Step 1: Decode audio to 16kHz mono PCM
@@ -154,25 +125,19 @@ class VadEngine @Inject constructor(
             }
         }
 
+        val audioDurationMs = pcmData.size.toLong() * 1000 / SAMPLE_RATE
         Timber.i("VAD: Decoded %d samples (%.1fs)", pcmData.size, pcmData.size / SAMPLE_RATE.toFloat())
-        onProgress?.onProgress("[VAD] Running Silero neural VAD…")
+        onProgress?.onProgress("[VAD] Detecting silence boundaries…")
 
-        // Step 2: Run Silero VAD neural network
-        val sileroSegments = runSileroVad(pcmData)
-
-        // Step 3: Align each Whisper segment with nearest VAD segments
-        // If Silero failed, fall back to energy-only detection
-        val refined = if (sileroSegments.isNotEmpty()) {
-            Timber.i("VAD: Silero detected %d speech segments", sileroSegments.size)
-            onProgress?.onProgress("[VAD] Silero: %d segments detected, refining boundaries…".format(sileroSegments.size))
-            alignSegmentsWithSilero(segments, sileroSegments, pcmData)
+        // Step 2: Find silence midpoints between consecutive segments
+        val refined = if (segments.size == 1) {
+            // Single segment: refine start and end with energy onset/offset
+            listOf(refineSingleSegment(segments[0], pcmData, audioDurationMs))
         } else {
-            Timber.w("VAD: Silero returned no segments — falling back to energy-only detection")
-            onProgress?.onProgress("[VAD] Silero unavailable, using energy-based detection…")
-            alignSegmentsWithEnergy(segments, pcmData)
+            refineWithSilenceMidpoints(segments, pcmData, audioDurationMs)
         }
 
-        // Step 4: Post-process — no overlaps, sane durations
+        // Step 3: Post-process — no overlaps, sane durations
         val postProcessed = postProcessRefinedSegments(refined)
 
         // Log comparison
@@ -186,339 +151,240 @@ class VadEngine @Inject constructor(
             totalStartAdjust += startDiff
             totalEndAdjust += endDiff
         }
-        Timber.i("VAD: Refined %d/%d segments (avg start: %dms, avg end: %dms adjust, method: %s)",
+        Timber.i("VAD: Refined %d/%d segments (avg start: %dms, avg end: %dms adjust)",
             adjustedCount, segments.size,
             if (segments.isNotEmpty()) totalStartAdjust / segments.size else 0,
-            if (segments.isNotEmpty()) totalEndAdjust / segments.size else 0,
-            if (sileroSegments.isNotEmpty()) "silero+vad" else "energy_only")
+            if (segments.isNotEmpty()) totalEndAdjust / segments.size else 0)
 
-        onProgress?.onProgress("[VAD] ✓ Speech boundaries refined (%d adjusted, %s)".format(
-            adjustedCount, if (sileroSegments.isNotEmpty()) "Silero neural" else "energy-based"))
+        onProgress?.onProgress("[VAD] ✓ Boundaries refined (%d adjusted)", adjustedCount)
         postProcessed
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // SILOO VAD — Neural Network Speech Detection
+    // SILENCE MIDPOINT DETECTION — The core algorithm
     // ══════════════════════════════════════════════════════════════════════
 
     /**
-     * Run Silero VAD neural network on the PCM audio data.
-     * Returns speech segments with ~32ms resolution.
-     */
-    private fun runSileroVad(pcmData: FloatArray): List<SileroVadDetector.VadSegment> {
-        if (!ensureSileroInitialized()) {
-            Timber.w("Silero VAD: Not available — will use energy fallback")
-            return emptyList()
-        }
-
-        return try {
-            val detector = sileroDetector ?: return emptyList()
-            detector.detectSpeechSegments(pcmData)
-        } catch (e: OutOfMemoryError) {
-            Timber.e(e, "Silero VAD: OOM — audio may be too long for neural network processing")
-            emptyList()
-        } catch (e: Exception) {
-            Timber.e(e, "Silero VAD: Error during detection")
-            emptyList()
-        }
-    }
-
-    /**
-     * Lazily initialize the Silero VAD detector.
-     * Only creates the detector once; reuses it for subsequent calls.
-     */
-    private fun ensureSileroInitialized(): Boolean {
-        if (sileroAvailable && sileroDetector != null) return true
-        if (sileroInitAttempted && !sileroAvailable) return false
-
-        sileroInitAttempted = true
-        return try {
-            sileroDetector = SileroVadDetector(context)
-            // Test initialization by checking if the model can be loaded
-            sileroAvailable = true
-            Timber.i("Silero VAD: Detector created successfully")
-            true
-        } catch (e: Exception) {
-            Timber.e(e, "Silero VAD: Failed to create detector")
-            sileroAvailable = false
-            false
-        }
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // SEGMENT ALIGNMENT — Whisper ↔ Silero VAD
-    // ══════════════════════════════════════════════════════════════════════
-
-    /**
-     * Align Whisper segments with Silero VAD segments and refine boundaries.
+     * Refine multiple segments using silence midpoint detection.
      *
-     * For each Whisper segment, we:
-     * 1. Find the Silero VAD segment(s) that overlap with it
-     * 2. Use the VAD segment's boundaries as the coarse start/end
-     * 3. Refine with fine-grained energy onset/offset detection for ~5ms precision
+     * For each pair of consecutive segments, we find the silence gap
+     * between them and place the boundary at the midpoint of that gap.
+     *
+     * Audio looks like:
+     *   --------||||||||||--|||---|||||||||||----------|||||||||-------
+     *                              ^gap^
+     *                        boundary = midpoint of gap
      */
-    private fun alignSegmentsWithSilero(
-        whisperSegments: List<GroqApiClient.Segment>,
-        sileroSegments: List<SileroVadDetector.VadSegment>,
-        pcmData: FloatArray
+    private fun refineWithSilenceMidpoints(
+        segments: List<GroqApiClient.Segment>,
+        pcmData: FloatArray,
+        audioDurationMs: Long
     ): List<RefinedSegment> {
-        return whisperSegments.mapIndexed { idx, ws ->
-            alignSingleSegmentWithSilero(idx, ws, sileroSegments, pcmData)
-        }
-    }
+        val result = mutableListOf<RefinedSegment>()
 
-    /**
-     * Align a single Whisper segment with the best matching Silero VAD segment.
-     *
-     * Matching strategy:
-     * - Find VAD segments that overlap with the Whisper segment's time range
-     * - If exactly 1 match: use it directly
-     * - If multiple matches: merge them (Whisper sometimes splits one utterance)
-     * - If no matches: fall back to energy-only detection
-     */
-    private fun alignSingleSegmentWithSilero(
-        index: Int,
-        ws: GroqApiClient.Segment,
-        sileroSegments: List<SileroVadDetector.VadSegment>,
-        pcmData: FloatArray
-    ): RefinedSegment {
-        // Find overlapping Silero segments
-        // Use a generous overlap window — Whisper timestamps can be off by several hundred ms
-        val searchStart = ws.startMs - PRE_ROLL_MS
-        val searchEnd = ws.endMs + POST_ROLL_MS
+        // Find all boundary points between consecutive segments
+        // boundaryPoints[i] = the timestamp that separates segment[i] from segment[i+1]
+        val boundaryPoints = findSilenceMidpoints(segments, pcmData, audioDurationMs)
 
-        val overlappingSilero = sileroSegments.filter { vad ->
-            vad.startMs < searchEnd && vad.endMs > searchStart
-        }
+        // Build refined segments using the boundary points
+        for (i in segments.indices) {
+            val seg = segments[i]
 
-        return when {
-            overlappingSilero.isEmpty() -> {
-                // No Silero segment found for this Whisper segment
-                // Fall back to energy-based boundary detection
-                Timber.d("VAD: No Silero match for segment %d (%d-%dms) — energy fallback",
-                    index, ws.startMs, ws.endMs)
-                refineWithEnergyOnly(ws, pcmData)
+            // Start boundary: previous boundary point, or energy onset for first segment
+            val startMs = if (i == 0) {
+                findSpeechOnset(pcmData, seg.startMs, audioDurationMs)
+            } else {
+                boundaryPoints[i - 1]
             }
 
-            overlappingSilero.size == 1 -> {
-                val vad = overlappingSilero[0]
-                RefinedSegment(
-                    originalSegment = ws,
-                    vadStartMs = refineStartBoundary(ws.startMs, vad.startMs, pcmData),
-                    vadEndMs = refineEndBoundary(ws.endMs, vad.endMs, pcmData),
-                    confidence = vad.confidence,
-                    method = "silero_direct"
-                )
+            // End boundary: next boundary point, or energy offset for last segment
+            val endMs = if (i == segments.lastIndex) {
+                findSpeechOffset(pcmData, seg.endMs, audioDurationMs)
+            } else {
+                boundaryPoints[i]
             }
 
-            else -> {
-                // Multiple Silero segments overlap — merge them
-                val earliestStart = overlappingSilero.minOf { it.startMs }
-                val latestEnd = overlappingSilero.maxOf { it.endMs }
-                val avgConfidence = overlappingSilero.map { it.confidence }.average().toFloat()
-                RefinedSegment(
-                    originalSegment = ws,
-                    vadStartMs = refineStartBoundary(ws.startMs, earliestStart, pcmData),
-                    vadEndMs = refineEndBoundary(ws.endMs, latestEnd, pcmData),
-                    confidence = avgConfidence,
-                    method = "silero_multi_merge"
-                )
+            result.add(RefinedSegment(
+                originalSegment = seg,
+                vadStartMs = startMs,
+                vadEndMs = endMs,
+                confidence = 0.85f,
+                method = "silence_midpoint"
+            ))
+        }
+
+        return result
+    }
+
+    /**
+     * Find the midpoint of the silence gap between each pair of consecutive segments.
+     *
+     * For segments[i] and segments[i+1]:
+     * - Define the search region around the boundary between them
+     * - Scan that region with RMS energy frames
+     * - Find where the silence is
+     * - Return the midpoint of the silence as the boundary point
+     */
+    private fun findSilenceMidpoints(
+        segments: List<GroqApiClient.Segment>,
+        pcmData: FloatArray,
+        audioDurationMs: Long
+    ): List<Long> {
+        val midpoints = mutableListOf<Long>()
+
+        for (i in 0 until segments.lastIndex) {
+            val currentEnd = segments[i].endMs
+            val nextStart = segments[i + 1].startMs
+
+            // Define the search region between the two segments
+            // Use generous padding to catch the actual silence gap
+            val searchStart = (min(currentEnd, nextStart) - SEARCH_PADDING_MS).coerceAtLeast(0L)
+            val searchEnd = (max(currentEnd, nextStart) + SEARCH_PADDING_MS).coerceAtMost(audioDurationMs)
+
+            val midpoint = findSilenceGapMidpoint(pcmData, searchStart, searchEnd, audioDurationMs)
+
+            if (midpoint != null) {
+                midpoints.add(midpoint)
+                Timber.d("VAD: Boundary between seg %d/%d at %dms (silence midpoint)",
+                    i, i + 1, midpoint)
+            } else {
+                // No clear silence found — use the midpoint between the two segments' timestamps
+                val fallbackMid = (currentEnd + nextStart) / 2
+                midpoints.add(fallbackMid)
+                Timber.d("VAD: Boundary between seg %d/%d at %dms (fallback midpoint)",
+                    i, i + 1, fallbackMid)
             }
         }
+
+        return midpoints
     }
 
     /**
-     * Align segments using energy-only detection (fallback when Silero is unavailable).
-     * This is less accurate but ensures the app always works.
-     */
-    private fun alignSegmentsWithEnergy(
-        whisperSegments: List<GroqApiClient.Segment>,
-        pcmData: FloatArray
-    ): List<RefinedSegment> {
-        return whisperSegments.map { ws ->
-            refineWithEnergyOnly(ws, pcmData)
-        }
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // BOUNDARY REFINEMENT — Fine-grained energy onset/offset detection
-    // ══════════════════════════════════════════════════════════════════════
-
-    /**
-     * Refine the start boundary of a segment using fine-grained energy analysis.
+     * Find the midpoint of the silence gap in a region of audio.
      *
-     * Silero VAD gives ~32ms resolution. We refine to ~5ms by:
-     * 1. Taking a window around vadStartMs
-     * 2. Computing RMS energy per 5ms frame in that window
-     * 3. Finding the energy onset — the first frame where energy rises above threshold
-     *
-     * CRITICAL: We do NOT extend the segment far before VAD's start boundary.
-     * VAD's neural network is >95% accurate at detecting speech onset. Extending
-     * before VAD's start risks bleeding into the PREVIOUS dialogue's audio.
-     * Energy refinement is used ONLY for sub-chunk precision (within ~40ms of VAD).
-     *
-     * @param whisperStartMs Whisper's original start timestamp
-     * @param vadStartMs Silero VAD's start timestamp (~32ms resolution)
-     * @param pcmData Audio data for energy analysis
-     * @return Refined start timestamp in milliseconds
-     */
-    private fun refineStartBoundary(whisperStartMs: Long, vadStartMs: Long, pcmData: FloatArray): Long {
-        // Search window: tight around VAD's start boundary
-        // We only look slightly before VAD start for sub-chunk precision,
-        // NOT hundreds of ms before (which would bleed into previous dialogue)
-        val searchStartMs = (vadStartMs - MAX_START_EXTENSION_MS).coerceAtLeast(0L)
-        val audioDurationMs = pcmData.size.toLong() * 1000 / SAMPLE_RATE
-        val searchEndMs = (vadStartMs + 100L).coerceAtMost(audioDurationMs)  // Small look-ahead for onset confirmation
-
-        val energyOnset = findEnergyOnset(pcmData, vadStartMs, searchStartMs, searchEndMs)
-
-        // SMART BOUNDARY: Energy onset can refine VAD for sub-chunk precision,
-        // but must NOT extend far before VAD's start (which would bleed into previous dialogue).
-        // If energy onset is before VAD start, allow at most MAX_START_EXTENSION_MS before VAD.
-        // If energy onset is after VAD start, trust it (VAD chunk resolution is ~32ms).
-        val refinedStart = if (energyOnset < vadStartMs) {
-            // Energy found speech before VAD start — allow limited extension for sub-chunk precision
-            maxOf(energyOnset, vadStartMs - MAX_START_EXTENSION_MS)
-        } else {
-            // Energy found speech at or after VAD start — use energy for precision
-            energyOnset
-        }
-        return refinedStart.coerceAtLeast(0L)
-    }
-
-    /**
-     * Refine the end boundary of a segment using fine-grained energy analysis.
-     *
-     * CRITICAL: We do NOT extend the segment far beyond VAD's end boundary.
-     * VAD's neural network is >95% accurate at detecting speech offset. Extending
-     * beyond VAD's end risks bleeding into the NEXT dialogue's audio.
-     * Energy refinement is used ONLY for sub-chunk precision (within ~40ms of VAD).
-     *
-     * This is the #1 fix for dialogue bleed-through — the previous logic used
-     * maxOf(vadEndMs, energyOffset) which extended segments into the next dialogue.
-     *
-     * @param whisperEndMs Whisper's original end timestamp
-     * @param vadEndMs Silero VAD's end timestamp (~32ms resolution)
-     * @param pcmData Audio data for energy analysis
-     * @return Refined end timestamp in milliseconds
-     */
-    private fun refineEndBoundary(whisperEndMs: Long, vadEndMs: Long, pcmData: FloatArray): Long {
-        // Search window: tight around VAD's end boundary
-        val audioDurationMs = pcmData.size.toLong() * 1000 / SAMPLE_RATE
-        val searchStartMs = (vadEndMs - 100L).coerceAtLeast(0L)  // Small look-behind for offset confirmation
-        val searchEndMs = (vadEndMs + MAX_END_EXTENSION_MS).coerceAtMost(audioDurationMs)  // Limited look-ahead
-
-        val energyOffset = findEnergyOffset(pcmData, vadEndMs, searchStartMs, searchEndMs)
-
-        // SMART BOUNDARY: Energy offset can refine VAD for sub-chunk precision,
-        // but must NOT extend far beyond VAD's end (which would bleed into next dialogue).
-        // If energy offset is after VAD end, allow at most MAX_END_EXTENSION_MS past VAD.
-        // If energy offset is before VAD end, trust it (speech ended earlier than VAD chunk boundary).
-        val refinedEnd = if (energyOffset > vadEndMs) {
-            // Energy found speech after VAD end — allow limited extension for sub-chunk precision
-            minOf(energyOffset, vadEndMs + MAX_END_EXTENSION_MS)
-        } else {
-            // Energy found speech ended before VAD end — use energy for precision
-            energyOffset
-        }
-        return refinedEnd.coerceAtMost(audioDurationMs)
-    }
-
-    /**
-     * Refine boundaries using energy analysis only (no Silero VAD).
-     * Fallback for when Silero is unavailable.
-     */
-    private fun refineWithEnergyOnly(ws: GroqApiClient.Segment, pcmData: FloatArray): RefinedSegment {
-        val audioDurationMs = pcmData.size.toLong() * 1000 / SAMPLE_RATE
-        val searchStart = (ws.startMs - PRE_ROLL_MS).coerceAtLeast(0L)
-        val searchEnd = (ws.endMs + POST_ROLL_MS).coerceAtMost(audioDurationMs)
-
-        return RefinedSegment(
-            originalSegment = ws,
-            vadStartMs = findEnergyOnset(pcmData, ws.startMs, searchStart, minOf(ws.startMs + 200L, audioDurationMs)),
-            vadEndMs = findEnergyOffset(pcmData, ws.endMs, maxOf(ws.endMs - 200L, 0L), searchEnd),
-            confidence = 0.3f,
-            method = "energy_only"
-        )
-    }
-
-    /**
-     * Find the energy onset (speech start) in a time window.
-     *
-     * Uses 5ms frames for fine-grained analysis. The onset is the first frame
-     * where RMS energy exceeds a noise-adaptive threshold.
+     * Scans the region with RMS energy frames, finds the longest stretch
+     * of silence, and returns its midpoint. This is the "cut point" that
+     * the user described: find the gap between speech spikes, cut in the middle.
      *
      * @param pcmData Audio data
-     * @param refMs Reference timestamp (approximate speech start)
-     * @param searchStartMs Start of search window
-     * @param searchEndMs End of search window
-     * @return Onset timestamp in milliseconds
+     * @param searchStartMs Start of search region
+     * @param searchEndMs End of search region
+     * @param audioDurationMs Total audio duration
+     * @return Midpoint of the silence gap in ms, or null if no silence found
      */
-    private fun findEnergyOnset(
-        pcmData: FloatArray, refMs: Long, searchStartMs: Long, searchEndMs: Long
-    ): Long {
-        if (searchStartMs >= searchEndMs) return refMs
-
+    private fun findSilenceGapMidpoint(
+        pcmData: FloatArray,
+        searchStartMs: Long,
+        searchEndMs: Long,
+        audioDurationMs: Long
+    ): Long? {
         val startSample = (searchStartMs * SAMPLE_RATE / 1000).toInt()
         val endSample = (searchEndMs * SAMPLE_RATE / 1000).toInt().coerceAtMost(pcmData.size)
 
-        if (startSample >= endSample) return refMs
+        if (startSample >= endSample) return null
 
-        // Compute RMS energy per 5ms frame
-        val energies = mutableListOf<Pair<Long, Float>>()
+        // Compute RMS energy per frame
+        val energies = mutableListOf<Pair<Long, Float>>()  // (timeMs, rms)
         var pos = startSample
-        while (pos + FINE_FRAME_SIZE_SAMPLES <= endSample) {
+        while (pos + FRAME_SIZE_SAMPLES <= endSample) {
             var sumSq = 0.0
-            for (i in 0 until FINE_FRAME_SIZE_SAMPLES) {
+            for (i in 0 until FRAME_SIZE_SAMPLES) {
                 sumSq += pcmData[pos + i] * pcmData[pos + i]
             }
-            val rms = sqrt(sumSq / FINE_FRAME_SIZE_SAMPLES).toFloat()
+            val rms = sqrt(sumSq / FRAME_SIZE_SAMPLES).toFloat()
             val timeMs = pos.toLong() * 1000 / SAMPLE_RATE
             energies.add(Pair(timeMs, rms))
-            pos += FINE_FRAME_SIZE_SAMPLES / 2  // 50% overlap for better resolution
+            pos += FRAME_SIZE_SAMPLES / 2  // 50% overlap for better resolution
         }
 
-        if (energies.isEmpty()) return refMs
+        if (energies.isEmpty()) return null
 
-        // Adaptive threshold: noise floor from the quieter part of the window
+        // Adaptive threshold: separate speech from silence
         val sortedEnergies = energies.map { it.second }.sorted()
         val noiseFloorIdx = (sortedEnergies.size * 0.3).toInt().coerceIn(0, sortedEnergies.lastIndex)
         val noiseFloor = sortedEnergies[noiseFloorIdx]
         val threshold = max(noiseFloor * 3.0f, sortedEnergies.last() * 0.08f)
 
-        // Find first frame above threshold (searching forward)
+        // Find silence regions (consecutive frames below threshold)
+        val silenceGaps = mutableListOf<Pair<Long, Long>>()  // (startMs, endMs)
+        var gapStart: Long? = null
+
         for ((timeMs, energy) in energies) {
-            if (energy > threshold) {
-                return (timeMs - 5L).coerceAtLeast(0L)  // Slight padding before onset
+            if (energy <= threshold) {
+                // Silence frame
+                if (gapStart == null) {
+                    gapStart = timeMs
+                }
+            } else {
+                // Speech frame — close any open silence gap
+                if (gapStart != null) {
+                    val gapEnd = timeMs
+                    if (gapEnd - gapStart >= MIN_SILENCE_GAP_MS) {
+                        silenceGaps.add(Pair(gapStart, gapEnd))
+                    }
+                    gapStart = null
+                }
             }
         }
 
-        return refMs
+        // Close any remaining gap
+        if (gapStart != null) {
+            val gapEnd = energies.last().first + FRAME_SIZE_MS
+            if (gapEnd - gapStart >= MIN_SILENCE_GAP_MS) {
+                silenceGaps.add(Pair(gapStart, gapEnd))
+            }
+        }
+
+        if (silenceGaps.isEmpty()) return null
+
+        // Find the longest silence gap — that's most likely the boundary between dialogues
+        val longestGap = silenceGaps.maxByOrNull { it.second - it.first } ?: return null
+
+        // Return the midpoint of the longest silence gap
+        val midpoint = (longestGap.first + longestGap.second) / 2
+        return midpoint.coerceIn(0L, audioDurationMs)
     }
 
     /**
-     * Find the energy offset (speech end) in a time window.
-     *
-     * Uses 5ms frames for fine-grained analysis. The offset is the last frame
-     * where RMS energy exceeds a noise-adaptive threshold.
-     *
-     * @param pcmData Audio data
-     * @param refMs Reference timestamp (approximate speech end)
-     * @param searchStartMs Start of search window
-     * @param searchEndMs End of search window
-     * @return Offset timestamp in milliseconds
+     * Refine a single segment using energy onset/offset detection.
+     * Used when there's only one Whisper segment.
      */
-    private fun findEnergyOffset(
-        pcmData: FloatArray, refMs: Long, searchStartMs: Long, searchEndMs: Long
+    private fun refineSingleSegment(
+        seg: GroqApiClient.Segment,
+        pcmData: FloatArray,
+        audioDurationMs: Long
+    ): RefinedSegment {
+        return RefinedSegment(
+            originalSegment = seg,
+            vadStartMs = findSpeechOnset(pcmData, seg.startMs, audioDurationMs),
+            vadEndMs = findSpeechOffset(pcmData, seg.endMs, audioDurationMs),
+            confidence = 0.7f,
+            method = "energy_onset_offset"
+        )
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ENERGY ONSET / OFFSET — For first/last segment boundaries
+    // ══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Find where speech actually starts near Whisper's startMs.
+     * Scans backward from the reference point to find the energy onset.
+     */
+    private fun findSpeechOnset(
+        pcmData: FloatArray,
+        whisperStartMs: Long,
+        audioDurationMs: Long
     ): Long {
-        if (searchStartMs >= searchEndMs) return refMs
+        val searchStart = (whisperStartMs - SEARCH_PADDING_MS).coerceAtLeast(0L)
+        val searchEnd = (whisperStartMs + 200L).coerceAtMost(audioDurationMs)
 
-        val startSample = (searchStartMs * SAMPLE_RATE / 1000).toInt()
-        val endSample = (searchEndMs * SAMPLE_RATE / 1000).toInt().coerceAtMost(pcmData.size)
+        val startSample = (searchStart * SAMPLE_RATE / 1000).toInt()
+        val endSample = (searchEnd * SAMPLE_RATE / 1000).toInt().coerceAtMost(pcmData.size)
 
-        if (startSample >= endSample) return refMs
+        if (startSample >= endSample) return whisperStartMs
 
-        // Compute RMS energy per 5ms frame
+        // Compute RMS energy per 5ms frame for fine precision
         val energies = mutableListOf<Pair<Long, Float>>()
         var pos = startSample
         while (pos + FINE_FRAME_SIZE_SAMPLES <= endSample) {
@@ -529,10 +395,10 @@ class VadEngine @Inject constructor(
             val rms = sqrt(sumSq / FINE_FRAME_SIZE_SAMPLES).toFloat()
             val timeMs = pos.toLong() * 1000 / SAMPLE_RATE
             energies.add(Pair(timeMs, rms))
-            pos += FINE_FRAME_SIZE_SAMPLES / 2  // 50% overlap
+            pos += FINE_FRAME_SIZE_SAMPLES / 2
         }
 
-        if (energies.isEmpty()) return refMs
+        if (energies.isEmpty()) return whisperStartMs
 
         // Adaptive threshold
         val sortedEnergies = energies.map { it.second }.sorted()
@@ -540,14 +406,63 @@ class VadEngine @Inject constructor(
         val noiseFloor = sortedEnergies[noiseFloorIdx]
         val threshold = max(noiseFloor * 3.0f, sortedEnergies.last() * 0.08f)
 
-        // Find last frame above threshold (searching backward)
-        for (i in energies.lastIndex downTo 0) {
-            if (energies[i].second > threshold) {
-                return energies[i].first + 5L  // Slight padding after offset
+        // Find first frame above threshold (forward search from the quiet area)
+        for ((timeMs, energy) in energies) {
+            if (energy > threshold) {
+                return (timeMs - 5L).coerceAtLeast(0L)  // Small padding before onset
             }
         }
 
-        return refMs
+        return whisperStartMs
+    }
+
+    /**
+     * Find where speech actually ends near Whisper's endMs.
+     * Scans from the reference point backward to find the energy offset.
+     */
+    private fun findSpeechOffset(
+        pcmData: FloatArray,
+        whisperEndMs: Long,
+        audioDurationMs: Long
+    ): Long {
+        val searchStart = (whisperEndMs - 200L).coerceAtLeast(0L)
+        val searchEnd = (whisperEndMs + SEARCH_PADDING_MS).coerceAtMost(audioDurationMs)
+
+        val startSample = (searchStart * SAMPLE_RATE / 1000).toInt()
+        val endSample = (searchEnd * SAMPLE_RATE / 1000).toInt().coerceAtMost(pcmData.size)
+
+        if (startSample >= endSample) return whisperEndMs
+
+        // Compute RMS energy per 5ms frame
+        val energies = mutableListOf<Pair<Long, Float>>()
+        var pos = startSample
+        while (pos + FINE_FRAME_SIZE_SAMPLES <= endSample) {
+            var sumSq = 0.0
+            for (i in 0 until FINE_FRAME_SIZE_SAMPLES) {
+                sumSq += pcmData[pos + i] * pcmData[pos + i]
+            }
+            val rms = sqrt(sumSq / FINE_FRAME_SIZE_SAMPLES).toFloat()
+            val timeMs = pos.toLong() * 1000 / SAMPLE_RATE
+            energies.add(Pair(timeMs, rms))
+            pos += FINE_FRAME_SIZE_SAMPLES / 2
+        }
+
+        if (energies.isEmpty()) return whisperEndMs
+
+        // Adaptive threshold
+        val sortedEnergies = energies.map { it.second }.sorted()
+        val noiseFloorIdx = (sortedEnergies.size * 0.3).toInt().coerceIn(0, sortedEnergies.lastIndex)
+        val noiseFloor = sortedEnergies[noiseFloorIdx]
+        val threshold = max(noiseFloor * 3.0f, sortedEnergies.last() * 0.08f)
+
+        // Find last frame above threshold (backward search)
+        for (i in energies.lastIndex downTo 0) {
+            if (energies[i].second > threshold) {
+                return energies[i].first + 5L  // Small padding after offset
+            }
+        }
+
+        return whisperEndMs
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -669,7 +584,7 @@ class VadEngine @Inject constructor(
             }
 
             val downsampled = downsamplePcm(merged, decodedSampleRate, decodedChannels, SAMPLE_RATE, 1)
-            Timber.i("VAD: Decoded %d bytes PCM (%dHz %dch → %dHz mono)",
+            Timber.i("VAD: Decoded %d bytes PCM (%dHz %dch -> %dHz mono)",
                 downsampled.size, decodedSampleRate, decodedChannels, SAMPLE_RATE)
             return downsampled
 
@@ -802,59 +717,27 @@ class VadEngine @Inject constructor(
 
     /**
      * Post-process refined segments to ensure consistency:
-     * 1. Ensure minimum duration (fall back to Whisper if too short)
+     * 1. Ensure minimum duration
      * 2. Remove overlaps between consecutive segments
-     * 3. Enforce minimum gap between segments (critical for dialogue auto-loop)
-     * 4. Ensure endMs > startMs for all segments
-     *
-     * IMPORTANT: We do NOT clamp VAD boundaries to tight ranges around Whisper timestamps.
-     * The whole point of VAD is to CORRECT Whisper's errors — if we clamp too
-     * tightly, we prevent VAD from fixing the very problem it's designed to solve.
-     * Silero VAD is >95% accurate, so we trust its boundaries.
-     *
-     * The only clamping we do is:
-     * - Start can't be before Whisper start - 800ms (wide sanity bound)
-     * - End can't be after Whisper end + 800ms (wide sanity bound)
-     * - Enforce minimum gap between consecutive segments
+     * 3. Enforce minimum gap between segments (prevents bleed-through)
+     * 4. Ensure endMs > startMs
      */
     private fun postProcessRefinedSegments(segments: List<RefinedSegment>): List<RefinedSegment> {
         val result = segments.toMutableList()
 
-        // Step 1: Ensure sane boundaries (wide sanity bounds — trust the VAD)
+        // Step 1: If VAD made a segment too short, use Whisper's original timestamps
         for (i in result.indices) {
             val seg = result[i]
-            var startMs = seg.vadStartMs
-            var endMs = seg.vadEndMs
-
-            // If VAD made the segment too short, fall back to Whisper timestamps
-            if (endMs - startMs < MIN_SPEECH_DURATION_MS) {
-                startMs = minOf(startMs, seg.originalSegment.startMs)
-                endMs = maxOf(endMs, seg.originalSegment.endMs)
+            if (seg.vadEndMs - seg.vadStartMs < MIN_SPEECH_DURATION_MS) {
+                result[i] = seg.copy(
+                    vadStartMs = min(seg.vadStartMs, seg.originalSegment.startMs),
+                    vadEndMs = max(seg.vadEndMs, seg.originalSegment.endMs)
+                )
             }
-
-            // Sanity clamping — wide bounds, not restrictive
-            // Trust Silero VAD: it's >95% accurate. Only clamp to prevent
-            // obviously impossible values.
-            startMs = startMs.coerceAtLeast(
-                seg.originalSegment.startMs - PRE_ROLL_MS
-            )
-            endMs = endMs.coerceAtMost(
-                seg.originalSegment.endMs + POST_ROLL_MS
-            )
-
-            result[i] = seg.copy(vadStartMs = startMs, vadEndMs = endMs)
         }
 
-        // Step 2: Remove overlaps and enforce minimum gap between consecutive segments
-        // This is CRITICAL for dialogue auto-loop — any overlap or tight gap causes
-        // bleed-through where words from the next dialogue are audible.
-        //
-        // Strategy: Process pairs from left to right. If a segment's end overlaps
-        // or is too close to the next segment's start, we prefer to TRIM the end
-        // of the earlier segment rather than push the start of the later one.
-        // Rationale: The END of speech is less critical than the START — a few ms
-        // of silence trimmed from the end is imperceptible, but cutting the start
-        // of the next dialogue loses audible speech.
+        // Step 2: Remove overlaps and enforce minimum gap
+        // Prefer trimming the END of the earlier segment (less disruptive than cutting the start)
         for (i in 1 until result.size) {
             val prev = result[i - 1]
             val curr = result[i]
@@ -862,15 +745,12 @@ class VadEngine @Inject constructor(
             val requiredEnd = curr.vadStartMs - INTER_SEGMENT_GAP_MS
 
             if (prev.vadEndMs > requiredEnd) {
-                // Overlap or insufficient gap detected
-                // Prefer trimming the previous segment's end to create space
-                val trimmedEnd = minOf(prev.vadEndMs, requiredEnd)
+                val trimmedEnd = min(prev.vadEndMs, requiredEnd)
 
-                // Only trim if we don't make the segment too short
                 if (trimmedEnd - prev.vadStartMs >= MIN_SPEECH_DURATION_MS) {
                     result[i - 1] = prev.copy(vadEndMs = trimmedEnd)
                 } else {
-                    // Can't trim previous without making it too short — push current start later
+                    // Can't trim previous — push current start later
                     val pushedStart = prev.vadEndMs + INTER_SEGMENT_GAP_MS
                     result[i] = curr.copy(vadStartMs = pushedStart)
                 }

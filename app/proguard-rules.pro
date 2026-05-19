@@ -105,12 +105,5 @@
 -dontwarn sun.misc.**
 -keep class com.google.gson.** { *; }
 
-# ── PyTorch Mobile (Silero VAD neural network) ────────────────────────
-# PyTorch Mobile uses JNI and native code. Keep its core classes.
--keep class org.pytorch.** { *; }
--dontwarn org.pytorch.**
-
-# Silero VAD model data classes — used for speech detection
--keepclassmembers class com.looplingo.horizon.vad.SileroVadDetector$VadSegment { *; }
--keepclassmembers class com.looplingo.horizon.vad.VadEngine$SpeechSegment { *; }
+# ── VAD Engine (silence midpoint detection — no neural network) ─────────
 -keepclassmembers class com.looplingo.horizon.vad.VadEngine$RefinedSegment { *; }
