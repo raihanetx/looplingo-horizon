@@ -153,3 +153,42 @@ Stage Summary:
 - Speed: Toggle button instead of chip group
 - Dialogue loop: Clean cut + 1s pause + repeat (user's Bangla request)
 - Build triggered on GitHub Actions
+---
+Task ID: 1
+Agent: Main Agent
+Task: Implement VAD engine for precise speech boundary detection
+
+Work Log:
+- Explored full codebase structure: GroqApiClient, AudioPlaybackService, TranscriptRepository, etc.
+- Identified that Whisper timestamps are approximate (endMs often bleeds into next dialogue)
+- Attempted to download Silero VAD ONNX model (failed - GitHub LFS not accessible)
+- Implemented custom multi-feature VAD engine (VadEngine.kt) with:
+  - Short-Time Energy (STE) per 10ms frame
+  - Speech Band Energy Ratio (80-4000Hz band analysis)
+  - Zero-Crossing Rate (ZCR)
+  - Spectral Flatness via Cooley-Tukey FFT
+  - Hysteresis thresholding (prevents boundary jitter)
+  - Fine-grained 5ms energy onset/offset detection
+  - Audio decoding via MediaCodec + WAV fallback
+  - Smart alignment algorithm matching Whisper segments to VAD segments
+  - Post-processing: no overlaps, minimum duration, gap enforcement
+- Integrated VAD into GroqApiClient.transcribeAudio() at all return points
+- Added vadStartMs/vadEndMs columns to TranscriptionEntity
+- Created Room migration v8→v9
+- Updated toSubtitleCue to prefer VAD timestamps when available
+- Updated TranscriptRepository.saveTranscriptions to accept VAD data
+- Reduced CUE_BOUNDARY_GAP_MS from 150ms to 30ms (VAD provides precise boundaries)
+- Updated calculateSafeEndMs documentation for VAD awareness
+- Version bumped to 5.0.0 (versionCode 35)
+- Pushed to GitHub, CI/CD triggered
+
+Stage Summary:
+- Created: app/src/main/java/com/looplingo/horizon/vad/VadEngine.kt (~800 lines)
+- Modified: GroqApiClient.kt (VAD integration at 7 return points)
+- Modified: TranscriptionEntity.kt (vadStartMs/vadEndMs columns)
+- Modified: AppDatabase.kt (version 9)
+- Modified: DatabaseModule.kt (migration v8→v9)
+- Modified: TranscriptRepository.kt (VAD timestamp preference + saveTranscriptions)
+- Modified: AudioPlaybackService.kt (CUE_BOUNDARY_GAP_MS 150→30ms)
+- Modified: build.gradle (version 5.0.0)
+- Modified: release.yml (v5.0.0 release notes)
