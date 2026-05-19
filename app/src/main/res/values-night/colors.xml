@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Night-qualified semantic color aliases — point to the dark palette -->
+    <!-- ══════════════════════════════════════════════════════════════════════
+         Night-qualified semantic color aliases — OLED-optimized dark palette
+         Pure black backgrounds, very dark surface grays for depth.
+         ══════════════════════════════════════════════════════════════════════ -->
 
     <color name="colorPrimary">@color/md_theme_dark_primary</color>
     <color name="colorOnPrimary">@color/md_theme_dark_onPrimary</color>
@@ -22,20 +25,38 @@
     <color name="colorErrorContainer">@color/md_theme_dark_errorContainer</color>
     <color name="colorOnErrorContainer">@color/md_theme_dark_onErrorContainer</color>
 
-    <color name="colorBackground">@color/md_theme_dark_background</color>
-    <color name="colorOnBackground">@color/md_theme_dark_onBackground</color>
-    <color name="colorSurface">@color/md_theme_dark_surface</color>
-    <color name="colorOnSurface">@color/md_theme_dark_onSurface</color>
-    <color name="colorSurfaceVariant">@color/md_theme_dark_surfaceVariant</color>
-    <color name="colorOnSurfaceVariant">@color/md_theme_dark_onSurfaceVariant</color>
-    <color name="colorOutline">@color/md_theme_dark_outline</color>
-    <color name="colorOutlineVariant">@color/md_theme_dark_outlineVariant</color>
-    <color name="colorSurfaceContainerLowest">@color/md_theme_dark_surfaceContainerLowest</color>
-    <color name="colorSurfaceContainerLow">@color/md_theme_dark_surfaceContainerLow</color>
-    <color name="colorSurfaceContainer">@color/md_theme_dark_surfaceContainer</color>
-    <color name="colorSurfaceContainerHigh">@color/md_theme_dark_surfaceContainerHigh</color>
-    <color name="colorSurfaceContainerHighest">@color/md_theme_dark_surfaceContainerHighest</color>
+    <!-- OLED-friendly: pure black background -->
+    <color name="colorBackground">#000000</color>
+    <color name="colorOnBackground">#E2E1EA</color>
+    <color name="colorSurface">#000000</color>
+    <color name="colorOnSurface">#C6C5D0</color>
+    <color name="colorSurfaceVariant">#1A1B21</color>
+    <color name="colorOnSurfaceVariant">#C6C5D0</color>
+    <color name="colorOutline">#908F9A</color>
+    <color name="colorOutlineVariant">#2A2B31</color>
+
+    <!-- Very dark surface containers for layered depth -->
+    <color name="colorSurfaceContainerLowest">#000000</color>
+    <color name="colorSurfaceContainerLow">#0A0A0F</color>
+    <color name="colorSurfaceContainer">#111116</color>
+    <color name="colorSurfaceContainerHigh">#1A1B21</color>
+    <color name="colorSurfaceContainerHighest">#22232A</color>
+
     <color name="colorInverseSurface">@color/md_theme_dark_inverseSurface</color>
     <color name="colorInverseOnSurface">@color/md_theme_dark_inverseOnSurface</color>
     <color name="colorInversePrimary">@color/md_theme_dark_inversePrimary</color>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         NEW SEMANTIC COLORS — OLED dark overrides
+         ══════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Hero card gradient — darker, richer in dark mode -->
+    <color name="colorGradientStart">@color/colorPrimaryContainer</color>
+    <color name="colorGradientEnd">#8A273C94</color>
+
+    <!-- Bottom player bar — very dark surface -->
+    <color name="colorPlayerBar">#0D0E13</color>
+
+    <!-- Active dialogue highlight — teal glow in dark -->
+    <color name="colorActiveIndicator">#0A2E28</color>
 </resources>

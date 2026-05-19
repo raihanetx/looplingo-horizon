@@ -92,6 +92,20 @@
         <item name="strokeWidth">1dp</item>
     </style>
 
+    <!-- Hero card — large radius, gradient background, premium feel -->
+    <style name="Widget.Horizon.CardView.Hero" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardCornerRadius">@dimen/hero_card_corner_radius</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardBackgroundColor">@color/colorPrimaryContainer</item>
+    </style>
+
+    <!-- Glass card — frosted glass effect, medium radius -->
+    <style name="Widget.Horizon.CardView.Glass" parent="Widget.Material3.CardView.Filled">
+        <item name="cardCornerRadius">@dimen/glass_card_corner_radius</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardBackgroundColor">@color/colorSurfaceContainer</item>
+    </style>
+
     <!-- ══════════════════════════════════════════════════════════════════════
          BUTTON STYLES
          ══════════════════════════════════════════════════════════════════════ -->
@@ -117,6 +131,17 @@
     <style name="Widget.Horizon.Button.Icon" parent="Widget.Material3.Button.IconButton">
         <item name="android:minWidth">@dimen/touch_target_min</item>
         <item name="android:minHeight">@dimen/touch_target_min</item>
+    </style>
+
+    <!-- Transport button — circular, tonal, for playback controls -->
+    <style name="Widget.Horizon.Button.Transport" parent="Widget.Material3.Button.IconButton">
+        <item name="android:minWidth">@dimen/transport_button_size</item>
+        <item name="android:minHeight">@dimen/transport_button_size</item>
+        <item name="android:width">@dimen/transport_button_size</item>
+        <item name="android:height">@dimen/transport_button_size</item>
+        <item name="android:background">@drawable/bg_transport_button</item>
+        <item name="iconTint">@color/colorOnSurface</item>
+        <item name="iconSize">24dp</item>
     </style>
 
     <!-- ══════════════════════════════════════════════════════════════════════
@@ -181,6 +206,32 @@
         <item name="android:textAllCaps">true</item>
         <item name="android:paddingTop">@dimen/space_lg</item>
         <item name="android:paddingBottom">@dimen/space_sm</item>
+    </style>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         SLIDER — Player seek slider
+         ══════════════════════════════════════════════════════════════════════ -->
+
+    <style name="Widget.Horizon.Slider" parent="Widget.Material3.Slider">
+        <item name="thumbColor">@color/colorPrimary</item>
+        <item name="trackColorActive">@color/colorPrimary</item>
+        <item name="trackColorInactive">@color/colorSurfaceVariant</item>
+        <item name="haloColor">@color/colorPrimaryContainer</item>
+        <item name="haloRadius">16dp</item>
+        <item name="thumbElevation">2dp</item>
+    </style>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         CHIP — Selectable dialogue line
+         ══════════════════════════════════════════════════════════════════════ -->
+
+    <style name="Widget.Horizon.Chip.Selectable" parent="Widget.Material3.Chip.Input">
+        <item name="chipBackgroundColor">@color/colorSurfaceContainer</item>
+        <item name="chipStrokeColor">@color/colorOutlineVariant</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="chipCornerRadius">@dimen/dialogue_item_corner_radius</item>
+        <item name="android:textAppearance">@style/TextAppearance.Horizon.BodyMedium</item>
+        <item name="android:textColor">@color/colorOnSurface</item>
     </style>
 
     <!-- ══════════════════════════════════════════════════════════════════════

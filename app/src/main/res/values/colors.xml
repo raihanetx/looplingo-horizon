@@ -138,6 +138,20 @@
     <color name="colorInverseOnSurface">@color/md_theme_light_inverseOnSurface</color>
     <color name="colorInversePrimary">@color/md_theme_light_inversePrimary</color>
 
+    <!-- ══════════════════════════════════════════════════════════════════════
+         NEW SEMANTIC COLORS — Horizon Loop premium UI
+         ══════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Hero card gradient (top → bottom) -->
+    <color name="colorGradientStart">@color/colorPrimaryContainer</color>
+    <color name="colorGradientEnd">#8A3F51B5</color> <!-- colorPrimary with ~54% alpha -->
+
+    <!-- Bottom player bar surface -->
+    <color name="colorPlayerBar">@color/colorSurfaceContainerLow</color>
+
+    <!-- Active dialogue item highlight -->
+    <color name="colorActiveIndicator">@color/colorTertiaryContainer</color>
+
     <!-- Utility -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>

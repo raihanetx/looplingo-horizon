@@ -21,18 +21,20 @@
             app:title="@string/app_name"
             app:titleTextAppearance="@style/TextAppearance.Horizon.TitleLarge"
             app:titleTextColor="@color/colorOnSurface"
+            app:subtitleTextAppearance="@style/TextAppearance.Horizon.BodySmall"
+            app:subtitleTextColor="@color/colorOnSurfaceVariant"
             app:menu="@menu/menu_main" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Main content area with search + mini player + video list -->
+    <!-- Main content area with search + video list -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <!-- Search bar -->
+        <!-- Search bar — rounded pill -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/card_search"
             style="@style/Widget.Horizon.CardView.Filled"
@@ -52,8 +54,8 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingHorizontal="@dimen/space_md"
-                android:paddingVertical="@dimen/space_xs">
+                android:paddingHorizontal="@dimen/space_lg"
+                android:paddingVertical="@dimen/space_sm">
 
                 <ImageView
                     android:layout_width="24dp"
@@ -91,7 +93,7 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Stats bar -->
+        <!-- Stats bar with chip group -->
         <LinearLayout
             android:id="@+id/layout_stats_bar"
             android:layout_width="match_parent"
@@ -119,14 +121,6 @@
 
         </LinearLayout>
 
-        <!-- Mini Player — only visible when audio is playing -->
-        <include
-            android:id="@+id/mini_player"
-            layout="@layout/mini_player"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:visibility="gone" />
-
         <!-- Pull-to-refresh wrapper -->
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
             android:id="@+id/swipe_refresh"
@@ -146,6 +140,15 @@
         </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     </LinearLayout>
+
+    <!-- Mini Player — fixed at bottom, like Spotify -->
+    <include
+        android:id="@+id/mini_player"
+        layout="@layout/mini_player"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:visibility="gone" />
 
     <!-- Loading indicator -->
     <ProgressBar

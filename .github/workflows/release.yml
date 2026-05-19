@@ -93,14 +93,17 @@ jobs:
             Built on ${{ steps.version.outputs.date }}
             Version code: ${{ steps.version.outputs.code }}
 
-            What's new in v5.3.0:
-            - VAD ENGINE v3.0: Replaced Silero VAD neural network with simple silence midpoint detection
-            - Removed PyTorch Mobile dependency (~7-12MB smaller APK)
-            - Removed 2MB Silero VAD model file
-            - New algorithm: finds silence gaps between speech segments, places boundary at midpoint
-            - Zero extra RAM usage, minimal CPU, same accuracy for clean language learning audio
-            - Energy onset/offset detection for first/last segment boundaries
-            - Zero bleed-through: dialogue loops cut precisely at silence gaps
+            What's new in v5.4.0:
+            - PREMIUM UI REDESIGN: Modern, polished visual design
+            - Now Playing hero card with gradient background
+            - Glass-effect cards for Loop Controls and AI Subtitles
+            - Circular transport control buttons (play, skip, rewind)
+            - Mini player moved to bottom (Spotify-style)
+            - OLED-friendly dark mode (pure blacks)
+            - Active dialogue highlighting with teal accent
+            - Translation text with accent line indicator
+            - Larger touch targets, better spacing, rounded corners
+            - 5 new drawable resources for premium visual elements
 
             Download the APK below
           files: |

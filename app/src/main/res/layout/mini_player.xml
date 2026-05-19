@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Mini Player — compact bottom bar (Spotify/YouTube Music style)
-     Shows at the top of the main screen when audio is playing.
+<!-- Mini Player — Premium bottom bar (Spotify/YouTube Music style)
+     Fixed at the bottom of the main screen when audio is playing.
      Tap to expand to full player (navigate to PlaybackSettings). -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/mini_player_card"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginHorizontal="@dimen/space_sm"
-    android:layout_marginVertical="@dimen/space_xs"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp"
-    app:cardBackgroundColor="@color/colorSurfaceContainerLow"
+    android:layout_height="@dimen/mini_player_height"
+    android:layout_marginHorizontal="0dp"
+    android:layout_marginVertical="0dp"
+    app:cardCornerRadius="0dp"
+    app:cardElevation="8dp"
+    app:cardBackgroundColor="@color/colorPlayerBar"
     app:strokeColor="@color/colorOutlineVariant"
     app:strokeWidth="0dp"
     app:rippleColor="@color/colorPrimary"
@@ -20,15 +20,15 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- Thin progress line at top -->
+        <!-- Thicker progress line at top (3dp) -->
         <ProgressBar
             android:id="@+id/progress_mini_bar"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="2dp"
+            android:layout_height="3dp"
             android:max="1000"
             android:progress="0"
             android:progressTint="@color/colorPrimary"
@@ -38,27 +38,38 @@
         <!-- Content row: icon + title + time + play/pause + close -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="@dimen/space_md"
-            android:paddingVertical="@dimen/space_sm">
+            android:paddingHorizontal="@dimen/space_lg"
+            android:paddingVertical="@dimen/space_xs">
 
-            <!-- Audio track icon -->
-            <ImageView
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:contentDescription="@string/content_desc_video_icon"
-                android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_audio_track"
-                app:tint="@color/colorPrimary" />
+            <!-- Audio track icon — slightly larger for premium feel -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                app:cardCornerRadius="@dimen/glass_card_corner_radius"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/colorPrimaryContainer">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/content_desc_video_icon"
+                    android:scaleType="centerInside"
+                    app:srcCompat="@drawable/ic_audio_track"
+                    app:tint="@color/colorOnPrimaryContainer" />
+
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- Title + time -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="@dimen/space_sm"
+                android:layout_marginStart="@dimen/space_md"
                 android:orientation="vertical">
 
                 <TextView
@@ -93,13 +104,14 @@
                 android:textColor="@color/colorOnPrimary"
                 android:visibility="gone" />
 
-            <!-- Play/Pause -->
+            <!-- Play/Pause — 44dp touch target -->
             <ImageView
                 android:id="@+id/iv_mini_play_pause"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/content_desc_play_pause"
+                android:padding="@dimen/space_sm"
                 android:scaleType="centerInside"
                 app:srcCompat="@drawable/ic_pause"
                 app:tint="@color/colorOnSurface" />
@@ -107,11 +119,12 @@
             <!-- Close/Stop -->
             <ImageView
                 android:id="@+id/iv_mini_close"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:layout_marginStart="@dimen/space_xs"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/content_desc_stop_playback"
+                android:padding="@dimen/space_xs"
                 android:scaleType="centerInside"
                 app:srcCompat="@drawable/ic_close"
                 app:tint="@color/colorOnSurfaceVariant" />

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Selected / active state -->
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/colorActiveIndicator" />
+            <corners android:radius="@dimen/dialogue_item_corner_radius" />
+        </shape>
+    </item>
+    <!-- Selected state (isSelected) -->
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/colorActiveIndicator" />
+            <corners android:radius="@dimen/dialogue_item_corner_radius" />
+        </shape>
+    </item>
+    <!-- Default state -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/colorSurfaceContainerLow" />
+            <corners android:radius="@dimen/dialogue_item_corner_radius" />
+        </shape>
+    </item>
+</selector>

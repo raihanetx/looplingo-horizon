@@ -43,6 +43,25 @@
     <dimen name="notification_small_icon_size">24dp</dimen>
 
     <!-- ══════════════════════════════════════════════════════════════════════
+         NEW HORIZON PREMIUM DIMENSIONS
+         ══════════════════════════════════════════════════════════════════════ -->
+    <!-- Hero card -->
+    <dimen name="hero_card_corner_radius">24dp</dimen>
+
+    <!-- Glass/frosted card -->
+    <dimen name="glass_card_corner_radius">16dp</dimen>
+
+    <!-- Transport controls -->
+    <dimen name="transport_button_size">52dp</dimen>
+    <dimen name="play_button_size">72dp</dimen>
+
+    <!-- Mini player -->
+    <dimen name="mini_player_height">64dp</dimen>
+
+    <!-- Dialogue items -->
+    <dimen name="dialogue_item_corner_radius">12dp</dimen>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
          TYPOGRAPHY — Type scale (sp)
          ══════════════════════════════════════════════════════════════════════ -->
     <dimen name="text_display_large">57sp</dimen>

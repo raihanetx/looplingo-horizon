@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    A single subtitle cue item in the transcript list.
+    A single subtitle cue item in the transcript list (v2 Premium).
     Shows a checkbox (for selective auto-loop), timestamp on the left,
-    and the text on the right. The "active" state highlights the current
-    line being spoken.
+    and the text on the right. Active state highlights with
+    colorActiveIndicator background. Translation has an accent border.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -13,11 +13,11 @@
     android:orientation="horizontal"
     android:paddingVertical="@dimen/space_sm"
     android:paddingHorizontal="@dimen/space_sm"
+    android:layout_marginVertical="@dimen/space_xs"
     android:gravity="center_vertical"
-    android:background="@color/colorSurfaceContainerLow"
+    android:background="@drawable/bg_dialogue_item"
     android:clickable="true"
-    android:focusable="true"
-    android:backgroundTint="@color/colorSurfaceContainerLow">
+    android:focusable="true">
 
     <!-- Checkbox for selective dialogue loop -->
     <CheckBox
@@ -29,26 +29,28 @@
         android:minHeight="32dp"
         android:contentDescription="@string/content_desc_select_dialogue" />
 
-    <!-- Timestamp -->
+    <!-- Timestamp — mono-spaced, with minimum width -->
     <TextView
         android:id="@+id/tv_cue_timestamp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
-        android:layout_marginStart="4dp"
+        android:layout_marginStart="@dimen/space_sm"
         android:fontFamily="sans-serif-medium"
         android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
         android:textColor="@color/colorOnSurfaceVariant"
         android:minWidth="48dp"
         tools:text="1:23" />
 
-    <!-- Text container: original + translation -->
+    <!-- Text container: original + translation with accent border -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:layout_marginStart="@dimen/space_sm"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:paddingHorizontal="@dimen/space_sm"
+        android:paddingVertical="@dimen/space_xs">
 
         <!-- Original text -->
         <TextView
@@ -59,17 +61,32 @@
             android:textColor="@color/colorOnSurface"
             tools:text="Hello, how are you today?" />
 
-        <!-- Translation text (visible only when translation exists) -->
-        <TextView
-            android:id="@+id/tv_cue_translation"
+        <!-- Translation text with accent line/border on the left -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
-            android:textColor="@color/colorPrimary"
-            android:visibility="gone"
-            tools:text="→ হ্যালো, আজ কেমন আছেন?"
-            tools:visibility="visible" />
+            android:layout_marginTop="@dimen/space_xs"
+            android:orientation="horizontal">
+
+            <!-- Accent line — small vertical bar in primary color -->
+            <View
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:background="@color/colorPrimary"
+                android:layout_marginEnd="@dimen/space_sm" />
+
+            <TextView
+                android:id="@+id/tv_cue_translation"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                android:textColor="@color/colorPrimary"
+                android:visibility="gone"
+                tools:text="→ হ্যালো, আজ কেমন আছেন?"
+                tools:visibility="visible" />
+
+        </LinearLayout>
 
     </LinearLayout>
 
