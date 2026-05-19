@@ -74,16 +74,24 @@ class VadEngine @Inject constructor(
         private const val CODEC_TIMEOUT_US = 10_000L
 
         // ── Analysis Window for boundary refinement ──────────────────────
-        private const val PRE_ROLL_MS = 500L        // Search 500ms before Whisper's startMs
-        private const val POST_ROLL_MS = 500L       // Search 500ms after Whisper's endMs
+        private const val PRE_ROLL_MS = 800L        // Search 800ms before Whisper's startMs (wider for larger Whisper errors)
+        private const val POST_ROLL_MS = 800L       // Search 800ms after Whisper's endMs
 
         // ── Post-Processing ───────────────────────────────────────────────
         private const val MIN_SPEECH_DURATION_MS = 50L
-        private const val INTER_SEGMENT_GAP_MS = 30L
+        private const val INTER_SEGMENT_GAP_MS = 80L   // Minimum gap between consecutive segments — prevents bleed-through
 
         // ── Energy Boundary Refinement ────────────────────────────────────
         private const val FINE_FRAME_SIZE_MS = 5     // 5ms frames for sub-chunk precision
         private const val FINE_FRAME_SIZE_SAMPLES = SAMPLE_RATE * FINE_FRAME_SIZE_MS / 1000  // 80 samples
+
+        // ── Boundary Refinement Constraints ──────────────────────────────
+        // Energy onset/offset can refine VAD boundaries for sub-chunk precision,
+        // but must NOT extend segments beyond VAD's neural network boundaries
+        // by more than this margin. VAD is >95% accurate; extending beyond
+        // it risks bleeding into adjacent dialogues.
+        private const val MAX_START_EXTENSION_MS = 40L   // Max extension before VAD start
+        private const val MAX_END_EXTENSION_MS = 40L     // Max extension after VAD end
     }
 
     /**
@@ -340,9 +348,14 @@ class VadEngine @Inject constructor(
      * Refine the start boundary of a segment using fine-grained energy analysis.
      *
      * Silero VAD gives ~32ms resolution. We refine to ~5ms by:
-     * 1. Taking a window from (vadStartMs - margin) to (vadStartMs + margin)
+     * 1. Taking a window around vadStartMs
      * 2. Computing RMS energy per 5ms frame in that window
      * 3. Finding the energy onset — the first frame where energy rises above threshold
+     *
+     * CRITICAL: We do NOT extend the segment far before VAD's start boundary.
+     * VAD's neural network is >95% accurate at detecting speech onset. Extending
+     * before VAD's start risks bleeding into the PREVIOUS dialogue's audio.
+     * Energy refinement is used ONLY for sub-chunk precision (within ~40ms of VAD).
      *
      * @param whisperStartMs Whisper's original start timestamp
      * @param vadStartMs Silero VAD's start timestamp (~32ms resolution)
@@ -350,24 +363,39 @@ class VadEngine @Inject constructor(
      * @return Refined start timestamp in milliseconds
      */
     private fun refineStartBoundary(whisperStartMs: Long, vadStartMs: Long, pcmData: FloatArray): Long {
-        // Search window: from Silero's start - 200ms to Silero's start + 200ms
-        // This accounts for Silero's ~32ms chunk resolution
-        val searchStartMs = (vadStartMs - 200L).coerceAtLeast(0L)
+        // Search window: tight around VAD's start boundary
+        // We only look slightly before VAD start for sub-chunk precision,
+        // NOT hundreds of ms before (which would bleed into previous dialogue)
+        val searchStartMs = (vadStartMs - MAX_START_EXTENSION_MS).coerceAtLeast(0L)
         val audioDurationMs = pcmData.size.toLong() * 1000 / SAMPLE_RATE
-        val searchEndMs = (vadStartMs + 200L).coerceAtMost(audioDurationMs)
+        val searchEndMs = (vadStartMs + 100L).coerceAtMost(audioDurationMs)  // Small look-ahead for onset confirmation
 
         val energyOnset = findEnergyOnset(pcmData, vadStartMs, searchStartMs, searchEndMs)
 
-        // Use the earlier of Silero's start and energy onset
-        // Don't clamp too aggressively — trust Silero VAD's neural network
-        val refinedStart = minOf(vadStartMs, energyOnset)
-        return refinedStart.coerceAtLeast(0L)  // Just don't go before start of audio
+        // SMART BOUNDARY: Energy onset can refine VAD for sub-chunk precision,
+        // but must NOT extend far before VAD's start (which would bleed into previous dialogue).
+        // If energy onset is before VAD start, allow at most MAX_START_EXTENSION_MS before VAD.
+        // If energy onset is after VAD start, trust it (VAD chunk resolution is ~32ms).
+        val refinedStart = if (energyOnset < vadStartMs) {
+            // Energy found speech before VAD start — allow limited extension for sub-chunk precision
+            maxOf(energyOnset, vadStartMs - MAX_START_EXTENSION_MS)
+        } else {
+            // Energy found speech at or after VAD start — use energy for precision
+            energyOnset
+        }
+        return refinedStart.coerceAtLeast(0L)
     }
 
     /**
      * Refine the end boundary of a segment using fine-grained energy analysis.
      *
-     * Same approach as start refinement, but searching backward from the end.
+     * CRITICAL: We do NOT extend the segment far beyond VAD's end boundary.
+     * VAD's neural network is >95% accurate at detecting speech offset. Extending
+     * beyond VAD's end risks bleeding into the NEXT dialogue's audio.
+     * Energy refinement is used ONLY for sub-chunk precision (within ~40ms of VAD).
+     *
+     * This is the #1 fix for dialogue bleed-through — the previous logic used
+     * maxOf(vadEndMs, energyOffset) which extended segments into the next dialogue.
      *
      * @param whisperEndMs Whisper's original end timestamp
      * @param vadEndMs Silero VAD's end timestamp (~32ms resolution)
@@ -375,17 +403,25 @@ class VadEngine @Inject constructor(
      * @return Refined end timestamp in milliseconds
      */
     private fun refineEndBoundary(whisperEndMs: Long, vadEndMs: Long, pcmData: FloatArray): Long {
-        // Search window: from Silero's end - 200ms to Silero's end + 200ms
+        // Search window: tight around VAD's end boundary
         val audioDurationMs = pcmData.size.toLong() * 1000 / SAMPLE_RATE
-        val searchStartMs = (vadEndMs - 200L).coerceAtLeast(0L)
-        val searchEndMs = (vadEndMs + 200L).coerceAtMost(audioDurationMs)
+        val searchStartMs = (vadEndMs - 100L).coerceAtLeast(0L)  // Small look-behind for offset confirmation
+        val searchEndMs = (vadEndMs + MAX_END_EXTENSION_MS).coerceAtMost(audioDurationMs)  // Limited look-ahead
 
         val energyOffset = findEnergyOffset(pcmData, vadEndMs, searchStartMs, searchEndMs)
 
-        // Use the later of Silero's end and energy offset
-        // Don't clamp too aggressively — trust Silero VAD's neural network
-        val refinedEnd = maxOf(vadEndMs, energyOffset)
-        return refinedEnd.coerceAtMost(audioDurationMs)  // Just don't go past end of audio
+        // SMART BOUNDARY: Energy offset can refine VAD for sub-chunk precision,
+        // but must NOT extend far beyond VAD's end (which would bleed into next dialogue).
+        // If energy offset is after VAD end, allow at most MAX_END_EXTENSION_MS past VAD.
+        // If energy offset is before VAD end, trust it (speech ended earlier than VAD chunk boundary).
+        val refinedEnd = if (energyOffset > vadEndMs) {
+            // Energy found speech after VAD end — allow limited extension for sub-chunk precision
+            minOf(energyOffset, vadEndMs + MAX_END_EXTENSION_MS)
+        } else {
+            // Energy found speech ended before VAD end — use energy for precision
+            energyOffset
+        }
+        return refinedEnd.coerceAtMost(audioDurationMs)
     }
 
     /**
@@ -768,18 +804,18 @@ class VadEngine @Inject constructor(
      * Post-process refined segments to ensure consistency:
      * 1. Ensure minimum duration (fall back to Whisper if too short)
      * 2. Remove overlaps between consecutive segments
-     * 3. Ensure endMs > startMs for all segments
+     * 3. Enforce minimum gap between segments (critical for dialogue auto-loop)
+     * 4. Ensure endMs > startMs for all segments
      *
-     * IMPORTANT: We do NOT clamp VAD boundaries to ±200ms of Whisper timestamps.
+     * IMPORTANT: We do NOT clamp VAD boundaries to tight ranges around Whisper timestamps.
      * The whole point of VAD is to CORRECT Whisper's errors — if we clamp too
      * tightly, we prevent VAD from fixing the very problem it's designed to solve.
      * Silero VAD is >95% accurate, so we trust its boundaries.
      *
      * The only clamping we do is:
-     * - Start can't be before Whisper start - 500ms (sanity bound)
-     * - End can't be after Whisper end + 500ms (sanity bound)
-     * - Start can't be after the end of the audio
-     * - End can't be before the start of the audio
+     * - Start can't be before Whisper start - 800ms (wide sanity bound)
+     * - End can't be after Whisper end + 800ms (wide sanity bound)
+     * - Enforce minimum gap between consecutive segments
      */
     private fun postProcessRefinedSegments(segments: List<RefinedSegment>): List<RefinedSegment> {
         val result = segments.toMutableList()
@@ -798,7 +834,7 @@ class VadEngine @Inject constructor(
 
             // Sanity clamping — wide bounds, not restrictive
             // Trust Silero VAD: it's >95% accurate. Only clamp to prevent
-            // obviously impossible values (e.g., start time in the wrong century).
+            // obviously impossible values.
             startMs = startMs.coerceAtLeast(
                 seg.originalSegment.startMs - PRE_ROLL_MS
             )
@@ -809,21 +845,39 @@ class VadEngine @Inject constructor(
             result[i] = seg.copy(vadStartMs = startMs, vadEndMs = endMs)
         }
 
-        // Step 3: Remove overlaps between consecutive segments
-        // This is critical for dialogue auto-loop — no segment should overlap the next
+        // Step 2: Remove overlaps and enforce minimum gap between consecutive segments
+        // This is CRITICAL for dialogue auto-loop — any overlap or tight gap causes
+        // bleed-through where words from the next dialogue are audible.
+        //
+        // Strategy: Process pairs from left to right. If a segment's end overlaps
+        // or is too close to the next segment's start, we prefer to TRIM the end
+        // of the earlier segment rather than push the start of the later one.
+        // Rationale: The END of speech is less critical than the START — a few ms
+        // of silence trimmed from the end is imperceptible, but cutting the start
+        // of the next dialogue loses audible speech.
         for (i in 1 until result.size) {
             val prev = result[i - 1]
             val curr = result[i]
 
-            if (curr.vadStartMs < prev.vadEndMs + INTER_SEGMENT_GAP_MS) {
-                // Overlap detected — split at the midpoint with a gap
-                val gapPoint = (prev.vadEndMs + curr.vadStartMs) / 2 - INTER_SEGMENT_GAP_MS / 2
-                result[i - 1] = prev.copy(vadEndMs = minOf(prev.vadEndMs, gapPoint))
-                result[i] = curr.copy(vadStartMs = maxOf(curr.vadStartMs, gapPoint + INTER_SEGMENT_GAP_MS))
+            val requiredEnd = curr.vadStartMs - INTER_SEGMENT_GAP_MS
+
+            if (prev.vadEndMs > requiredEnd) {
+                // Overlap or insufficient gap detected
+                // Prefer trimming the previous segment's end to create space
+                val trimmedEnd = minOf(prev.vadEndMs, requiredEnd)
+
+                // Only trim if we don't make the segment too short
+                if (trimmedEnd - prev.vadStartMs >= MIN_SPEECH_DURATION_MS) {
+                    result[i - 1] = prev.copy(vadEndMs = trimmedEnd)
+                } else {
+                    // Can't trim previous without making it too short — push current start later
+                    val pushedStart = prev.vadEndMs + INTER_SEGMENT_GAP_MS
+                    result[i] = curr.copy(vadStartMs = pushedStart)
+                }
             }
         }
 
-        // Step 4: Ensure endMs > startMs
+        // Step 3: Ensure endMs > startMs
         for (i in result.indices) {
             if (result[i].vadEndMs <= result[i].vadStartMs) {
                 result[i] = result[i].copy(

@@ -99,7 +99,7 @@ class AudioPlaybackService : LifecycleService() {
         private const val AB_NEAR_THRESHOLD_MS = 3000L   // Switch to frequent checks within 3s of B (was 5s)
         private const val AB_MID_THRESHOLD_MS = 10_000L  // Switch to medium checks within 10s
         private const val AB_DIALOGUE_NEAR_THRESHOLD_MS = 2000L // Dialogue mode: 2s threshold for frequent checks
-        private const val CUE_BOUNDARY_GAP_MS = 30L   // Small gap before next cue's startMs — VAD provides precise boundaries
+        private const val CUE_BOUNDARY_GAP_MS = 80L   // Gap before next cue's startMs — VAD provides precise boundaries, but this adds safety margin
         private const val DEFAULT_DIALOGUE_PAUSE_MS = 1000L  // 1 second pause — like a human pause between sentences
 
         // ══════════════════════════════════════════════════════════════════════

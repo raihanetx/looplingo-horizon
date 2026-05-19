@@ -97,10 +97,18 @@ class SileroVadDetector(private val context: Context) {
     /**
      * Initialize the PyTorch module with the Silero VAD model.
      * Called lazily on first use to avoid slowing down app startup.
+     *
+     * If initialization fails, we allow retrying because the failure might
+     * be transient (e.g., low memory). The caller (VadEngine) will fall
+     * back to energy-only detection if this returns false.
      */
     private fun ensureInitialized(): Boolean {
         if (isInitialized) return true
-        if (initializationFailed) return false
+        if (initializationFailed) {
+            // Allow retry — the failure might have been transient
+            Timber.w("Silero VAD: Retrying initialization after previous failure")
+            initializationFailed = false
+        }
 
         return try {
             val modelPath = copyModelToCache()
@@ -114,6 +122,10 @@ class SileroVadDetector(private val context: Context) {
             isInitialized = true
             Timber.i("Silero VAD: PyTorch model loaded successfully")
             true
+        } catch (e: OutOfMemoryError) {
+            Timber.e(e, "Silero VAD: OOM during model loading — device may be low on memory")
+            initializationFailed = true
+            false
         } catch (e: Exception) {
             Timber.e(e, "Silero VAD: Failed to initialize PyTorch module")
             initializationFailed = true
@@ -124,16 +136,17 @@ class SileroVadDetector(private val context: Context) {
     /**
      * Copy the TorchScript model from assets to cache directory.
      * PyTorch Mobile needs a file path, not an asset input stream.
+     *
+     * We always re-copy from assets to ensure the model is up-to-date
+     * after app updates (the model file might have changed).
      */
     private fun copyModelToCache(): String? {
         return try {
             val cacheFile = File(context.cacheDir, "silero_vad_$MODEL_FILENAME")
-            // Only copy if not already cached (model doesn't change)
-            if (!cacheFile.exists() || cacheFile.length() == 0L) {
-                context.assets.open(MODEL_FILENAME).use { input ->
-                    FileOutputStream(cacheFile).use { output ->
-                        input.copyTo(output)
-                    }
+            // Always re-copy to ensure model is current after app updates
+            context.assets.open(MODEL_FILENAME).use { input ->
+                FileOutputStream(cacheFile).use { output ->
+                    input.copyTo(output)
                 }
             }
             cacheFile.absolutePath
