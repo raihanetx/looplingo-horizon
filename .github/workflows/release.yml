@@ -7,12 +7,15 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   build:
     name: Build APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -85,21 +88,19 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.name }}
-          name: "LoopLingo Horizon ${{ steps.version.outputs.name }}"
+          name: "Horizon Loop ${{ steps.version.outputs.name }}"
           body: |
             Built on ${{ steps.version.outputs.date }}
             Version code: ${{ steps.version.outputs.code }}
 
-            What's new in v5.0.0:
-            - VAD ENGINE: Precise speech boundary detection
-              · Analyzes actual audio waveforms to find exact speech start/end
-              · Multi-feature analysis: energy, spectral, zero-crossing rate
-              · Replaces Whisper's approximate timestamps with precise boundaries
-              · Dialogue loop now cuts exactly where speech starts and ends
-            - Zero bleed-through: No more next-dialogue words at loop boundaries
-            - Smart alignment: VAD segments aligned with Whisper transcription
-            - Room DB v9: Stores VAD-refined timestamps for instant playback
-            - CUE_BOUNDARY_GAP reduced from 150ms to 30ms (VAD is precise)
+            What's new in v5.3.0:
+            - VAD ENGINE v3.0: Replaced Silero VAD neural network with simple silence midpoint detection
+            - Removed PyTorch Mobile dependency (~7-12MB smaller APK)
+            - Removed 2MB Silero VAD model file
+            - New algorithm: finds silence gaps between speech segments, places boundary at midpoint
+            - Zero extra RAM usage, minimal CPU, same accuracy for clean language learning audio
+            - Energy onset/offset detection for first/last segment boundaries
+            - Zero bleed-through: dialogue loops cut precisely at silence gaps
 
             Download the APK below
           files: |
