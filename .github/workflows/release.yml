@@ -90,17 +90,18 @@ jobs:
             Built on ${{ steps.version.outputs.date }}
             Version code: ${{ steps.version.outputs.code }}
 
-            What's new in v4.1.0:
-            - RENAMED: App is now "Horizon Loop"
-            - REDESIGNED: Audio player UI — Spotify/YouTube Music inspired layout
-              · Hero "Now Playing" card with track info + speed + AB badge
-              · Fixed bottom player bar (seekbar + transport controls always visible)
-              · Clean visual hierarchy with proper section separation
-              · Stop button now in the bottom transport bar
-            - Clean A-B loop section with compact layout
-            - All "LoopLingo" references updated to "Horizon Loop"
+            What's new in v5.0.0:
+            - VAD ENGINE: Precise speech boundary detection
+              · Analyzes actual audio waveforms to find exact speech start/end
+              · Multi-feature analysis: energy, spectral, zero-crossing rate
+              · Replaces Whisper's approximate timestamps with precise boundaries
+              · Dialogue loop now cuts exactly where speech starts and ends
+            - Zero bleed-through: No more next-dialogue words at loop boundaries
+            - Smart alignment: VAD segments aligned with Whisper transcription
+            - Room DB v9: Stores VAD-refined timestamps for instant playback
+            - CUE_BOUNDARY_GAP reduced from 150ms to 30ms (VAD is precise)
 
-            Download the APK below ⬇️
+            Download the APK below
           files: |
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
