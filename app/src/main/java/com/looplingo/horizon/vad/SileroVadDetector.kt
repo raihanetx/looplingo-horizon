@@ -188,9 +188,10 @@ class SileroVadDetector(private val context: Context) {
 
                 // Run inference: model(audio_chunk, sample_rate)
                 // The model maintains internal LSTM state automatically
+                // Note: IValue.from() requires Long, not Int, for integer values
                 val output = currentModule.forward(
                     IValue.from(inputTensor),
-                    IValue.from(SAMPLE_RATE)
+                    IValue.from(SAMPLE_RATE.toLong())
                 )
 
                 // Extract speech probability from output tensor [1, 1]
