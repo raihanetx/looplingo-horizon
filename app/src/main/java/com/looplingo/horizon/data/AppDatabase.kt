@@ -23,7 +23,7 @@ import com.looplingo.horizon.data.entity.VideoEntity
         LoopTemplateEntity::class,
         LoopTemplateRangeEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {

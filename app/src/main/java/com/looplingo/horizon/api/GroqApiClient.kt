@@ -77,7 +77,9 @@ import java.util.concurrent.Semaphore
  *   - Temp files cleaned up immediately after use
  */
 @javax.inject.Singleton
-class GroqApiClient @javax.inject.Inject constructor() {
+class GroqApiClient @javax.inject.Inject constructor(
+    private val vadEngine: com.looplingo.horizon.vad.VadEngine
+) {
 
     companion object {
         // Groq API limits (user-specified: 19.5MB practical max)
@@ -289,7 +291,7 @@ class GroqApiClient @javax.inject.Inject constructor() {
                             preprocessed.delete()
                             onProgress?.onProgress("[Step 1] ✓ %d segments!".format(result.size))
                             Timber.i("═══ SUCCESS: %d segments from pre-processed audio ═══", result.size)
-                            return@withContext filterLowQualitySegments(result)
+                            return@withContext refineSegmentsWithVad(filePath, filterLowQualitySegments(result), onProgress)
                         }
                         onProgress?.onProgress("[Step 1] No speech detected — trying without pre-process…")
                         Timber.w("Pre-processed: no speech, trying raw extraction")
@@ -307,7 +309,7 @@ class GroqApiClient @javax.inject.Inject constructor() {
                     val result = chunkAndTranscribe(context, apiKey, preprocessed, language, onProgress)
                     preprocessed.delete()
                     if (result.isNotEmpty()) {
-                        return@withContext result
+                        return@withContext refineSegmentsWithVad(filePath, result, onProgress)
                     }
                 }
             } else {
@@ -333,7 +335,7 @@ class GroqApiClient @javax.inject.Inject constructor() {
                             onProgress?.onProgress("[Step 2] ✓ %d segments from raw extraction!".format(result.size))
                             Timber.i("═══ SUCCESS: %d segments from extracted audio ═══", result.size)
                             extracted.delete()
-                            return@withContext filterLowQualitySegments(result)
+                            return@withContext refineSegmentsWithVad(filePath, filterLowQualitySegments(result), onProgress)
                         }
                     } catch (e: ApiKeyException) {
                         extracted.delete()
@@ -359,7 +361,7 @@ class GroqApiClient @javax.inject.Inject constructor() {
                             ppExtracted.delete()
                             if (result.isNotEmpty()) {
                                 onProgress?.onProgress("[Step 2] ✓ %d segments!".format(result.size))
-                                return@withContext filterLowQualitySegments(result)
+                                return@withContext refineSegmentsWithVad(filePath, filterLowQualitySegments(result), onProgress)
                             }
                         } catch (e: ApiKeyException) {
                             ppExtracted.delete()
@@ -372,7 +374,7 @@ class GroqApiClient @javax.inject.Inject constructor() {
                         // Chunk the pre-processed file
                         val result = chunkAndTranscribe(context, apiKey, ppExtracted, language, onProgress)
                         ppExtracted.delete()
-                        if (result.isNotEmpty()) return@withContext result
+                        if (result.isNotEmpty()) return@withContext refineSegmentsWithVad(filePath, result, onProgress)
                     }
                 } else {
                     // Pre-processing failed — try chunking the raw extracted file
@@ -380,7 +382,7 @@ class GroqApiClient @javax.inject.Inject constructor() {
                     if (extracted.exists()) {
                         val result = chunkAndTranscribe(context, apiKey, extracted, language, onProgress)
                         extracted.delete()  // Clean up after chunking
-                        if (result.isNotEmpty()) return@withContext result
+                        if (result.isNotEmpty()) return@withContext refineSegmentsWithVad(filePath, result, onProgress)
                     }
                 }
             }
@@ -434,10 +436,64 @@ class GroqApiClient @javax.inject.Inject constructor() {
             }
 
             Timber.i("═══ SUCCESS (fallback): %d segments ═══", result.size)
-            filterLowQualitySegments(result)
+            refineSegmentsWithVad(filePath, filterLowQualitySegments(result), onProgress)
 
         } finally {
             cleanupSource()
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // VAD REFINEMENT — Post-process Whisper timestamps with audio analysis
+    // ══════════════════════════════════════════════════════════════════
+
+    /**
+     * Refine Whisper segment timestamps using Voice Activity Detection.
+     *
+     * Whisper's timestamps are approximate — its endMs often extends past
+     * the actual speech into the next dialogue, and its startMs sometimes
+     * cuts into the previous dialogue. VAD analyzes the actual audio
+     * waveform to find precise speech boundaries.
+     *
+     * This runs AFTER Whisper transcription succeeds, as a post-processing
+     * step. If VAD fails for any reason, the original Whisper timestamps
+     * are preserved — the app always works, just with less precision.
+     *
+     * @param filePath Original audio/video file path (for VAD waveform analysis)
+     * @param segments Whisper segments with rough timestamps
+     * @param onProgress Progress callback
+     * @return Segments with VAD-refined startMs/endMs (or original if VAD fails)
+     */
+    private suspend fun refineSegmentsWithVad(
+        filePath: String,
+        segments: List<Segment>,
+        onProgress: ProgressCallback? = null
+    ): List<Segment> {
+        if (segments.isEmpty()) return segments
+
+        return try {
+            val refined = vadEngine.refineSegments(filePath, segments, onProgress)
+
+            // Convert VAD refinement results back to Segment objects with adjusted timestamps
+            segments.mapIndexed { idx, original ->
+                if (idx < refined.size) {
+                    val r = refined[idx]
+                    Segment(
+                        id = original.id,
+                        text = original.text,
+                        startSec = r.vadStartMs / 1000.0,
+                        endSec = r.vadEndMs / 1000.0,
+                        noSpeechProb = original.noSpeechProb,
+                        avgLogprob = original.avgLogprob
+                    )
+                } else {
+                    original
+                }
+            }
+        } catch (e: Exception) {
+            // VAD failure should NEVER break transcription — fall back to Whisper timestamps
+            Timber.w(e, "VAD refinement failed — using Whisper timestamps as-is")
+            segments
         }
     }
 
@@ -481,7 +537,7 @@ class GroqApiClient @javax.inject.Inject constructor() {
             }
 
             onProgress?.onProgress("[Translate] ✓ %d translated segments!".format(result.size))
-            filterLowQualitySegments(result)
+            refineSegmentsWithVad(filePath, filterLowQualitySegments(result), onProgress)
         } finally {
             cleanupSource()
         }

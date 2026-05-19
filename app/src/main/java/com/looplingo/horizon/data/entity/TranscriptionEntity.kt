@@ -46,6 +46,18 @@ data class TranscriptionEntity(
     @ColumnInfo(name = "segmentEndMs")
     val segmentEndMs: Long,
 
+    /** VAD-refined start time in milliseconds (from audio waveform analysis).
+     *  More accurate than segmentStartMs — reflects actual speech onset.
+     *  Null if VAD was not run (e.g., old data before VAD feature). */
+    @ColumnInfo(name = "vadStartMs", defaultValue = "NULL")
+    val vadStartMs: Long? = null,
+
+    /** VAD-refined end time in milliseconds (from audio waveform analysis).
+     *  More accurate than segmentEndMs — reflects actual speech offset.
+     *  Null if VAD was not run. */
+    @ColumnInfo(name = "vadEndMs", defaultValue = "NULL")
+    val vadEndMs: Long? = null,
+
     /** Whisper's no_speech_prob for this segment (0.0-1.0). Higher = likely silence. */
     @ColumnInfo(name = "noSpeechProb", defaultValue = "0.0")
     val noSpeechProb: Double = 0.0,

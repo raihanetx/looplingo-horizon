@@ -227,17 +227,21 @@ class TranscriptRepository @Inject constructor(
         languageCode: String = "auto",
         isTranslation: Boolean = false,
         translatedTexts: Map<Int, String> = emptyMap(),
-        translationLanguage: String? = null
+        translationLanguage: String? = null,
+        vadRefinements: Map<Int, Pair<Long, Long>> = emptyMap()  // segment.id → (vadStartMs, vadEndMs)
     ) {
         withContext(Dispatchers.IO) {
             try {
                 // Convert segments to entities first
                 val entities = segments.map { segment ->
+                    val vadData = vadRefinements[segment.id]
                     TranscriptionEntity(
                         videoPath = videoPath,
                         text = segment.text.trim(),
                         segmentStartMs = segment.startMs,
                         segmentEndMs = segment.endMs,
+                        vadStartMs = vadData?.first,   // VAD-refined start (null if no VAD)
+                        vadEndMs = vadData?.second,     // VAD-refined end (null if no VAD)
                         noSpeechProb = segment.noSpeechProb,
                         avgLogprob = segment.avgLogprob,
                         languageCode = languageCode,
@@ -432,10 +436,15 @@ private fun TranscriptionEntity.toSubtitleCue(index: Int): SubtitleCue {
     } else {
         text
     }
+    // Use VAD-refined timestamps if available (much more accurate than Whisper's)
+    // VAD timestamps reflect actual speech boundaries from audio waveform analysis.
+    // Fall back to Whisper timestamps if VAD wasn't run (e.g., old data).
+    val effectiveStartMs = vadStartMs ?: segmentStartMs
+    val effectiveEndMs = vadEndMs ?: segmentEndMs
     return SubtitleCue(
         index = index,
-        startMs = segmentStartMs,
-        endMs = segmentEndMs,
+        startMs = effectiveStartMs,
+        endMs = effectiveEndMs,
         text = displayText
     )
 }

@@ -23,6 +23,20 @@ import javax.inject.Singleton
 object DatabaseModule {
 
     /**
+     * Migration from v8 → v9: Added vadStartMs and vadEndMs columns
+     * to TranscriptionEntity for storing VAD-refined speech boundaries.
+     * These are the precise timestamps from audio waveform analysis,
+     * much more accurate than Whisper's approximate timestamps.
+     */
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `transcriptions` ADD COLUMN `vadStartMs` INTEGER DEFAULT NULL")
+            db.execSQL("ALTER TABLE `transcriptions` ADD COLUMN `vadEndMs` INTEGER DEFAULT NULL")
+            Timber.i("Migration 8→9: added vadStartMs + vadEndMs columns")
+        }
+    }
+
+    /**
      * Migration from v7 → v8: Added LoopTemplateEntity and LoopTemplateRangeEntity
      * tables for the loop template system (dialogue_repeat and time_range templates).
      */
@@ -173,7 +187,7 @@ object DatabaseModule {
             .addMigrations(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
                 MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                MIGRATION_7_8
+                MIGRATION_7_8, MIGRATION_8_9
             )
             // REMOVED fallbackToDestructiveMigration() — it silently destroys user data
             // when an unmapped migration path is encountered. All migration paths from
