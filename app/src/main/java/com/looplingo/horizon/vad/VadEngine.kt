@@ -5,6 +5,7 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import com.looplingo.horizon.api.GroqApiClient
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -64,7 +65,7 @@ import kotlin.math.sqrt
  */
 @Singleton
 class VadEngine @Inject constructor(
-    private val context: Context
+    @ApplicationContext private val context: Context
 ) {
 
     companion object {
