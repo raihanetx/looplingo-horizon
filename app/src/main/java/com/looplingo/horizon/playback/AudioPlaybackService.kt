@@ -31,6 +31,7 @@ import com.looplingo.horizon.R
 import com.looplingo.horizon.model.PlaybackConfig
 import com.looplingo.horizon.model.PlaybackConfigValidator
 import com.looplingo.horizon.model.SpeedPresets
+import com.looplingo.horizon.model.SubtitleCue
 import com.looplingo.horizon.repository.PlaybackRepository
 import com.looplingo.horizon.repository.VideoRepository
 import com.looplingo.horizon.ui.MainActivity
@@ -278,6 +279,16 @@ class AudioPlaybackService : LifecycleService() {
     private var abLoopCompleted: Boolean = false
     private var isHandlingPlaybackEnded: Boolean = false  // Guard against re-entrant calls
     private var isReceiverRegistered: Boolean = false     // Guard against double unregistration
+
+    // ── Dialogue auto-loop state ──────────────────────────────────────────
+    private var dialogueAutoLoopCues: List<SubtitleCue> = emptyList()
+    private var dialogueAutoLoopAllCues: List<SubtitleCue> = emptyList()
+    private var dialogueAutoLoopCount: Int = 3
+    private var dialogueAutoLoopPauseMs: Long = 1000L
+    private var dialogueAutoLoopCurrentIndex: Int = 0
+    private var dialogueAutoLoopCurrentIteration: Int = 0
+    private var isDialogueAutoLoopActive: Boolean = false
+    private var isDialoguePauseActive: Boolean = false
 
     // Handler-based A-B monitoring (replaces wasteful coroutine polling)
     private val abHandler = Handler(Looper.getMainLooper())
