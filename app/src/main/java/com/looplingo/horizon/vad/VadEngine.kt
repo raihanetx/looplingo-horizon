@@ -156,7 +156,7 @@ class VadEngine @Inject constructor(
             if (segments.isNotEmpty()) totalStartAdjust / segments.size else 0,
             if (segments.isNotEmpty()) totalEndAdjust / segments.size else 0)
 
-        onProgress?.onProgress("[VAD] ✓ Boundaries refined (%d adjusted)", adjustedCount)
+        onProgress?.onProgress("[VAD] ✓ Boundaries refined ($adjustedCount adjusted)")
         postProcessed
     }
 
