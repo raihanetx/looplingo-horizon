@@ -191,7 +191,11 @@ class PlaybackSettingsFragment : Fragment() {
             iconView.imageTintList = resources.getColorStateList(R.color.colorOnPrimaryContainer, null)
             textView.setTextColor(resources.getColor(R.color.colorOnPrimaryContainer, null))
         } else {
-            tabLayout.background = resources.getDrawable(android.R.attr.selectableItemBackgroundBorderless, requireContext().theme)
+            // Resolve the theme attribute properly — android.R.attr.* is an attr ID,
+            // not a drawable ID. Must use TypedValue to resolve it first.
+            val tv = android.util.TypedValue()
+            requireContext().theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tv, true)
+            tabLayout.background = resources.getDrawable(tv.resourceId, requireContext().theme)
             iconView.imageTintList = resources.getColorStateList(R.color.colorOnSurfaceVariant, null)
             textView.setTextColor(resources.getColor(R.color.colorOnSurfaceVariant, null))
         }
