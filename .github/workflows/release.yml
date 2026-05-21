@@ -93,7 +93,13 @@ jobs:
             Built on ${{ steps.version.outputs.date }}
             Version code: ${{ steps.version.outputs.code }}
 
-            What's new in v6.0.0:
+            What's new in v6.0.1:
+            - FIX: Resources$NotFoundException crash when switching tabs
+            - Root cause: android.R.attr.* (attr ID) was passed to getDrawable()
+              instead of resolving through TypedValue first
+            - Tab switching now properly resolves theme attributes
+
+            v6.0.0 features:
             - TAB-BASED UI REDESIGN: Organized, polished, visually better
             - 4-tab navigation: Clean / Talk / Loop / Notes
             - Header block: Back + Avatar + Track Title + AB badge + Speed
