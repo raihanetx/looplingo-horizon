@@ -93,17 +93,18 @@ jobs:
             Built on ${{ steps.version.outputs.date }}
             Version code: ${{ steps.version.outputs.code }}
 
-            What's new in v5.4.0:
-            - PREMIUM UI REDESIGN: Modern, polished visual design
-            - Now Playing hero card with gradient background
-            - Glass-effect cards for Loop Controls and AI Subtitles
-            - Circular transport control buttons (play, skip, rewind)
-            - Mini player moved to bottom (Spotify-style)
-            - OLED-friendly dark mode (pure blacks)
-            - Active dialogue highlighting with teal accent
-            - Translation text with accent line indicator
-            - Larger touch targets, better spacing, rounded corners
-            - 5 new drawable resources for premium visual elements
+            What's new in v6.0.0:
+            - TAB-BASED UI REDESIGN: Organized, polished, visually better
+            - 4-tab navigation: Clean / Talk / Loop / Notes
+            - Header block: Back + Avatar + Track Title + AB badge + Speed
+            - Clean panel: Minimal view with track info
+            - Talk panel: AI subtitle generation + dialogue list
+            - Loop panel: A-B range controls + loop stepper + save
+            - Notes panel: Saved timestamps and bookmarks
+            - Player footer card: Track title + Waveform SeekBar + Controls
+            - Pill-shaped tab indicator with active state
+            - Auto-switch to Talk tab when subtitles load
+            - Simplified transport: Rewind / Play / Forward
 
             Download the APK below
           files: |
