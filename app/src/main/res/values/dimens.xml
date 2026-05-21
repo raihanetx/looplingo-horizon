@@ -61,6 +61,15 @@
     <!-- Dialogue items -->
     <dimen name="dialogue_item_corner_radius">12dp</dimen>
 
+    <!-- New UI v6 layout dimensions -->
+    <dimen name="header_height">48dp</dimen>
+    <dimen name="tab_nav_height">52dp</dimen>
+    <dimen name="player_footer_height">180dp</dimen>
+    <dimen name="avatar_size">32dp</dimen>
+    <dimen name="tab_icon_size">20dp</dimen>
+    <dimen name="waveform_height">32dp</dimen>
+    <dimen name="tab_indicator_height">3dp</dimen>
+
     <!-- ══════════════════════════════════════════════════════════════════════
          TYPOGRAPHY — Type scale (sp)
          ══════════════════════════════════════════════════════════════════════ -->

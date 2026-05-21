@@ -169,4 +169,25 @@
 
     <!-- Loop -->
     <string name="loop_label">Loops</string>
+
+    <!-- Tab Navigation -->
+    <string name="tab_clean">Clean</string>
+    <string name="tab_talk">Talk</string>
+    <string name="tab_loop">Loop</string>
+    <string name="tab_notes">Notes</string>
+
+    <!-- Player Footer -->
+    <string name="content_desc_rewind">Rewind</string>
+    <string name="content_desc_forward">Forward</string>
+
+    <!-- Saved Loops -->
+    <string name="section_saved_loops">Saved Loops</string>
+    <string name="no_saved_loops">No saved loops yet.\nSet an A-B range and tap Save.</string>
+
+    <!-- Saved Notes -->
+    <string name="section_saved_notes">Saved Notes</string>
+    <string name="no_saved_notes">No saved notes yet.\nGenerate subtitles and save timestamps.</string>
+
+    <!-- Clean View -->
+    <string name="clean_view_subtitle">Tap Talk to see dialogue</string>
 </resources>

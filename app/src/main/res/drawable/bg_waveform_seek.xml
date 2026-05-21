@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Waveform-style progress bar background for the player footer.
+     A thin line with rounded caps for the SeekBar track. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Background track -->
+    <item android:id="@android:id/background">
+        <shape android:shape="line">
+            <corners android:radius="2dp" />
+            <solid android:color="@color/colorSurfaceVariant" />
+            <size android:height="4dp" />
+        </shape>
+    </item>
+    <!-- Progress (filled portion) -->
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape android:shape="line">
+                <corners android:radius="2dp" />
+                <solid android:color="@color/colorPrimary" />
+                <size android:height="4dp" />
+            </shape>
+        </clip>
+    </item>
+</layer-list>

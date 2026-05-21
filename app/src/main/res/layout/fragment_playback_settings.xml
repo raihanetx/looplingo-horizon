@@ -1,387 +1,227 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Horizon Loop — Now Playing Screen (v2 Premium Redesign)
-    Structure:
-      TOP (scrollable):   Hero card → Loop controls → Saved timestamps → Action buttons
-      BOTTOM (fixed):     Seek bar → Time → Transport controls
-      MIDDLE (scrollable): AI Subtitles → Dialogue list
-    The bottom player bar is a direct child of CoordinatorLayout so it stays fixed.
+    Horizon Loop — Now Playing Screen (v6 Tab-Based Redesign)
+    Structure matches user's physical device wireframe:
+      ┌──────────────────────────────────────────┐
+      │  HEADER BLOCK (48px)                     │
+      │  [Avatar] Track Info    [Loop] [Speed]   │
+      ├──────────────────────────────────────────┤
+      │  MAIN DISPLAY AREA (flex-1)              │
+      │  - Clean View Panel                      │
+      │  - Talk Panel (dialogue list)            │
+      │  - Loop Panel (A-B controls + templates) │
+      │  - Notes Panel (saved timestamps)        │
+      ├──────────────────────────────────────────┤
+      │  TAB NAVIGATION PILL (52px)              │
+      │  [Clean] [Talk] [Loop] [Notes]           │
+      ├──────────────────────────────────────────┤
+      │  PLAYER FOOTER CARD (180px)              │
+      │  [Track Title & Subtitle]                │
+      │  [Elapsed] |I|I|I|I| [Total]             │
+      │            Waveform SeekBar              │
+      │  [Rewind]   [Play]   [Forward]           │
+      └──────────────────────────────────────────┘
 -->
-<androidx.coordinatorlayout.widget.CoordinatorLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:background="@color/colorBackground"
     android:fitsSystemWindows="true">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/app_bar_layout"
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         HEADER BLOCK (48dp) — Compact top bar with track info + quick actions
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <LinearLayout
+        android:id="@+id/layout_header"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/colorSurface"
-        app:elevation="0dp">
+        android:layout_height="@dimen/header_height"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="@dimen/space_lg"
+        android:background="@color/colorSurface">
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
+        <!-- Back button -->
+        <ImageView
+            android:id="@+id/iv_back"
+            android:layout_width="@dimen/touch_target_min"
+            android:layout_height="@dimen/touch_target_min"
+            android:padding="@dimen/space_sm"
+            android:scaleType="centerInside"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/content_desc_navigate_up"
+            app:srcCompat="@drawable/ic_arrow_back"
+            app:tint="@color/colorOnSurface" />
+
+        <!-- Avatar icon (audio track) -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="@dimen/avatar_size"
+            android:layout_height="@dimen/avatar_size"
+            android:layout_marginStart="@dimen/space_xs"
+            app:cardCornerRadius="@dimen/space_sm"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/colorPrimaryContainer">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/content_desc_video_icon"
+                android:scaleType="centerInside"
+                app:srcCompat="@drawable/ic_audio_track"
+                app:tint="@color/colorOnPrimaryContainer" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Track title (compact) -->
+        <TextView
+            android:id="@+id/tv_header_title"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            app:navigationIcon="@drawable/ic_arrow_back"
-            app:navigationContentDescription="@string/content_desc_navigate_up"
-            app:title="@string/playback_settings"
-            app:titleTextAppearance="@style/TextAppearance.Horizon.TitleLarge"
-            app:titleTextColor="@color/colorOnSurface" />
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/space_sm"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Horizon.TitleSmall"
+            android:textColor="@color/colorOnSurface"
+            tools:text="Chapter 03" />
 
-    </com.google.android.material.appbar.AppBarLayout>
+        <!-- AB Loop indicator badge -->
+        <TextView
+            android:id="@+id/tv_ab_indicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/space_sm"
+            android:background="@drawable/badge_background"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="2dp"
+            android:text="AB"
+            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+            android:textColor="@color/colorOnPrimary"
+            android:visibility="gone" />
+
+        <!-- Speed toggle chip -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_speed_toggle"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="wrap_content"
+            android:layout_height="28dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:minWidth="48dp"
+            android:paddingHorizontal="8dp"
+            android:text="1.0x"
+            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+            app:cornerRadius="14dp" />
+
+    </LinearLayout>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
-         SCROLLABLE CONTENT — Hero, Loop, Subtitles, Dialogue, Actions
+         MAIN DISPLAY AREA (flex-1) — Switchable panels via tab navigation
          ═══════════════════════════════════════════════════════════════════════ -->
-    <androidx.core.widget.NestedScrollView
+    <FrameLayout
+        android:id="@+id/layout_main_display"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true"
-        android:paddingBottom="140dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
+        <!-- ══════ PANEL: CLEAN VIEW ══════ -->
+        <!-- Minimal view — shows current track info, waveform visualization, no clutter -->
         <LinearLayout
+            android:id="@+id/panel_clean"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:orientation="vertical"
-            android:paddingHorizontal="@dimen/space_lg"
-            android:paddingTop="@dimen/space_md">
+            android:gravity="center"
+            android:paddingHorizontal="@dimen/space_xl"
+            android:visibility="visible">
 
-            <!-- ════════════════════════════════════════════════════════════
-                 NOW PLAYING HERO — Gradient card with track info
-                 ════════════════════════════════════════════════════════════ -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/card_now_playing"
-                style="@style/Widget.Horizon.CardView.Hero"
+            <!-- Large audio icon -->
+            <ImageView
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:alpha="0.3"
+                android:contentDescription="@string/content_desc_video_icon"
+                android:scaleType="centerInside"
+                app:srcCompat="@drawable/ic_audio_track"
+                app:tint="@color/colorPrimary" />
+
+            <TextView
+                android:id="@+id/tv_clean_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/space_lg">
+                android:layout_marginTop="@dimen/space_lg"
+                android:gravity="center"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textAppearance="@style/TextAppearance.Horizon.HeadlineMedium"
+                android:textColor="@color/colorOnSurface"
+                tools:text="Chapter 03" />
 
-                <!-- Gradient background layer -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/bg_hero_gradient" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal"
-                    android:paddingVertical="@dimen/space_xl"
-                    android:paddingHorizontal="@dimen/space_lg">
-
-                    <!-- Audio wave icon -->
-                    <ImageView
-                        android:layout_width="56dp"
-                        android:layout_height="56dp"
-                        android:layout_marginBottom="@dimen/space_md"
-                        android:alpha="0.7"
-                        android:contentDescription="@string/content_desc_video_icon"
-                        android:scaleType="centerInside"
-                        app:srcCompat="@drawable/ic_audio_track"
-                        app:tint="@color/colorOnPrimaryContainer" />
-
-                    <!-- Track title -->
-                    <TextView
-                        android:id="@+id/tv_now_playing_title"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center"
-                        android:ellipsize="end"
-                        android:maxLines="2"
-                        android:textAppearance="@style/TextAppearance.Horizon.HeadlineMedium"
-                        android:textColor="@color/colorOnPrimaryContainer" />
-
-                    <!-- Speed + AB badge row -->
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_sm"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <!-- Speed chip — pill-shaped tonal button -->
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_speed_toggle"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="28dp"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:minWidth="52dp"
-                            android:paddingHorizontal="10dp"
-                            android:text="1.0x"
-                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                            app:cornerRadius="14dp" />
-
-                        <!-- AB loop indicator badge -->
-                        <TextView
-                            android:id="@+id/tv_ab_indicator"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/space_sm"
-                            android:background="@drawable/badge_background"
-                            android:paddingHorizontal="8dp"
-                            android:paddingVertical="2dp"
-                            android:text="AB"
-                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                            android:textColor="@color/colorOnPrimary"
-                            android:visibility="gone" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- ════════════════════════════════════════════════════════════
-                 LOOP CONTROLS — A-B Range + Loop Count (Glass card)
-                 ════════════════════════════════════════════════════════════ -->
-            <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.Horizon.CardView.Glass"
+            <TextView
+                android:id="@+id/tv_clean_subtitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/space_md">
+                android:layout_marginTop="@dimen/space_sm"
+                android:gravity="center"
+                android:text="@string/clean_view_subtitle"
+                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                android:textColor="@color/colorOnSurfaceVariant" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/space_lg">
+        </LinearLayout>
 
-                    <!-- Section header -->
-                    <TextView
-                        style="@style/Widget.Horizon.SectionHeader"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:paddingTop="0dp"
-                        android:text="@string/section_loop_range" />
+        <!-- ══════ PANEL: TALK (Dialogue List) ═══════════════════════════════ -->
+        <!-- Contains AI subtitle generation + dialogue list -->
+        <LinearLayout
+            android:id="@+id/panel_talk"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:visibility="gone">
 
-                    <!-- A/B time inputs row -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/til_range_start"
-                            style="@style/Widget.Horizon.TextInputLayout.Outlined"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:hint="@string/hint_start_time"
-                            app:errorEnabled="true">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_range_start"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="text"
-                                android:text="0:00"
-                                android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
-
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center_vertical"
-                            android:layout_marginHorizontal="@dimen/space_sm"
-                            android:text="@string/range_separator"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
-                            android:textColor="@color/colorOnSurfaceVariant" />
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/til_range_end"
-                            style="@style/Widget.Horizon.TextInputLayout.Outlined"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:hint="@string/hint_end_time"
-                            app:errorEnabled="true">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_range_end"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="text"
-                                android:text=""
-                                android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
-
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                    </LinearLayout>
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_xs"
-                        android:text="@string/hint_time_format"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
-                        android:textColor="@color/colorOnSurfaceVariant" />
-
-                    <!-- Loop count + Try Loop button -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_md"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/loop_count_label"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                            android:textColor="@color/colorOnSurface" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_loop_minus"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:layout_marginStart="@dimen/space_sm"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:minWidth="32dp"
-                            android:padding="0dp"
-                            android:text="−"
-                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                            app:cornerRadius="16dp" />
-
-                        <TextView
-                            android:id="@+id/tv_loop_count"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginHorizontal="6dp"
-                            android:text="3"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
-                            android:textColor="@color/colorOnSurface" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_loop_plus"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:minWidth="32dp"
-                            android:padding="0dp"
-                            android:text="+"
-                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                            app:cornerRadius="16dp" />
-
-                        <View
-                            android:layout_width="0dp"
-                            android:layout_height="0dp"
-                            android:layout_weight="1" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_try_loop"
-                            style="@style/Widget.Horizon.Button.Tonal"
-                            android:layout_width="wrap_content"
-                            android:layout_height="36dp"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:minWidth="64dp"
-                            android:paddingHorizontal="12dp"
-                            android:text="@string/btn_try_loop"
-                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                            app:cornerRadius="18dp"
-                            app:icon="@drawable/ic_play"
-                            app:iconGravity="textStart" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- ════════════════════════════════════════════════════════════
-                 SAVED TIMESTAMPS (conditionally visible)
-                 ════════════════════════════════════════════════════════════ -->
+            <!-- AI Subtitle controls (collapsible) -->
             <LinearLayout
-                android:id="@+id/layout_saved_timestamps"
+                android:id="@+id/layout_subtitle_controls"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:visibility="gone">
+                android:paddingHorizontal="@dimen/space_lg"
+                android:paddingTop="@dimen/space_md"
+                android:paddingBottom="@dimen/space_sm">
 
+                <!-- API Key banner -->
                 <TextView
-                    style="@style/Widget.Horizon.SectionHeader"
+                    android:id="@+id/tv_api_key_banner"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/section_saved_timestamps" />
+                    android:layout_marginBottom="@dimen/space_sm"
+                    android:background="@color/colorErrorContainer"
+                    android:paddingHorizontal="@dimen/space_md"
+                    android:paddingVertical="@dimen/space_sm"
+                    android:text="@string/api_key_required_banner"
+                    android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                    android:textColor="@color/colorOnErrorContainer"
+                    android:visibility="gone" />
 
-                <com.google.android.material.card.MaterialCardView
-                    style="@style/Widget.Horizon.CardView.Glass"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="@dimen/space_md">
-
-                    <LinearLayout
-                        android:id="@+id/saved_timestamps_container"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="@dimen/space_md" />
-
-                </com.google.android.material.card.MaterialCardView>
-
-            </LinearLayout>
-
-            <!-- ════════════════════════════════════════════════════════════
-                 AI SUBTITLES + DIALOGUE LIST (Glass card)
-                 ════════════════════════════════════════════════════════════ -->
-            <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.Horizon.CardView.Glass"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/space_lg">
-
+                <!-- API Key + Generate row (compact) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/space_lg">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                    <!-- Section header -->
-                    <TextView
-                        style="@style/Widget.Horizon.SectionHeader"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:paddingTop="0dp"
-                        android:text="@string/section_ai_subtitles" />
-
-                    <!-- API Key banner — warning when no key is set -->
-                    <TextView
-                        android:id="@+id/tv_api_key_banner"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/space_md"
-                        android:background="@color/colorErrorContainer"
-                        android:paddingHorizontal="@dimen/space_md"
-                        android:paddingVertical="@dimen/space_sm"
-                        android:text="@string/api_key_required_banner"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                        android:textColor="@color/colorOnErrorContainer"
-                        android:visibility="gone" />
-
-                    <!-- Groq API Key input -->
+                    <!-- API Key input (compact) -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/til_groq_api_key"
                         style="@style/Widget.Horizon.TextInputLayout.Filled"
-                        android:layout_width="match_parent"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="@dimen/space_sm"
                         android:hint="@string/hint_groq_api_key"
-                        app:helperText="@string/groq_api_key_helper"
-                        app:helperTextEnabled="true"
                         app:endIconMode="password_toggle"
                         app:startIconDrawable="@drawable/ic_key">
 
@@ -394,247 +234,647 @@
 
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <!-- Save API key button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_save_api_key"
                         style="@style/Widget.Horizon.Button.Outlined"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="end"
-                        android:layout_marginTop="@dimen/space_sm"
+                        android:layout_height="36dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:minWidth="48dp"
+                        android:paddingHorizontal="8dp"
                         android:text="@string/btn_save_api_key"
                         android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
                         app:cornerRadius="18dp"
                         app:icon="@drawable/ic_check"
                         app:iconGravity="textStart" />
 
-                    <!-- Language selectors row -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
+                </LinearLayout>
+
+                <!-- Language selectors (compact row) -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_sm"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_language"
+                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_md"
-                        android:orientation="horizontal">
+                        android:layout_weight="1"
+                        android:layout_marginEnd="@dimen/space_xs"
+                        android:hint="Language"
+                        app:startIconDrawable="@drawable/ic_language">
 
-                        <!-- Transcription language -->
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/til_language"
-                            style="@style/Widget.Horizon.TextInputLayout.Outlined"
-                            android:layout_width="0dp"
+                        <AutoCompleteTextView
+                            android:id="@+id/actv_language"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginEnd="@dimen/space_xs"
-                            android:hint="Language"
-                            app:startIconDrawable="@drawable/ic_language">
+                            android:inputType="none"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
 
-                            <AutoCompleteTextView
-                                android:id="@+id/actv_language"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="none"
-                                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
+                    </com.google.android.material.textfield.TextInputLayout>
 
-                        </com.google.android.material.textfield.TextInputLayout>
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_translation_language"
+                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="@dimen/space_xs"
+                        android:hint="Translate"
+                        app:startIconDrawable="@drawable/ic_translate">
 
-                        <!-- Translation language -->
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/til_translation_language"
-                            style="@style/Widget.Horizon.TextInputLayout.Outlined"
-                            android:layout_width="0dp"
+                        <AutoCompleteTextView
+                            android:id="@+id/actv_translation_language"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="@dimen/space_xs"
-                            android:hint="Translate"
-                            app:startIconDrawable="@drawable/ic_translate">
+                            android:inputType="none"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
 
-                            <AutoCompleteTextView
-                                android:id="@+id/actv_translation_language"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="none"
-                                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
+                    </com.google.android.material.textfield.TextInputLayout>
 
-                        </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
 
-                    </LinearLayout>
+                <!-- Generate button + progress -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_sm"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                    <!-- Generate button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_generate_subtitles"
                         style="@style/Widget.Horizon.Button.Tonal"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_md"
+                        android:layout_width="0dp"
+                        android:layout_height="36dp"
+                        android:layout_weight="1"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
                         android:text="@string/btn_generate_subtitles"
-                        app:cornerRadius="20dp"
+                        android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                        app:cornerRadius="18dp"
                         app:icon="@drawable/ic_audio_track"
                         app:iconGravity="textStart" />
 
-                    <!-- Progress -->
                     <ProgressBar
                         android:id="@+id/progress_subtitles"
                         style="?android:attr/progressBarStyleSmall"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="center_horizontal"
-                        android:layout_marginTop="@dimen/space_sm"
+                        android:layout_marginStart="@dimen/space_sm"
                         android:visibility="gone" />
-
-                    <!-- Status text -->
-                    <TextView
-                        android:id="@+id/tv_subtitle_status"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_sm"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                        android:textColor="@color/colorOnSurface"
-                        android:visibility="gone" />
-
-                    <!-- Debug log (debug builds only) -->
-                    <TextView
-                        android:id="@+id/tv_debug_log"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_sm"
-                        android:background="@color/colorSurfaceVariant"
-                        android:fontFamily="monospace"
-                        android:maxLines="20"
-                        android:padding="@dimen/space_sm"
-                        android:scrollbars="vertical"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
-                        android:textColor="@color/colorOnSurfaceVariant"
-                        android:textIsSelectable="true"
-                        android:visibility="gone" />
-
-                    <!-- Dialogue list -->
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/rv_dialogue_list"
-                        android:layout_width="match_parent"
-                        android:layout_height="240dp"
-                        android:layout_marginTop="@dimen/space_md"
-                        android:nestedScrollingEnabled="true"
-                        android:visibility="gone" />
-
-                    <!-- Dialogue loop controls -->
-                    <LinearLayout
-                        android:id="@+id/layout_dialogue_loop_controls"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_md"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:visibility="gone">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/dialogue_loop_count_label"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                            android:textColor="@color/colorOnSurface" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_dialogue_loop_minus"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="36dp"
-                            android:layout_height="36dp"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:minWidth="36dp"
-                            android:padding="0dp"
-                            android:text="−"
-                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                            app:cornerRadius="18dp" />
-
-                        <TextView
-                            android:id="@+id/tv_dialogue_loop_count"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginHorizontal="8dp"
-                            android:text="3"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
-                            android:textColor="@color/colorOnSurface" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_dialogue_loop_plus"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="36dp"
-                            android:layout_height="36dp"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:minWidth="36dp"
-                            android:padding="0dp"
-                            android:text="+"
-                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                            app:cornerRadius="18dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_loop_dialogue"
-                            style="@style/Widget.Horizon.Button.Tonal"
-                            android:layout_width="wrap_content"
-                            android:layout_height="36dp"
-                            android:layout_marginStart="@dimen/space_sm"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:minWidth="64dp"
-                            android:paddingHorizontal="12dp"
-                            android:text="@string/btn_loop_dialogue"
-                            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                            app:cornerRadius="18dp" />
-
-                    </LinearLayout>
 
                 </LinearLayout>
 
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- ════════════════════════════════════════════════════════════
-                 BOTTOM ACTION BUTTONS
-                 ════════════════════════════════════════════════════════════ -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="@dimen/space_lg">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_clear"
-                    style="@style/Widget.Horizon.Button.Outlined"
-                    android:layout_width="0dp"
+                <!-- Status text -->
+                <TextView
+                    android:id="@+id/tv_subtitle_status"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="@dimen/space_sm"
-                    android:text="@string/btn_clear"
-                    app:cornerRadius="20dp"
-                    app:icon="@drawable/ic_close"
-                    app:iconGravity="textStart" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_apply"
-                    style="@style/Widget.Horizon.Button"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="@dimen/space_sm"
-                    android:text="@string/btn_save"
-                    app:cornerRadius="20dp"
-                    app:icon="@drawable/ic_check"
-                    app:iconGravity="textStart" />
+                    android:layout_marginTop="@dimen/space_xs"
+                    android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                    android:textColor="@color/colorOnSurface"
+                    android:visibility="gone" />
 
             </LinearLayout>
 
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/colorOutlineVariant"
+                android:layout_marginHorizontal="@dimen/space_lg" />
+
+            <!-- Dialogue list (scrollable) -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_dialogue_list"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginTop="@dimen/space_sm"
+                android:paddingHorizontal="@dimen/space_md"
+                android:clipToPadding="false"
+                android:visibility="gone"
+                tools:listitem="@layout/item_subtitle_cue" />
+
+            <!-- Dialogue loop controls (bottom of talk panel) -->
+            <LinearLayout
+                android:id="@+id/layout_dialogue_loop_controls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_sm"
+                android:layout_marginBottom="@dimen/space_sm"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="@dimen/space_lg"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/dialogue_loop_count_label"
+                    android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                    android:textColor="@color/colorOnSurface" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_dialogue_loop_minus"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:minWidth="36dp"
+                    android:padding="0dp"
+                    android:text="−"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                    app:cornerRadius="18dp" />
+
+                <TextView
+                    android:id="@+id/tv_dialogue_loop_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="8dp"
+                    android:text="3"
+                    android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                    android:textColor="@color/colorOnSurface" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_dialogue_loop_plus"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:minWidth="36dp"
+                    android:padding="0dp"
+                    android:text="+"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                    app:cornerRadius="18dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_loop_dialogue"
+                    style="@style/Widget.Horizon.Button.Tonal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="@dimen/space_sm"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:minWidth="64dp"
+                    android:paddingHorizontal="12dp"
+                    android:text="@string/btn_loop_dialogue"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                    app:cornerRadius="18dp" />
+
+            </LinearLayout>
+
+            <!-- Debug log (debug builds only) -->
+            <TextView
+                android:id="@+id/tv_debug_log"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/colorSurfaceVariant"
+                android:fontFamily="monospace"
+                android:maxLines="10"
+                android:padding="@dimen/space_sm"
+                android:scrollbars="vertical"
+                android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                android:textColor="@color/colorOnSurfaceVariant"
+                android:textIsSelectable="true"
+                android:visibility="gone" />
+
         </LinearLayout>
 
-    </androidx.core.widget.NestedScrollView>
+        <!-- ══════ PANEL: LOOP (A-B Loop Controls + Saved Loops) ═══════════ -->
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/panel_loop"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/space_lg">
+
+                <!-- A-B Loop Range Card -->
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.Horizon.CardView.Glass"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="@dimen/space_md">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/space_lg">
+
+                        <TextView
+                            style="@style/Widget.Horizon.SectionHeader"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:paddingTop="0dp"
+                            android:text="@string/section_loop_range" />
+
+                        <!-- A/B time inputs row -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:id="@+id/til_range_start"
+                                style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:hint="@string/hint_start_time"
+                                app:errorEnabled="true">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/et_range_start"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:inputType="text"
+                                    android:text="0:00"
+                                    android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
+
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_vertical"
+                                android:layout_marginHorizontal="@dimen/space_sm"
+                                android:text="@string/range_separator"
+                                android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                                android:textColor="@color/colorOnSurfaceVariant" />
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:id="@+id/til_range_end"
+                                style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:hint="@string/hint_end_time"
+                                app:errorEnabled="true">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/et_range_end"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:inputType="text"
+                                    android:text=""
+                                    android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
+
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_xs"
+                            android:text="@string/hint_time_format"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                            android:textColor="@color/colorOnSurfaceVariant" />
+
+                        <!-- Loop count + Try Loop button -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_md"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/loop_count_label"
+                                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                                android:textColor="@color/colorOnSurface" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_loop_minus"
+                                style="@style/Widget.Material3.Button.TonalButton"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:layout_marginStart="@dimen/space_sm"
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                android:minWidth="32dp"
+                                android:padding="0dp"
+                                android:text="−"
+                                android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                                app:cornerRadius="16dp" />
+
+                            <TextView
+                                android:id="@+id/tv_loop_count"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginHorizontal="6dp"
+                                android:text="3"
+                                android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                                android:textColor="@color/colorOnSurface" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_loop_plus"
+                                style="@style/Widget.Material3.Button.TonalButton"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                android:minWidth="32dp"
+                                android:padding="0dp"
+                                android:text="+"
+                                android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                                app:cornerRadius="16dp" />
+
+                            <View
+                                android:layout_width="0dp"
+                                android:layout_height="0dp"
+                                android:layout_weight="1" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_try_loop"
+                                style="@style/Widget.Horizon.Button.Tonal"
+                                android:layout_width="wrap_content"
+                                android:layout_height="36dp"
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                android:minWidth="64dp"
+                                android:paddingHorizontal="12dp"
+                                android:text="@string/btn_try_loop"
+                                android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                                app:cornerRadius="18dp"
+                                app:icon="@drawable/ic_play"
+                                app:iconGravity="textStart" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Action buttons -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="@dimen/space_md">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_clear"
+                        style="@style/Widget.Horizon.Button.Outlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="@dimen/space_sm"
+                        android:text="@string/btn_clear"
+                        app:cornerRadius="20dp"
+                        app:icon="@drawable/ic_close"
+                        app:iconGravity="textStart" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_apply"
+                        style="@style/Widget.Horizon.Button"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="@dimen/space_sm"
+                        android:text="@string/btn_save"
+                        app:cornerRadius="20dp"
+                        app:icon="@drawable/ic_check"
+                        app:iconGravity="textStart" />
+
+                </LinearLayout>
+
+                <!-- Saved Timestamps (conditionally visible) -->
+                <LinearLayout
+                    android:id="@+id/layout_saved_timestamps"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        style="@style/Widget.Horizon.SectionHeader"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/section_saved_timestamps" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        style="@style/Widget.Horizon.CardView.Glass"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/space_md">
+
+                        <LinearLayout
+                            android:id="@+id/saved_timestamps_container"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="@dimen/space_md" />
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.core.widget.NestedScrollView>
+
+        <!-- ══════ PANEL: NOTES (Saved Notes / Bookmarks) ═══════════════════ -->
+        <LinearLayout
+            android:id="@+id/panel_notes"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingHorizontal="@dimen/space_xl"
+            android:visibility="gone">
+
+            <!-- Notes icon -->
+            <ImageView
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:alpha="0.3"
+                android:contentDescription="@string/content_desc_video_icon"
+                android:scaleType="centerInside"
+                app:srcCompat="@drawable/ic_tab_notes"
+                app:tint="@color/colorPrimary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_lg"
+                android:gravity="center"
+                android:text="@string/no_saved_notes"
+                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                android:textColor="@color/colorOnSurfaceVariant" />
+
+            <!-- Placeholder for future notes list -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_notes_list"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginTop="@dimen/space_md"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+    </FrameLayout>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
-         FIXED BOTTOM PLAYER BAR — Always visible, never scrolls away
-         Premium Spotify/YouTube Music inspired controls
+         TAB NAVIGATION PILL (52dp) — Compact pill-shaped tab bar
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <LinearLayout
+        android:id="@+id/layout_tab_nav"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/tab_nav_height"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingHorizontal="@dimen/space_sm"
+        android:background="@color/colorSurface"
+        android:elevation="2dp">
+
+        <!-- Tab: Clean -->
+        <LinearLayout
+            android:id="@+id/tab_clean_btn"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="@dimen/space_xs"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="@drawable/bg_tab_indicator"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="@dimen/tab_icon_size"
+                android:layout_height="@dimen/tab_icon_size"
+                android:scaleType="centerInside"
+                app:srcCompat="@drawable/ic_tab_clean"
+                app:tint="@color/colorOnPrimaryContainer" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_xs"
+                android:text="@string/tab_clean"
+                android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
+                android:textColor="@color/colorOnPrimaryContainer" />
+
+        </LinearLayout>
+
+        <!-- Tab: Talk -->
+        <LinearLayout
+            android:id="@+id/tab_talk_btn"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="@dimen/space_xs"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="@dimen/tab_icon_size"
+                android:layout_height="@dimen/tab_icon_size"
+                android:scaleType="centerInside"
+                app:srcCompat="@drawable/ic_tab_talk"
+                app:tint="@color/colorOnSurfaceVariant" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_xs"
+                android:text="@string/tab_talk"
+                android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
+                android:textColor="@color/colorOnSurfaceVariant" />
+
+        </LinearLayout>
+
+        <!-- Tab: Loop -->
+        <LinearLayout
+            android:id="@+id/tab_loop_btn"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="@dimen/space_xs"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="@dimen/tab_icon_size"
+                android:layout_height="@dimen/tab_icon_size"
+                android:scaleType="centerInside"
+                app:srcCompat="@drawable/ic_tab_loop"
+                app:tint="@color/colorOnSurfaceVariant" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_xs"
+                android:text="@string/tab_loop"
+                android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
+                android:textColor="@color/colorOnSurfaceVariant" />
+
+        </LinearLayout>
+
+        <!-- Tab: Notes -->
+        <LinearLayout
+            android:id="@+id/tab_notes_btn"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="@dimen/space_xs"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="@dimen/tab_icon_size"
+                android:layout_height="@dimen/tab_icon_size"
+                android:scaleType="centerInside"
+                app:srcCompat="@drawable/ic_tab_notes"
+                app:tint="@color/colorOnSurfaceVariant" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_xs"
+                android:text="@string/tab_notes"
+                android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
+                android:textColor="@color/colorOnSurfaceVariant" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         PLAYER FOOTER CARD (180dp) — Now Playing controls
          ═══════════════════════════════════════════════════════════════════════ -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/card_bottom_player"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
         app:cardCornerRadius="0dp"
         app:cardElevation="8dp"
         app:cardBackgroundColor="@color/colorPlayerBar"
@@ -646,22 +886,81 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="@dimen/space_lg"
-            android:paddingTop="@dimen/space_sm">
+            android:paddingTop="@dimen/space_md"
+            android:paddingBottom="@dimen/space_md">
 
-            <!-- Seek bar row -->
+            <!-- Track Title & Subtitle row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    app:cardCornerRadius="@dimen/space_sm"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@color/colorPrimaryContainer">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@string/content_desc_video_icon"
+                        android:scaleType="centerInside"
+                        app:srcCompat="@drawable/ic_audio_track"
+                        app:tint="@color/colorOnPrimaryContainer" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="@dimen/space_sm"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_now_playing_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textAppearance="@style/TextAppearance.Horizon.TitleSmall"
+                        android:textColor="@color/colorOnSurface"
+                        tools:text="Chapter 03 - Introducing Yourself" />
+
+                    <TextView
+                        android:id="@+id/tv_now_playing_subtitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                        android:textColor="@color/colorOnSurfaceVariant"
+                        tools:text="Language Learning Audio" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Waveform SeekBar row -->
             <SeekBar
                 android:id="@+id/seek_bar_player"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_sm"
                 android:max="1000"
                 android:progress="0"
                 android:contentDescription="@string/content_desc_seek_bar"
                 android:splitTrack="false"
+                android:progressDrawable="@drawable/bg_waveform_seek"
                 android:progressTint="@color/colorPrimary"
                 android:progressBackgroundTint="@color/colorSurfaceVariant"
                 android:thumbTint="@color/colorPrimary" />
 
-            <!-- Time row -->
+            <!-- Time row: Elapsed | Total -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -674,7 +973,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                    android:textColor="@color/colorOnSurfaceVariant" />
+                    android:textColor="@color/colorOnSurfaceVariant"
+                    tools:text="1:23" />
 
                 <View
                     android:layout_width="0dp"
@@ -686,37 +986,24 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                    android:textColor="@color/colorOnSurfaceVariant" />
+                    android:textColor="@color/colorOnSurfaceVariant"
+                    tools:text="5:32" />
 
             </LinearLayout>
 
-            <!-- Transport controls: ⏮ ⏪ ▶️/⏸ ⏩ ⏭ with Stop
-                 Centered row with FAB-style play button -->
+            <!-- Transport Controls: [Rewind] [Play] [Forward] -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:orientation="horizontal"
-                android:paddingVertical="@dimen/space_sm">
-
-                <!-- Skip Previous — transport circle -->
-                <ImageView
-                    android:id="@+id/iv_skip_previous"
-                    android:layout_width="@dimen/transport_button_size"
-                    android:layout_height="@dimen/transport_button_size"
-                    android:background="@drawable/bg_transport_button"
-                    android:contentDescription="@string/notification_previous"
-                    android:padding="@dimen/space_md"
-                    android:scaleType="centerInside"
-                    app:srcCompat="@drawable/ic_skip_previous"
-                    app:tint="@color/colorOnSurface" />
+                android:paddingVertical="@dimen/space_xs">
 
                 <!-- Rewind 5s — transport circle -->
                 <ImageView
                     android:id="@+id/iv_rewind_5"
                     android:layout_width="@dimen/transport_button_size"
                     android:layout_height="@dimen/transport_button_size"
-                    android:layout_marginStart="@dimen/space_sm"
                     android:background="@drawable/bg_transport_button"
                     android:contentDescription="@string/content_desc_rewind_5"
                     android:padding="@dimen/space_md"
@@ -729,7 +1016,7 @@
                     android:id="@+id/iv_play_pause"
                     android:layout_width="@dimen/play_button_size"
                     android:layout_height="@dimen/play_button_size"
-                    android:layout_marginHorizontal="@dimen/space_sm"
+                    android:layout_marginHorizontal="@dimen/space_xl"
                     android:background="@drawable/bg_play_button"
                     android:contentDescription="@string/content_desc_play_pause"
                     android:padding="@dimen/space_lg"
@@ -749,35 +1036,10 @@
                     app:srcCompat="@drawable/ic_forward_5"
                     app:tint="@color/colorOnSurface" />
 
-                <!-- Skip Next — transport circle -->
-                <ImageView
-                    android:id="@+id/iv_skip_next"
-                    android:layout_width="@dimen/transport_button_size"
-                    android:layout_height="@dimen/transport_button_size"
-                    android:layout_marginStart="@dimen/space_sm"
-                    android:background="@drawable/bg_transport_button"
-                    android:contentDescription="@string/notification_next"
-                    android:padding="@dimen/space_md"
-                    android:scaleType="centerInside"
-                    app:srcCompat="@drawable/ic_skip_next"
-                    app:tint="@color/colorOnSurface" />
-
-                <!-- Stop — smaller, subdued -->
-                <ImageView
-                    android:id="@+id/iv_stop"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:layout_marginStart="@dimen/space_lg"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/content_desc_stop"
-                    android:scaleType="centerInside"
-                    app:srcCompat="@drawable/ic_stop"
-                    app:tint="@color/colorOnSurfaceVariant" />
-
             </LinearLayout>
 
         </LinearLayout>
 
     </com.google.android.material.card.MaterialCardView>
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+</LinearLayout>

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Pill-shaped indicator for selected tab -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="@color/colorActiveIndicator" />
-    <corners android:radius="@dimen/dialogue_item_corner_radius" />
+    <solid android:color="@color/colorPrimaryContainer" />
+    <corners android:radius="16dp" />
 </shape>

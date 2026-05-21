@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.fragment.app.Fragment
@@ -40,14 +41,26 @@ import timber.log.Timber
 import javax.inject.Inject
 
 /**
- * Now Playing / Playback Settings screen.
+ * Now Playing / Playback Settings screen (v6 Tab-Based Redesign).
  *
- * Production-quality audio player UI (Spotify/YouTube Music inspired):
- *  - Hero "Now Playing" card with track info + speed + AB badge
- *  - Fixed bottom player bar with seek bar + transport controls
- *  - A-B Loop range section with compact stepper
- *  - AI Subtitles + dialogue list
- *  - Debug log hidden in release builds
+ * Layout structure (matching physical device wireframe):
+ *   ┌──────────────────────────────────────┐
+ *   │  HEADER BLOCK (48dp)                │
+ *   │  [←] [🎵] Track Title    [AB] [1x] │
+ *   ├──────────────────────────────────────┤
+ *   │  MAIN DISPLAY (flex-1)              │
+ *   │  Switches between panels:           │
+ *   │  - Clean: minimal view              │
+ *   │  - Talk: dialogue list              │
+ *   │  - Loop: A-B controls              │
+ *   │  - Notes: saved items              │
+ *   ├──────────────────────────────────────┤
+ *   │  TAB NAV PILL (52dp)                │
+ *   │  [Clean] [Talk] [Loop] [Notes]      │
+ *   ├──────────────────────────────────────┤
+ *   │  PLAYER FOOTER CARD (180dp)         │
+ *   │  Title | Waveform | [⏪ ▶ ⏩]       │
+ *   └──────────────────────────────────────┘
  */
 @AndroidEntryPoint
 class PlaybackSettingsFragment : Fragment() {
@@ -75,6 +88,9 @@ class PlaybackSettingsFragment : Fragment() {
     private var currentSpeedIndex: Int = SpeedPresets.ALL.indexOf(SpeedPresets.DEFAULT)
     private var loopCount: Int = 3
 
+    // Tab state
+    private var currentTab: Int = TAB_CLEAN
+
     private val securePrefsName = "looplingo_secure_prefs"
     private val keyGroqApiKey = "groq_api_key"
     private val keyLanguage = "whisper_language"
@@ -85,6 +101,13 @@ class PlaybackSettingsFragment : Fragment() {
 
     // Seek bar tracking
     private var isSeekBarTracking: Boolean = false
+
+    companion object {
+        const val TAB_CLEAN = 0
+        const val TAB_TALK = 1
+        const val TAB_LOOP = 2
+        const val TAB_NOTES = 3
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPlaybackSettingsBinding.inflate(inflater, container, false)
@@ -101,7 +124,8 @@ class PlaybackSettingsFragment : Fragment() {
         }
 
         viewModel.loadConfigForVideo(videoPath)
-        setupToolbar()
+        setupHeader()
+        setupTabNavigation()
         setupTransportControls()
         setupSeekBar()
         setupSpeedToggle()
@@ -118,14 +142,63 @@ class PlaybackSettingsFragment : Fragment() {
         if (!BuildConfig.DEBUG) {
             binding.tvDebugLog.visibility = View.GONE
         }
-    }
 
-    private fun setupToolbar() {
-        binding.toolbar.setNavigationOnClickListener { findNavController().navigateUp() }
+        // Start on Clean tab
+        switchTab(TAB_CLEAN)
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // TRANSPORT CONTROLS — Now Playing hero card
+    // HEADER — Compact top bar with back, avatar, title, AB badge, speed
+    // ══════════════════════════════════════════════════════════════════════
+
+    private fun setupHeader() {
+        binding.ivBack.setOnClickListener { findNavController().navigateUp() }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // TAB NAVIGATION — Clean / Talk / Loop / Notes
+    // ══════════════════════════════════════════════════════════════════════
+
+    private fun setupTabNavigation() {
+        binding.tabCleanBtn.setOnClickListener { switchTab(TAB_CLEAN) }
+        binding.tabTalkBtn.setOnClickListener { switchTab(TAB_TALK) }
+        binding.tabLoopBtn.setOnClickListener { switchTab(TAB_LOOP) }
+        binding.tabNotesBtn.setOnClickListener { switchTab(TAB_NOTES) }
+    }
+
+    private fun switchTab(tab: Int) {
+        currentTab = tab
+
+        // Update panel visibility
+        binding.panelClean.visibility = if (tab == TAB_CLEAN) View.VISIBLE else View.GONE
+        binding.panelTalk.visibility = if (tab == TAB_TALK) View.VISIBLE else View.GONE
+        binding.panelLoop.visibility = if (tab == TAB_LOOP) View.VISIBLE else View.GONE
+        binding.panelNotes.visibility = if (tab == TAB_NOTES) View.VISIBLE else View.GONE
+
+        // Update tab styling (selected = pill bg, unselected = transparent)
+        updateTabStyle(binding.tabCleanBtn, tab == TAB_CLEAN)
+        updateTabStyle(binding.tabTalkBtn, tab == TAB_TALK)
+        updateTabStyle(binding.tabLoopBtn, tab == TAB_LOOP)
+        updateTabStyle(binding.tabNotesBtn, tab == TAB_NOTES)
+    }
+
+    private fun updateTabStyle(tabLayout: LinearLayout, isSelected: Boolean) {
+        val iconView = tabLayout.getChildAt(0) as ImageView
+        val textView = tabLayout.getChildAt(1) as TextView
+
+        if (isSelected) {
+            tabLayout.background = resources.getDrawable(R.drawable.bg_tab_indicator, null)
+            iconView.imageTintList = resources.getColorStateList(R.color.colorOnPrimaryContainer, null)
+            textView.setTextColor(resources.getColor(R.color.colorOnPrimaryContainer, null))
+        } else {
+            tabLayout.background = resources.getDrawable(android.R.attr.selectableItemBackgroundBorderless, requireContext().theme)
+            iconView.imageTintList = resources.getColorStateList(R.color.colorOnSurfaceVariant, null)
+            textView.setTextColor(resources.getColor(R.color.colorOnSurfaceVariant, null))
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // TRANSPORT CONTROLS — Player footer
     // ══════════════════════════════════════════════════════════════════════
 
     private fun setupTransportControls() {
@@ -140,11 +213,6 @@ class PlaybackSettingsFragment : Fragment() {
             }
         }
 
-        // Stop
-        binding.ivStop.setOnClickListener {
-            AudioPlaybackService.stopService(requireContext())
-        }
-
         // Rewind 5s
         binding.ivRewind5.setOnClickListener {
             AudioPlaybackService.seekBackward(requireContext(), 5000L)
@@ -153,21 +221,6 @@ class PlaybackSettingsFragment : Fragment() {
         // Forward 5s
         binding.ivForward5.setOnClickListener {
             AudioPlaybackService.seekForward(requireContext(), 5000L)
-        }
-
-        // Skip previous
-        binding.ivSkipPrevious.setOnClickListener {
-            // Seek to start of current video (or previous if already at start)
-            val position = AudioPlaybackService.currentPositionMs
-            if (position > 3000L) {
-                AudioPlaybackService.seekToPosition(requireContext(), args.videoPath, 0L)
-            }
-            // Could add previous track logic here if needed
-        }
-
-        // Skip next
-        binding.ivSkipNext.setOnClickListener {
-            // Could add next track logic here if needed
         }
     }
 
@@ -229,7 +282,7 @@ class PlaybackSettingsFragment : Fragment() {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // LOOP COUNT STEPPER (replaces TextInputLayout)
+    // LOOP COUNT STEPPER
     // ══════════════════════════════════════════════════════════════════════
 
     private fun setupLoopControls() {
@@ -297,11 +350,15 @@ class PlaybackSettingsFragment : Fragment() {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // NOW PLAYING CARD — Real-time updates
+    // NOW PLAYING CARD — Real-time updates for header + footer
     // ══════════════════════════════════════════════════════════════════════
 
     private fun setupNowPlayingCard() {
-        binding.tvNowPlayingTitle.text = args.videoPath.substringAfterLast("/").substringBeforeLast(".")
+        val title = args.videoPath.substringAfterLast("/").substringBeforeLast(".")
+        binding.tvHeaderTitle.text = title
+        binding.tvNowPlayingTitle.text = title
+        binding.tvNowPlayingSubtitle.text = getString(R.string.clean_view_subtitle)
+        binding.tvCleanTitle.text = title
         binding.tvCurrentPosition.text = "0:00"
         binding.tvDuration.text = "0:00"
         startPositionPolling()
@@ -316,13 +373,15 @@ class PlaybackSettingsFragment : Fragment() {
             if (isCurrentlyPlaying) R.drawable.ic_pause else R.drawable.ic_play
         )
 
-        // Update title
+        // Update title in header, footer, and clean panel
         val title = if (AudioPlaybackService.currentVideoPath.isNotBlank()) {
             AudioPlaybackService.currentVideoPath.substringAfterLast("/").substringBeforeLast(".")
         } else {
             args.videoPath.substringAfterLast("/").substringBeforeLast(".")
         }
+        binding.tvHeaderTitle.text = title
         binding.tvNowPlayingTitle.text = title
+        binding.tvCleanTitle.text = title
 
         // Update position and duration
         val position = AudioPlaybackService.currentPositionMs
@@ -614,6 +673,9 @@ class PlaybackSettingsFragment : Fragment() {
         }
 
         showDialogueList(dialogueSegments)
+
+        // Auto-switch to Talk tab when subtitles are loaded
+        switchTab(TAB_TALK)
     }
 
     private fun startSubtitleGeneration(apiKey: String, effectivePath: String, videoPath: String) {
@@ -720,6 +782,9 @@ class PlaybackSettingsFragment : Fragment() {
                     appendDebugLog("Transcriptions saved to database + SRT file")
 
                     showDialogueList(segments)
+
+                    // Auto-switch to Talk tab when subtitles are ready
+                    switchTab(TAB_TALK)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 isGeneratingSubtitles = false
