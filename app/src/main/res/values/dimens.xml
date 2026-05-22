@@ -71,6 +71,30 @@
     <dimen name="tab_indicator_height">3dp</dimen>
 
     <!-- ══════════════════════════════════════════════════════════════════════
+         V6.1.0 PREMIUM DARK DIMENSIONS
+         ══════════════════════════════════════════════════════════════════════ -->
+    <!-- Footer card -->
+    <dimen name="footer_card_corner_radius">16dp</dimen>
+    <dimen name="footer_card_margin">16dp</dimen>
+
+    <!-- Waveform seek bar -->
+    <dimen name="waveform_height">36dp</dimen>
+
+    <!-- Transport controls (new) -->
+    <dimen name="transport_rewind_size">40dp</dimen>
+    <dimen name="transport_play_size">48dp</dimen>
+    <dimen name="transport_icon_size">24dp</dimen>
+    <dimen name="transport_play_icon_size">28dp</dimen>
+
+    <!-- Header -->
+    <dimen name="header_height">48dp</dimen>
+    <dimen name="header_icon_size">20dp</dimen>
+    <dimen name="header_avatar_size">32dp</dimen>
+
+    <!-- Tab pill -->
+    <dimen name="tab_pill_height">36dp</dimen>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
          TYPOGRAPHY — Type scale (sp)
          ══════════════════════════════════════════════════════════════════════ -->
     <dimen name="text_display_large">57sp</dimen>

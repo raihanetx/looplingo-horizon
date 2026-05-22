@@ -59,4 +59,40 @@
 
     <!-- Active dialogue highlight — teal glow in dark -->
     <color name="colorActiveIndicator">#0A2E28</color>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         HORIZON LOOP PREMIUM DARK — Brand Palette (v6.1.0)
+         Same as light — this is a dark-only design
+         ══════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Brand core -->
+    <color name="brand_bg">#080b11</color>
+    <color name="brand_card">#0f131c</color>
+    <color name="brand_accent">#10b981</color>
+    <color name="brand_accent_dark">#059669</color>
+
+    <!-- Glass surfaces -->
+    <color name="glass_bg">#0f131c</color>
+    <color name="glass_border">#1a2230</color>
+    <color name="glass_pill_bg">#06090e</color>
+    <color name="glass_pill_border">#1a2230</color>
+
+    <!-- Slate text shades -->
+    <color name="slate_100">#f1f5f9</color>
+    <color name="slate_200">#e2e8f0</color>
+    <color name="slate_300">#cbd5e1</color>
+    <color name="slate_400">#94a3b8</color>
+    <color name="slate_500">#64748b</color>
+    <color name="slate_600">#475569</color>
+    <color name="slate_700">#334155</color>
+    <color name="slate_800">#1e293b</color>
+
+    <!-- Waveform -->
+    <color name="waveform_played">#10b981</color>
+    <color name="waveform_unplayed">#3f3f46</color>
+
+    <!-- Loop card -->
+    <color name="loop_play_bg">#1a10b981</color>
+    <color name="loop_play_border">#10b981</color>
+    <color name="loop_delete_bg">#0dffffff</color>
 </resources>
