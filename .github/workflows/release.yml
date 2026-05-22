@@ -93,24 +93,20 @@ jobs:
             Built on ${{ steps.version.outputs.date }}
             Version code: ${{ steps.version.outputs.code }}
 
-            What's new in v6.0.1:
-            - FIX: Resources$NotFoundException crash when switching tabs
-            - Root cause: android.R.attr.* (attr ID) was passed to getDrawable()
-              instead of resolving through TypedValue first
-            - Tab switching now properly resolves theme attributes
-
-            v6.0.0 features:
-            - TAB-BASED UI REDESIGN: Organized, polished, visually better
-            - 4-tab navigation: Clean / Talk / Loop / Notes
-            - Header block: Back + Avatar + Track Title + AB badge + Speed
-            - Clean panel: Minimal view with track info
-            - Talk panel: AI subtitle generation + dialogue list
-            - Loop panel: A-B range controls + loop stepper + save
-            - Notes panel: Saved timestamps and bookmarks
-            - Player footer card: Track title + Waveform SeekBar + Controls
-            - Pill-shaped tab indicator with active state
-            - Auto-switch to Talk tab when subtitles load
-            - Simplified transport: Rewind / Play / Forward
+            What's new in v6.1.0:
+            - PREMIUM DARK UI REDESIGN — Emerald Mint Green accent
+            - Deep Dark Navy Slate background (#080b11)
+            - Super-glass card surfaces with subtle borders
+            - Custom WaveformSeekBar — 30-bar visual waveform
+            - Compact header: Back + Avatar + Profile + Loop + Speed
+            - 4 switchable panels: Clean / Dialogue / Loop / Notes
+            - Clean view: Centered EN+BN text with fade transitions
+            - Dialogue view: Scrollable list with active highlighting
+            - Loop panel: Saved loops shelf + add form (long-press to toggle)
+            - Notes panel: Saved notes shelf + add form (long-press to toggle)
+            - Tab navigation pill with accent-colored active tab
+            - Floating footer card with waveform seekbar
+            - 3-button transport: Rewind / Play-Pause / Forward
 
             Download the APK below
           files: |
