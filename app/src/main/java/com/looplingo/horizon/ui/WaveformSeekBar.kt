@@ -73,7 +73,7 @@ class WaveformSeekBar @JvmOverloads constructor(
 
         for (i in 0 until bars) {
             val barHeightPercent = waveHeights[i].coerceIn(0, 100)
-            val barHeight = (h * barHeightPercent / 100f).coerceAtLeast(barWidth) // min height = barWidth for aesthetics
+            val barHeight = (h * barHeightPercent / 100f).coerceAtLeast(barWidth.toFloat()) // min height = barWidth for aesthetics
             val left = paddingLeft + i * (barWidth + barGapPx).toFloat()
             val top = paddingTop + (h - barHeight) / 2f
             val right = left + barWidth
