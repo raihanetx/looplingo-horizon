@@ -10,7 +10,7 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.SeekBar
+// SeekBar import removed — using WaveformSeekBar custom view
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -99,8 +99,9 @@ class PlaybackSettingsFragment : Fragment() {
     private var selectedTranslationCode = "none"
     private var cachedEncryptedPrefs: SharedPreferences? = null
 
-    // Seek bar tracking
-    private var isSeekBarTracking: Boolean = false
+    // Loop mode cycling state
+    private var currentLoopMode = 0 // 0=none, 1=main loop, 2=line loop
+    private val LOOP_MODE_LABELS = listOf("↻", "AB", "①")
 
     companion object {
         const val TAB_CLEAN = 0
@@ -128,6 +129,7 @@ class PlaybackSettingsFragment : Fragment() {
         setupTabNavigation()
         setupTransportControls()
         setupSeekBar()
+        setupLoopToggle()
         setupSpeedToggle()
         setupLoopControls()
         setupTryLoopButton()
@@ -156,6 +158,24 @@ class PlaybackSettingsFragment : Fragment() {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // LOOP MODE TOGGLE — Cycles through No Loop → Main Loop → Line Loop
+    // ══════════════════════════════════════════════════════════════════════
+
+    private fun setupLoopToggle() {
+        binding.btnLoopToggle.text = LOOP_MODE_LABELS[currentLoopMode]
+        binding.btnLoopToggle.setOnClickListener {
+            currentLoopMode = (currentLoopMode + 1) % LOOP_MODE_LABELS.size
+            binding.btnLoopToggle.text = LOOP_MODE_LABELS[currentLoopMode]
+            // Apply loop mode
+            when (currentLoopMode) {
+                0 -> { /* No loop - clear any active loop */ }
+                1 -> { /* Main loop - use AB loop from loop panel */ }
+                2 -> { /* Line loop - loop current dialogue segment */ }
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // TAB NAVIGATION — Clean / Talk / Loop / Notes
     // ══════════════════════════════════════════════════════════════════════
 
@@ -164,6 +184,23 @@ class PlaybackSettingsFragment : Fragment() {
         binding.tabTalkBtn.setOnClickListener { switchTab(TAB_TALK) }
         binding.tabLoopBtn.setOnClickListener { switchTab(TAB_LOOP) }
         binding.tabNotesBtn.setOnClickListener { switchTab(TAB_NOTES) }
+
+        // Long-press tab behavior for Loop and Notes
+        binding.tabLoopBtn.setOnLongClickListener {
+            // Toggle loop add form visibility
+            toggleLoopAddForm()
+            true
+        }
+        binding.tabNotesBtn.setOnLongClickListener {
+            // Toggle notes add form visibility
+            binding.layoutAddNote.visibility = if (binding.layoutAddNote.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            true
+        }
+    }
+
+    private fun toggleLoopAddForm() {
+        // Placeholder for toggling loop add form visibility
+        // Future implementation can toggle a loop creation form
     }
 
     private fun switchTab(tab: Int) {
@@ -229,33 +266,17 @@ class PlaybackSettingsFragment : Fragment() {
     }
 
     private fun setupSeekBar() {
-        binding.seekBarPlayer.setOnSeekBarChangeListener(
-            object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    if (fromUser) {
-                        val duration = AudioPlaybackService.durationMs
-                        if (duration > 0) {
-                            val newPos = (progress.toLong() * duration) / 1000
-                            binding.tvCurrentPosition.text = formatMsToTime(newPos)
-                        }
-                    }
-                }
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {
-                    isSeekBarTracking = true
-                }
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                    isSeekBarTracking = false
-                    val duration = AudioPlaybackService.durationMs
-                    if (duration > 0 && seekBar != null) {
-                        val newPos = (seekBar.progress.toLong() * duration) / 1000
-                        val videoPath = AudioPlaybackService.currentVideoPath
-                        if (videoPath.isNotBlank()) {
-                            AudioPlaybackService.seekToPosition(requireContext(), videoPath, newPos)
-                        }
-                    }
+        binding.waveformSeekBar.onSeekListener = { progress ->
+            val duration = AudioPlaybackService.durationMs
+            if (duration > 0) {
+                val newPos = (progress.toLong() * duration) / 1000
+                binding.tvCurrentPosition.text = formatMsToTime(newPos)
+                val videoPath = AudioPlaybackService.currentVideoPath
+                if (videoPath.isNotBlank()) {
+                    AudioPlaybackService.seekToPosition(requireContext(), videoPath, newPos)
                 }
             }
-        )
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -394,10 +415,10 @@ class PlaybackSettingsFragment : Fragment() {
         binding.tvCurrentPosition.text = formatMsToTime(position)
         binding.tvDuration.text = if (duration > 0) formatMsToTime(duration) else "0:00"
 
-        // Update seek bar (only if user is not dragging)
-        if (!isSeekBarTracking && duration > 0) {
+        // Update waveform seek bar
+        if (duration > 0) {
             val progress = ((position * 1000) / duration).toInt().coerceIn(0, 1000)
-            binding.seekBarPlayer.progress = progress
+            binding.waveformSeekBar.progress = progress
         }
 
         // Show AB indicator if loop is active

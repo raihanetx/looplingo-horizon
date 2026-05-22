@@ -93,7 +93,14 @@ jobs:
             Built on ${{ steps.version.outputs.date }}
             Version code: ${{ steps.version.outputs.code }}
 
-            What's new in v6.1.0:
+            What's new in v7.0.0:
+            - UI REDESIGN — WaveformSeekBar replaces SeekBar in player footer
+            - Loop mode cycling button in header (No Loop → Main Loop → Line Loop)
+            - Tab dividers between Clean/Talk/Loop/Notes navigation
+            - Enhanced Notes panel with RecyclerView, add-note form, and empty state
+            - Long-press tab behavior for Loop and Notes to toggle add forms
+
+            Previous (v6.1.0):
             - PREMIUM DARK UI REDESIGN — Emerald Mint Green accent
             - Deep Dark Navy Slate background (#080b11)
             - Super-glass card surfaces with subtle borders

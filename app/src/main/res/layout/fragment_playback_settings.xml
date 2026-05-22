@@ -103,6 +103,20 @@
             android:textColor="@color/colorOnPrimary"
             android:visibility="gone" />
 
+        <!-- Loop mode cycling button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_loop_toggle"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="wrap_content"
+            android:layout_height="28dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:minWidth="40dp"
+            android:paddingHorizontal="6dp"
+            android:text="↻"
+            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+            app:cornerRadius="14dp" />
+
         <!-- Speed toggle chip -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_speed_toggle"
@@ -697,37 +711,91 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
-            android:gravity="center"
-            android:paddingHorizontal="@dimen/space_xl"
             android:visibility="gone">
 
-            <!-- Notes icon -->
-            <ImageView
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:alpha="0.3"
-                android:contentDescription="@string/content_desc_video_icon"
-                android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_tab_notes"
-                app:tint="@color/colorPrimary" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/space_lg"
-                android:gravity="center"
-                android:text="@string/no_saved_notes"
-                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                android:textColor="@color/colorOnSurfaceVariant" />
-
-            <!-- Placeholder for future notes list -->
+            <!-- Notes list -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_notes_list"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
-                android:layout_marginTop="@dimen/space_md"
-                android:visibility="gone" />
+                android:paddingHorizontal="@dimen/space_md"
+                android:paddingTop="@dimen/space_md"
+                android:clipToPadding="false" />
+
+            <!-- Add note form (toggleable) -->
+            <LinearLayout
+                android:id="@+id/layout_add_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingHorizontal="@dimen/space_lg"
+                android:paddingVertical="@dimen/space_sm"
+                android:gravity="center_vertical"
+                android:visibility="gone">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/til_note_text"
+                    style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="@dimen/space_sm"
+                    android:hint="Add note...">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/et_note_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textMultiLine"
+                        android:maxLines="3"
+                        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_add_note"
+                    style="@style/Widget.Horizon.Button.Tonal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:text="Add"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                    app:cornerRadius="18dp"
+                    app:icon="@drawable/ic_check"
+                    app:iconGravity="textStart" />
+
+            </LinearLayout>
+
+            <!-- Empty state -->
+            <LinearLayout
+                android:id="@+id/layout_notes_empty"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:paddingHorizontal="@dimen/space_xl">
+
+                <ImageView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:alpha="0.3"
+                    android:contentDescription="Notes"
+                    android:scaleType="centerInside"
+                    app:srcCompat="@drawable/ic_tab_notes"
+                    app:tint="@color/colorPrimary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_lg"
+                    android:gravity="center"
+                    android:text="No saved notes yet.\nLong-press the Notes tab to add one."
+                    android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                    android:textColor="@color/colorOnSurfaceVariant" />
+
+            </LinearLayout>
 
         </LinearLayout>
 
@@ -776,6 +844,13 @@
 
         </LinearLayout>
 
+        <!-- Divider between Clean and Talk -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:background="@color/colorOutlineVariant" />
+
         <!-- Tab: Talk -->
         <LinearLayout
             android:id="@+id/tab_talk_btn"
@@ -806,6 +881,13 @@
 
         </LinearLayout>
 
+        <!-- Divider between Talk and Loop -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:background="@color/colorOutlineVariant" />
+
         <!-- Tab: Loop -->
         <LinearLayout
             android:id="@+id/tab_loop_btn"
@@ -835,6 +917,13 @@
                 android:textColor="@color/colorOnSurfaceVariant" />
 
         </LinearLayout>
+
+        <!-- Divider between Loop and Notes -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:background="@color/colorOutlineVariant" />
 
         <!-- Tab: Notes -->
         <LinearLayout
@@ -946,19 +1035,12 @@
             </LinearLayout>
 
             <!-- Waveform SeekBar row -->
-            <SeekBar
-                android:id="@+id/seek_bar_player"
+            <com.looplingo.horizon.ui.WaveformSeekBar
+                android:id="@+id/waveform_seek_bar"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="32dp"
                 android:layout_marginTop="@dimen/space_sm"
-                android:max="1000"
-                android:progress="0"
-                android:contentDescription="@string/content_desc_seek_bar"
-                android:splitTrack="false"
-                android:progressDrawable="@drawable/bg_waveform_seek"
-                android:progressTint="@color/colorPrimary"
-                android:progressBackgroundTint="@color/colorSurfaceVariant"
-                android:thumbTint="@color/colorPrimary" />
+                android:contentDescription="@string/content_desc_seek_bar" />
 
             <!-- Time row: Elapsed | Total -->
             <LinearLayout
