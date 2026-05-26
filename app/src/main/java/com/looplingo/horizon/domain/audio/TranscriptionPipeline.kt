@@ -248,16 +248,26 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
                 val lastResp = whisperApiClient.getLastWhisperResponse()
                 val fallbackText = extractTextFromWhisperResponse(lastResp)
                 if (fallbackText.isNotBlank()) {
-                    Timber.w("Transcription returned empty segments but Whisper response has text — creating fallback segment from: %s", fallbackText.take(80))
-                    val fallbackSegment = com.looplingo.horizon.data.remote.Segment(
-                        id = 0,
-                        text = fallbackText.trim(),
-                        startSec = 0.0,
-                        endSec = normalizedChunks.firstOrNull()?.durationSec ?: 0.0,
-                        noSpeechProb = 0.0,
-                        avgLogprob = 0.0
-                    )
-                    return@withContext listOf(fallbackSegment)
+                    val totalDuration = normalizedChunks.sumOf { it.durationSec }
+                    val sentences = whisperApiClient.splitIntoSentences(fallbackText)
+                    val timePerChar = if (fallbackText.isNotEmpty() && totalDuration > 0) totalDuration / fallbackText.length else 1.0
+                    var currentTime = 0.0
+                    val segmentsToCreate = if (sentences.size > 1) sentences else listOf(fallbackText)
+                    Timber.w("Transcription returned empty segments but Whisper response has text — creating %d fallback segments", segmentsToCreate.size)
+                    val fallbackSegments = segmentsToCreate.mapIndexed { index, sentence ->
+                        val sentenceDuration = sentence.length * timePerChar
+                        val seg = com.looplingo.horizon.data.remote.Segment(
+                            id = index,
+                            text = sentence.trim(),
+                            startSec = currentTime,
+                            endSec = currentTime + sentenceDuration,
+                            noSpeechProb = 0.0,
+                            avgLogprob = 0.0
+                        )
+                        currentTime += sentenceDuration
+                        seg
+                    }
+                    return@withContext fallbackSegments
                 }
                 val chunkDiag = chunkedTranscriber.lastDiagnostics
                 val pcmInfo = if (droppedSilentChunks > 0) {

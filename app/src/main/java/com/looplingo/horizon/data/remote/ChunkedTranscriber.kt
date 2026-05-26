@@ -105,17 +105,26 @@ class ChunkedTranscriber @Inject constructor(
                     val lastResp = whisperApiClient.getLastWhisperResponse()
                     val fallbackText = extractTextFromResponse(lastResp)
                     if (fallbackText.isNotBlank()) {
-                        Timber.w("Chunk %d returned empty segments but response has text — creating fallback segment", result.chunkIdx)
-                        val fallbackSegment = Segment(
-                            id = segmentIdOffset,
-                            text = fallbackText.trim(),
-                            startSec = result.chunk.startTimeSec,
-                            endSec = result.chunk.startTimeSec + result.chunk.durationSec,
-                            noSpeechProb = 0.0,
-                            avgLogprob = 0.0
-                        )
-                        allSegments.add(fallbackSegment)
-                        segmentIdOffset += 1
+                        val sentences = whisperApiClient.splitIntoSentences(fallbackText)
+                        val chunkStart = result.chunk.startTimeSec
+                        val chunkDuration = result.chunk.durationSec
+                        val timePerChar = if (fallbackText.isNotEmpty() && chunkDuration > 0) chunkDuration / fallbackText.length else 1.0
+                        var currentTime = chunkStart
+                        val segmentsToCreate = if (sentences.size > 1) sentences else listOf(fallbackText)
+                        Timber.w("Chunk %d returned empty segments but response has text — creating %d fallback segments", result.chunkIdx, segmentsToCreate.size)
+                        for (sentence in segmentsToCreate) {
+                            val sentenceDuration = sentence.length * timePerChar
+                            allSegments.add(Segment(
+                                id = segmentIdOffset,
+                                text = sentence.trim(),
+                                startSec = currentTime,
+                                endSec = currentTime + sentenceDuration,
+                                noSpeechProb = 0.0,
+                                avgLogprob = 0.0
+                            ))
+                            segmentIdOffset++
+                            currentTime += sentenceDuration
+                        }
                         previousTranscript = fallbackText
                     } else {
                         emptyChunks++

@@ -145,15 +145,27 @@ class WhisperApiClient @javax.inject.Inject constructor() {
         }
 
         if (!rawText.isNullOrBlank()) {
-            Timber.w("← Whisper returned text without usable segments — creating single segment from text (len=%d)", rawText.length)
-            return listOf(Segment(
-                id = 0,
-                text = rawText,
-                startSec = 0.0,
-                endSec = 0.0,
-                noSpeechProb = 0.0,
-                avgLogprob = 0.0
-            ))
+            val duration = extractDurationFromResponse(responseBody)
+            val sentences = splitIntoSentences(rawText)
+            Timber.w("← Whisper returned text without segments — splitting into %d sentences (duration=%.1fs)", sentences.size, duration)
+            if (sentences.isEmpty()) {
+                return listOf(Segment(id = 0, text = rawText, startSec = 0.0, endSec = duration, noSpeechProb = 0.0, avgLogprob = 0.0))
+            }
+            val timePerChar = if (rawText.isNotEmpty() && duration > 0) duration / rawText.length else 1.0
+            var currentTime = 0.0
+            return sentences.mapIndexed { index, sentence ->
+                val sentenceDuration = sentence.length * timePerChar
+                val seg = Segment(
+                    id = index,
+                    text = sentence.trim(),
+                    startSec = currentTime,
+                    endSec = currentTime + sentenceDuration,
+                    noSpeechProb = 0.0,
+                    avgLogprob = 0.0
+                )
+                currentTime += sentenceDuration
+                seg
+            }
         }
 
         Timber.w("← Whisper returned no segments and no usable text")
@@ -198,4 +210,27 @@ class WhisperApiClient @javax.inject.Inject constructor() {
     }
 
     fun getLastWhisperResponse(): String = lastWhisperResponseRaw
+
+    private fun extractDurationFromResponse(rawResponse: String): Double {
+        return try {
+            val match = Regex("\"duration\"\\s*:\\s*([0-9.]+)").find(rawResponse)
+            match?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+        } catch (e: Exception) { 0.0 }
+    }
+
+    internal fun splitIntoSentences(text: String): List<String> {
+        if (text.isBlank()) return emptyList()
+        val sentences = text.split(Regex("(?<=[.!?。！？])\\s+"))
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+        if (sentences.size <= 1) {
+            val byComma = text.split(Regex("(?<=[,،])\\s+"))
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+            if (byComma.size > 1) return byComma
+            val byNewline = text.split("\n").map { it.trim() }.filter { it.isNotBlank() }
+            if (byNewline.size > 1) return byNewline
+        }
+        return if (sentences.isNotEmpty()) sentences else listOf(text.trim())
+    }
 }
