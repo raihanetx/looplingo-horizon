@@ -13,6 +13,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private fun Fragment.safeRequireView(): View? {
+    return if (isAdded) view else null
+}
+
 @Singleton
 class ConfigSetupManager @Inject constructor() {
 
@@ -47,7 +51,9 @@ class ConfigSetupManager @Inject constructor() {
             }
 
             if (effectiveLoopCount < 1) {
-                playbackUIHelper.showSnackbar(fragment.requireView(), fragment.getString(R.string.error_loop_count_minimum))
+                fragment.safeRequireView()?.let {
+                    playbackUIHelper.showSnackbar(it, fragment.getString(R.string.error_loop_count_minimum))
+                }
                 hasError = true
             }
 
@@ -109,7 +115,9 @@ class ConfigSetupManager @Inject constructor() {
         fragment.viewLifecycleOwner.lifecycleScope.launch {
             viewModel.isSaved.collect { saved ->
                 if (saved) {
-                    playbackUIHelper.showSnackbar(fragment.requireView(), fragment.getString(R.string.settings_saved))
+                    fragment.safeRequireView()?.let {
+                        playbackUIHelper.showSnackbar(it, fragment.getString(R.string.settings_saved))
+                    }
                 }
             }
         }
@@ -117,7 +125,9 @@ class ConfigSetupManager @Inject constructor() {
         fragment.viewLifecycleOwner.lifecycleScope.launch {
             viewModel.saveError.collect { error ->
                 error?.let {
-                    playbackUIHelper.showSnackbar(fragment.requireView(), fragment.getString(R.string.error_save_failed))
+                    fragment.safeRequireView()?.let { view ->
+                        playbackUIHelper.showSnackbar(view, fragment.getString(R.string.error_save_failed))
+                    }
                 }
             }
         }

@@ -20,6 +20,10 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private fun Fragment.safeRequireView(): View? {
+    return if (isAdded) view else null
+}
+
 @Singleton
 class SubtitleGenerationManager @Inject constructor() {
 
@@ -42,16 +46,17 @@ class SubtitleGenerationManager @Inject constructor() {
 
         val apiKey = getGroqApiKey(fragment.requireContext())
         if (apiKey.isBlank()) {
-            playbackUIHelper.showSnackbar(
-                fragment.requireView(),
-                fragment.getString(R.string.error_set_api_key_homepage)
-            )
+            fragment.safeRequireView()?.let {
+                playbackUIHelper.showSnackbar(it, fragment.getString(R.string.error_set_api_key_homepage))
+            }
             return
         }
 
         onStart()
         binding.ivSendSubtitles.visibility = View.GONE
-        playbackUIHelper.showSnackbar(fragment.requireView(), fragment.getString(R.string.subtitle_generating))
+        fragment.safeRequireView()?.let {
+            playbackUIHelper.showSnackbar(it, fragment.getString(R.string.subtitle_generating))
+        }
 
         val effectivePath = if (contentUri.isNotBlank()) contentUri else videoPath
 
@@ -65,29 +70,32 @@ class SubtitleGenerationManager @Inject constructor() {
                         onProgress = object : ProgressCallback {
                             override fun onProgress(step: String) {
                                 Timber.d("Subtitle progress: %s", step)
-                                fragment.activity?.runOnUiThread {
-                                    playbackUIHelper.showSnackbar(fragment.requireView(), step)
-                                }
                             }
                         }
                     )
                 }
 
+                if (!fragment.isAdded) return@launch
+
                 if (result.segments.isEmpty()) {
-                    playbackUIHelper.showSnackbar(
-                        fragment.requireView(),
-                        "ERROR: No speech detected (segments=0). Check: 1) audio track exists  2) volume not too low  3) try a different file"
-                    )
+                    fragment.safeRequireView()?.let {
+                        playbackUIHelper.showSnackbar(
+                            it,
+                            "ERROR: No speech detected (segments=0). Check: 1) audio track exists  2) volume not too low  3) try a different file"
+                        )
+                    }
                     onError()
                     binding.ivSendSubtitles.visibility = View.VISIBLE
                     return@launch
                 }
 
                 if (result.translatedTexts.isEmpty()) {
-                    playbackUIHelper.showSnackbar(
-                        fragment.requireView(),
-                        "WARNING: Transcription OK (${result.segments.size} segments), but Bangla translation returned 0 results. Showing English only."
-                    )
+                    fragment.safeRequireView()?.let {
+                        playbackUIHelper.showSnackbar(
+                            it,
+                            "WARNING: Transcription OK (${result.segments.size} segments), but Bangla translation returned 0 results. Showing English only."
+                        )
+                    }
                 }
 
                 onSuccess(result.segments, result.translatedTexts)
@@ -104,22 +112,37 @@ class SubtitleGenerationManager @Inject constructor() {
 
                 showDialogueList(result.segments)
                 val banglaCount = result.translatedTexts.size
-                playbackUIHelper.showSnackbar(
-                    fragment.requireView(),
-                    "${result.segments.size} segments, $banglaCount Bangla translations"
-                )
+                fragment.safeRequireView()?.let {
+                    playbackUIHelper.showSnackbar(
+                        it,
+                        "${result.segments.size} segments, $banglaCount Bangla translations"
+                    )
+                }
                 switchTab(PlaybackSettingsViewModel.TAB_TALK)
             } catch (e: Exception) {
                 Timber.e(e, "Subtitle generation failed")
                 onError()
                 binding.ivSendSubtitles.visibility = View.VISIBLE
-                val detail = buildString {
+                val summary = buildString {
                     append("FAILED: ")
                     append(e.javaClass.name.substringAfterLast('.'))
                     append(": ")
                     append(e.message?.take(500)?.trim() ?: "no message")
                 }
-                playbackUIHelper.showSnackbar(fragment.requireView(), detail)
+                val fullDetail = buildString {
+                    appendLine(summary)
+                    appendLine()
+                    appendLine("--- Full Stack Trace ---")
+                    appendLine(e.stackTraceToString())
+                    e.cause?.let {
+                        appendLine()
+                        appendLine("--- Caused by ---")
+                        appendLine(it.stackTraceToString())
+                    }
+                }
+                fragment.safeRequireView()?.let {
+                    playbackUIHelper.showSnackbar(it, summary, fullErrorDetail = fullDetail)
+                }
             }
         }
     }

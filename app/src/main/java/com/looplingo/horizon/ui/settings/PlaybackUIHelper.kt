@@ -134,15 +134,20 @@ class PlaybackUIHelper @Inject constructor() {
     }
 
     internal fun showSnackbar(view: View, message: String) {
+        showSnackbar(view, message, fullErrorDetail = null)
+    }
+
+    internal fun showSnackbar(view: View, message: String, fullErrorDetail: String?) {
         val context = view.context
         val snackbar = Snackbar.make(view, message, Snackbar.LENGTH_LONG)
             .setBackgroundTint(context.resources.getColor(R.color.colorInverseSurface, null))
             .setTextColor(context.resources.getColor(R.color.colorInverseOnSurface, null))
 
         if (message.startsWith("ERROR") || message.startsWith("FAILED") || message.startsWith("WARNING")) {
+            val copyText = fullErrorDetail ?: message
             snackbar.setAction("COPY") {
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                val clip = android.content.ClipData.newPlainText("Error Log", message)
+                val clip = android.content.ClipData.newPlainText("Error Log", copyText)
                 clipboard.setPrimaryClip(clip)
             }
             snackbar.duration = Snackbar.LENGTH_INDEFINITE
