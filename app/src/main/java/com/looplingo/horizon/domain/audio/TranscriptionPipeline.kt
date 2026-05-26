@@ -57,7 +57,13 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
         onProgress?.onProgress("[Step 2/2] Translating to ${chatTranslator.languageName(targetLanguage)}…")
         val translatedTexts = chatTranslator.translateSegmentsViaChat(apiKey, segments, targetLanguage)
 
-        onProgress?.onProgress("[Step 2/2] ✓ Translation complete!")
+        if (translatedTexts.isEmpty()) {
+            Timber.w("Translation returned 0 results for %d segments. Chat API may have failed or returned unparseable content.", segments.size)
+        } else {
+            Timber.i("Translation returned %d/%d segment translations", translatedTexts.size, segments.size)
+        }
+
+        onProgress?.onProgress("[Step 2/2] ✓ Translation complete! (%d/%d translated)".format(translatedTexts.size, segments.size))
 
         com.looplingo.horizon.data.remote.TranscriptionWithTranslation(
             segments = segments,

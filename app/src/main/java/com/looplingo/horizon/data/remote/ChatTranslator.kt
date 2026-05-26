@@ -126,29 +126,43 @@ Example: {"0": "translation", "1": "translation", ...}"""
 
             // Parse the chat response
             val chatResponse = gson.fromJson(responseBody, ChatCompletionResponse::class.java)
-            val content = chatResponse.choices?.firstOrNull()?.message?.content ?: return@withContext emptyMap()
+            val content = chatResponse.choices?.firstOrNull()?.message?.content
 
-            Timber.d("Translation raw content: %.500s", content)
-            Timber.d("Translation target language: %s (%s)", targetLanguage, targetLangName)
-
-            val jsonStr = extractJsonObject(content)
-            if (jsonStr == null) {
-                Timber.w("No JSON object found in translation response: %.500s", content)
-                Timber.w("Full response body: %.1000s", responseBody)
+            if (content.isNullOrBlank()) {
+                Timber.w("Translation API returned empty content. Full response: %.2000s", responseBody)
                 return@withContext emptyMap()
             }
 
-            Timber.d("Extracted JSON: %.500s", jsonStr)
+            Timber.i("Translation raw content (%d chars): %.1000s", content.length, content)
 
-            val translations = gson.fromJson(jsonStr, Map::class.java) as? Map<String, Any>
-                ?: return@withContext emptyMap()
+            // Try parsing as JSON object first
+            val jsonStr = extractJsonObject(content)
+            var result = mutableMapOf<Int, String>()
 
-            val result = mutableMapOf<Int, String>()
-            for ((key, value) in translations) {
-                val idx = key.toIntOrNull() ?: continue
-                if (idx in segments.indices) {
-                    result[segments[idx].id] = value.toString()
+            if (jsonStr != null) {
+                try {
+                    val translations = gson.fromJson(jsonStr, Map::class.java) as? Map<String, Any>
+                    if (translations != null) {
+                        for ((key, value) in translations) {
+                            val idx = key.toIntOrNull() ?: continue
+                            if (idx in segments.indices) {
+                                result[segments[idx].id] = value.toString()
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "Failed to parse extracted JSON: %.500s", jsonStr)
                 }
+            }
+
+            // Fallback: try parsing line-by-line if JSON parsing failed
+            if (result.isEmpty()) {
+                Timber.w("JSON parsing returned 0 translations, trying line-by-line fallback")
+                result = parseLineByLine(content, segments)
+            }
+
+            if (result.isEmpty()) {
+                Timber.w("Translation parsing returned 0 results. Content was: %.2000s", content)
             }
 
             Timber.i("Translated %d/%d segments to %s", result.size, segments.size, targetLangName)
@@ -185,5 +199,24 @@ Example: {"0": "translation", "1": "translation", ...}"""
             }
         }
         return null
+    }
+
+    private fun parseLineByLine(content: String, segments: List<Segment>): MutableMap<Int, String> {
+        val result = mutableMapOf<Int, String>()
+        val lines = content.lines()
+        for (line in lines) {
+            val trimmed = line.trim()
+            // Match patterns like: "0: translation", "0. translation", "[0] translation", "0 - translation"
+            val match = Regex("""^(\d+)\s*[:.\-\]]\s*(.+)""").find(trimmed)
+            if (match != null) {
+                val idx = match.groupValues[1].toIntOrNull()
+                val translation = match.groupValues[2].trim().removeSurrounding("\"")
+                if (idx != null && idx in segments.indices && translation.isNotBlank()) {
+                    result[segments[idx].id] = translation
+                }
+            }
+        }
+        Timber.i("Line-by-line fallback parsed %d translations", result.size)
+        return result
     }
 }

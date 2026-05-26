@@ -90,11 +90,17 @@ class SubtitleGenerationManager @Inject constructor() {
                 }
 
                 if (result.translatedTexts.isEmpty()) {
+                    Timber.w("Translation returned 0 results for %d segments", result.segments.size)
                     fragment.safeRequireView()?.let {
                         playbackUIHelper.showSnackbar(
                             it,
                             "WARNING: Transcription OK (${result.segments.size} segments), but Bangla translation returned 0 results. Showing English only."
                         )
+                    }
+                } else {
+                    Timber.i("Translation returned %d/%d results", result.translatedTexts.size, result.segments.size)
+                    for ((segId, trans) in result.translatedTexts.entries.take(5)) {
+                        Timber.d("  Translation[%d]: %s", segId, trans.take(80))
                     }
                 }
 
