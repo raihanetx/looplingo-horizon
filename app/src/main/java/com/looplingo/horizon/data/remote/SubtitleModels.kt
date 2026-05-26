@@ -36,7 +36,9 @@ internal data class SegmentJson(
     val text: String,
     val start: Double,
     val end: Double,
+    @SerializedName("no_speech_prob")
     val noSpeechProb: Double? = null,
+    @SerializedName("avg_logprob")
     val avgLogprob: Double? = null
 )
 

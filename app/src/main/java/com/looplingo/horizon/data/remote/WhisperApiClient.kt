@@ -108,6 +108,11 @@ class WhisperApiClient @javax.inject.Inject constructor() {
 
         val transcription = parseTranscriptionResponse(responseBody)
 
+        val segCount = transcription.segments?.size ?: -1
+        val hasText = !transcription.text.isNullOrBlank()
+        Timber.i("← Parsed: segments=%d (null=%b), hasText=%b, text=%s",
+            segCount, transcription.segments == null, hasText, transcription.text?.take(60))
+
         if (transcription.error != null) {
             val errMsg = transcription.error.message ?: "Unknown error"
             Timber.e("← Error in response body: %s", errMsg)
