@@ -6,8 +6,8 @@
 
     <fragment
         android:id="@+id/mainFragment"
-        android:name="com.looplingo.horizon.ui.MainFragment"
-        android:label="Horizon Loop">
+        android:name="com.looplingo.horizon.ui.main.MainFragment"
+        android:label="@string/fragment_main_title">
 
         <action
             android:id="@+id/action_main_to_playbackSettings"
@@ -16,8 +16,8 @@
 
     <fragment
         android:id="@+id/playbackSettingsFragment"
-        android:name="com.looplingo.horizon.ui.PlaybackSettingsFragment"
-        android:label="Playback Settings">
+        android:name="com.looplingo.horizon.ui.settings.PlaybackSettingsFragment"
+        android:label="@string/fragment_playback_settings_title">
 
         <argument
             android:name="videoPath"

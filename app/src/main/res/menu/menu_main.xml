@@ -16,4 +16,11 @@
         android:contentDescription="@string/content_desc_stop_playback"
         app:showAsAction="ifRoom" />
 
+    <item
+        android:id="@+id/action_settings"
+        android:icon="@drawable/ic_person"
+        android:title="@string/action_settings"
+        android:contentDescription="@string/content_desc_settings"
+        app:showAsAction="ifRoom" />
+
 </menu>

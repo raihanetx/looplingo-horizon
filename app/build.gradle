@@ -10,6 +10,13 @@ android {
     namespace 'com.looplingo.horizon'
     compileSdk 34
 
+    // Load local.properties for build config
+    def localPropsFile = rootProject.file("local.properties")
+    def localProps = new Properties()
+    if (localPropsFile.exists()) {
+        localPropsFile.withInputStream { localProps.load(it) }
+    }
+
     defaultConfig {
         applicationId "com.looplingo.horizon"
         minSdk 26
@@ -25,7 +32,7 @@ android {
 
         // Groq API key — read from GROQ_API_KEY env var or local.properties
         // NEVER hardcode API keys in source code
-        def groqApiKey = System.getenv("GROQ_API_KEY") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("GROQ_API_KEY", "") : "" }
+        def groqApiKey = System.getenv("GROQ_API_KEY") ?: localProps.getProperty("GROQ_API_KEY", "")
         buildConfigField "String", "GROQ_API_KEY", "\"${groqApiKey}\""
     }
 
@@ -36,10 +43,10 @@ android {
         release {
             // Read signing credentials from environment variables or local.properties.
             // This avoids hardcoding secrets in version control.
-            def ksFile = System.getenv("KEYSTORE_FILE") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("keystore.file", null) : null }
-            def ksPassword = System.getenv("KEYSTORE_PASSWORD") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("keystore.password", null) : null }
-            def ksAlias = System.getenv("KEY_ALIAS") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("key.alias", null) : null }
-            def ksKeyPassword = System.getenv("KEY_PASSWORD") ?: rootProject.file("local.properties").with { it.exists() ? it.getProperty("key.password", null) : null }
+            def ksFile = System.getenv("KEYSTORE_FILE") ?: localProps.getProperty("keystore.file", null)
+            def ksPassword = System.getenv("KEYSTORE_PASSWORD") ?: localProps.getProperty("keystore.password", null)
+            def ksAlias = System.getenv("KEY_ALIAS") ?: localProps.getProperty("key.alias", null)
+            def ksKeyPassword = System.getenv("KEY_PASSWORD") ?: localProps.getProperty("key.password", null)
 
             if (ksFile != null) {
                 storeFile rootProject.file(ksFile)

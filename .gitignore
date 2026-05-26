@@ -36,3 +36,10 @@ Thumbs.db
 *.pem
 *.p12
 secrets.properties
+
+# Python cache
+__pycache__/
+*.pyc
+
+# AI agent local config
+.claude/

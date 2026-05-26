@@ -21,7 +21,7 @@ class HorizonApp : Application() {
         super.onCreate()
         setupLogging()
         // Clean up old temp files from transcription cache
-        com.looplingo.horizon.api.GroqApiClient.cleanupTempFiles(this)
+        com.looplingo.horizon.data.remote.GroqApiClient.cleanupTempFiles(this)
         if (BuildConfig.DEBUG) {
             Timber.i("Horizon Loop application initialized")
         }

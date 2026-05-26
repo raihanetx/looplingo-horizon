@@ -63,7 +63,9 @@
 
     <!-- Toolbar menu -->
     <string name="action_sort">Sort</string>
+    <string name="action_settings">Settings</string>
     <string name="action_stop_playback">Stop Playback</string>
+    <string name="content_desc_settings">Settings</string>
     <string name="sort_by">Sort by</string>
     <string name="sort_by_date">Date (newest first)</string>
     <string name="sort_by_title">Title (A-Z)</string>
@@ -89,7 +91,9 @@
     <string name="subtitle_no_segments">No dialogue detected. Make sure the audio has clear speech.</string>
     <string name="subtitle_error">Error: %s</string>
     <string name="subtitle_error_short">Failed to generate subtitles</string>
+    <string name="subtitle_generation_failed">Generation failed: %s</string>
     <string name="error_no_api_key">Enter your Groq API key first</string>
+    <string name="error_set_api_key_homepage">Set your Groq API key in the homepage settings first</string>
     <string name="hint_groq_api_key">Groq API Key</string>
     <string name="groq_api_key_helper">Get your free key at console.groq.com</string>
     <string name="groq_api_key_saved">API key saved</string>
@@ -172,7 +176,7 @@
 
     <!-- Tab Navigation -->
     <string name="tab_clean">Clean</string>
-    <string name="tab_talk">Talk</string>
+    <string name="tab_talk">Dialogue</string>
     <string name="tab_loop">Loop</string>
     <string name="tab_notes">Notes</string>
 
@@ -190,4 +194,8 @@
 
     <!-- Clean View -->
     <string name="clean_view_subtitle">Tap Talk to see dialogue</string>
+
+    <!-- Fragment titles -->
+    <string name="fragment_main_title">Horizon Loop</string>
+    <string name="fragment_playback_settings_title">Playback Settings</string>
 </resources>

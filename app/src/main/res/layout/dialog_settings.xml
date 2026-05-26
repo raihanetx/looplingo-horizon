@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Groq API Key"
+        android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
+        android:textColor="@color/colorOnSurface" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_settings_api_key"
+        style="@style/Widget.Horizon.TextInputLayout.Outlined"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="API Key">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_settings_api_key"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword"
+            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Translation Engine"
+        android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
+        android:textColor="@color/colorOnSurface" />
+
+    <TextView
+        android:id="@+id/tv_settings_engine"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+        android:textColor="@color/colorPrimary"
+        tools:text="llama-3.3-70b-versatile" />
+
+</LinearLayout>

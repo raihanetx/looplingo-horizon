@@ -16,6 +16,12 @@
         <item name="android:textSize">@dimen/text_headline_medium</item>
     </style>
 
+    <style name="TextAppearance.Horizon.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">@dimen/text_headline_small</item>
+    </style>
+
     <style name="TextAppearance.Horizon.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
         <item name="fontFamily">sans-serif-medium</item>
         <item name="android:fontFamily">sans-serif-medium</item>

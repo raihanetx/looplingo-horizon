@@ -105,5 +105,8 @@
 -dontwarn sun.misc.**
 -keep class com.google.gson.** { *; }
 
+# ── Keep Exception class names readable (for error reporting) ──────────
+-keepnames class * extends java.lang.Exception
+
 # ── VAD Engine (silence midpoint detection — no neural network) ─────────
 -keepclassmembers class com.looplingo.horizon.vad.VadEngine$RefinedSegment { *; }
