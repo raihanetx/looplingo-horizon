@@ -245,7 +245,20 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
 
             val result = chunkedTranscriber.transcribeChunksWithOverlap(apiKey, normalizedChunks, language, onProgress)
             if (result.isEmpty()) {
-                val lastResp = whisperApiClient.getLastWhisperResponse().take(200)
+                val lastResp = whisperApiClient.getLastWhisperResponse()
+                val fallbackText = extractTextFromWhisperResponse(lastResp)
+                if (fallbackText.isNotBlank()) {
+                    Timber.w("Transcription returned empty segments but Whisper response has text — creating fallback segment from: %s", fallbackText.take(80))
+                    val fallbackSegment = com.looplingo.horizon.data.remote.Segment(
+                        id = 0,
+                        text = fallbackText.trim(),
+                        startSec = 0.0,
+                        endSec = normalizedChunks.firstOrNull()?.durationSec ?: 0.0,
+                        noSpeechProb = 0.0,
+                        avgLogprob = 0.0
+                    )
+                    return@withContext listOf(fallbackSegment)
+                }
                 val chunkDiag = chunkedTranscriber.lastDiagnostics
                 val pcmInfo = if (droppedSilentChunks > 0) {
                     val s = lastDroppedPcmStats
@@ -256,7 +269,7 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
                     append(" File: ${sourceFile.name} (%.2fMB)".format(sourceSizeMB))
                     append(" Chunks: ${normalizedChunks.size}")
                     if (chunkDiag.isNotBlank()) append(" Transcriber: $chunkDiag")
-                    append(" LastAPI: $lastResp")
+                    append(" LastAPI: ${lastResp.take(200)}")
                     if (pcmInfo.isNotBlank()) append(pcmInfo)
                 }
                 throw com.looplingo.horizon.data.remote.SubtitleException(detail)
@@ -391,5 +404,38 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
             }
         } catch (e: com.looplingo.horizon.data.remote.ApiKeyException) { throw e }
         catch (e: Exception) { Timber.w(e, "Could not validate API key (network issue?)") }
+    }
+
+    private fun extractTextFromWhisperResponse(rawResponse: String): String {
+        if (rawResponse.isBlank() || rawResponse == "(null)") return ""
+        return try {
+            val start = rawResponse.indexOf("\"text\"")
+            if (start < 0) return ""
+            val colonPos = rawResponse.indexOf(':', start)
+            if (colonPos < 0) return ""
+            val quoteStart = rawResponse.indexOf('"', colonPos + 1)
+            if (quoteStart < 0) return ""
+            var i = quoteStart + 1
+            val sb = StringBuilder()
+            while (i < rawResponse.length && rawResponse[i] != '"') {
+                if (rawResponse[i] == '\\' && i + 1 < rawResponse.length) {
+                    i++
+                    when (rawResponse[i]) {
+                        'n' -> sb.append('\n')
+                        't' -> sb.append('\t')
+                        '"' -> sb.append('"')
+                        '\\' -> sb.append('\\')
+                        else -> { sb.append('\\'); sb.append(rawResponse[i]) }
+                    }
+                } else {
+                    sb.append(rawResponse[i])
+                }
+                i++
+            }
+            sb.toString().trim()
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to extract text from Whisper response")
+            ""
+        }
     }
 }

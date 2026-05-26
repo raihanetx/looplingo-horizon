@@ -122,16 +122,33 @@ class WhisperApiClient @javax.inject.Inject constructor() {
         if (transcription.segments.isNullOrEmpty() && transcription.text.isNullOrBlank()) {
             Timber.w("← Whisper returned EMPTY: no text, no segments")
         } else if (transcription.segments.isNullOrEmpty()) {
-            Timber.i("← Whisper returned TEXT only: \"%s\"", transcription.text?.take(80))
+            Timber.i("← Whisper returned TEXT only (no segments array): \"%s\"", transcription.text?.take(80))
         } else {
-            Timber.i("← Whisper returned %d segments", transcription.segments.size)
+            Timber.i("← Whisper returned %d segments, first: \"%s\"",
+                transcription.segments.size, transcription.segments.firstOrNull()?.text?.take(60))
         }
 
-        if (transcription.segments.isNullOrEmpty() && !transcription.text.isNullOrBlank()) {
-            Timber.w("← Whisper returned text without segments — creating single segment from text")
+        val rawText = transcription.text?.trim()
+        val parsedSegments = transcription.segments
+
+        if (!parsedSegments.isNullOrEmpty()) {
+            return parsedSegments.map { segJson ->
+                Segment(
+                    id = segJson.id,
+                    text = segJson.text.trim(),
+                    startSec = segJson.start,
+                    endSec = segJson.end,
+                    noSpeechProb = segJson.noSpeechProb ?: 0.0,
+                    avgLogprob = segJson.avgLogprob ?: 0.0
+                )
+            }
+        }
+
+        if (!rawText.isNullOrBlank()) {
+            Timber.w("← Whisper returned text without usable segments — creating single segment from text (len=%d)", rawText.length)
             return listOf(Segment(
                 id = 0,
-                text = transcription.text.trim(),
+                text = rawText,
                 startSec = 0.0,
                 endSec = 0.0,
                 noSpeechProb = 0.0,
@@ -139,16 +156,8 @@ class WhisperApiClient @javax.inject.Inject constructor() {
             ))
         }
 
-        return transcription.segments?.map { segJson ->
-            Segment(
-                id = segJson.id,
-                text = segJson.text.trim(),
-                startSec = segJson.start,
-                endSec = segJson.end,
-                noSpeechProb = segJson.noSpeechProb ?: 0.0,
-                avgLogprob = segJson.avgLogprob ?: 0.0
-            )
-        } ?: emptyList()
+        Timber.w("← Whisper returned no segments and no usable text")
+        return emptyList()
     }
 
     internal fun getCorrectMediaType(audioFile: File): Pair<String, String> {

@@ -102,7 +102,25 @@ class ChunkedTranscriber @Inject constructor(
                     failedChunkErrors.add("chunk${result.chunkIdx}:${result.error.message?.take(80)}")
                     Timber.e(result.error, "Failed to transcribe chunk %d/%d", result.chunkIdx, chunks.size)
                 } else if (result.segments.isEmpty()) {
-                    emptyChunks++
+                    val lastResp = whisperApiClient.getLastWhisperResponse()
+                    val fallbackText = extractTextFromResponse(lastResp)
+                    if (fallbackText.isNotBlank()) {
+                        Timber.w("Chunk %d returned empty segments but response has text — creating fallback segment", result.chunkIdx)
+                        val fallbackSegment = Segment(
+                            id = segmentIdOffset,
+                            text = fallbackText.trim(),
+                            startSec = result.chunk.startTimeSec,
+                            endSec = result.chunk.startTimeSec + result.chunk.durationSec,
+                            noSpeechProb = 0.0,
+                            avgLogprob = 0.0
+                        )
+                        allSegments.add(fallbackSegment)
+                        segmentIdOffset += 1
+                        previousTranscript = fallbackText
+                    } else {
+                        emptyChunks++
+                        Timber.w("Chunk %d returned empty segments and no usable text", result.chunkIdx)
+                    }
                 } else {
                     for (seg in result.segments) {
                         allSegments.add(Segment(
@@ -148,4 +166,37 @@ class ChunkedTranscriber @Inject constructor(
     @Volatile
     var lastDiagnostics: String = ""
         private set
+
+    private fun extractTextFromResponse(rawResponse: String): String {
+        if (rawResponse.isBlank() || rawResponse == "(null)") return ""
+        return try {
+            val start = rawResponse.indexOf("\"text\"")
+            if (start < 0) return ""
+            val colonPos = rawResponse.indexOf(':', start)
+            if (colonPos < 0) return ""
+            val quoteStart = rawResponse.indexOf('"', colonPos + 1)
+            if (quoteStart < 0) return ""
+            var i = quoteStart + 1
+            val sb = StringBuilder()
+            while (i < rawResponse.length && rawResponse[i] != '"') {
+                if (rawResponse[i] == '\\' && i + 1 < rawResponse.length) {
+                    i++
+                    when (rawResponse[i]) {
+                        'n' -> sb.append('\n')
+                        't' -> sb.append('\t')
+                        '"' -> sb.append('"')
+                        '\\' -> sb.append('\\')
+                        else -> { sb.append('\\'); sb.append(rawResponse[i]) }
+                    }
+                } else {
+                    sb.append(rawResponse[i])
+                }
+                i++
+            }
+            sb.toString().trim()
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to extract text from Whisper response")
+            ""
+        }
+    }
 }
