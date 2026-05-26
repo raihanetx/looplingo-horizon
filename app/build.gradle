@@ -186,4 +186,3 @@ dependencies {
     androidTestImplementation libs.hilt.android.testing
     kspAndroidTest libs.hilt.compiler
 }
-# trigger
