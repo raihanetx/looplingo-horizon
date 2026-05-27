@@ -880,8 +880,8 @@
         android:id="@+id/card_bottom_player"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="0dp"
-        app:cardElevation="2dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="4dp"
         app:cardBackgroundColor="@color/colorPlayerBar"
         app:strokeColor="@color/colorOutlineVariant"
         app:strokeWidth="0dp">
@@ -930,7 +930,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/space_sm"
+                android:layout_marginTop="8dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
 
@@ -939,15 +939,18 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                    android:textColor="@color/colorOnSurfaceVariant"
-                    android:layout_marginEnd="2dp"
+                    android:textColor="@color/colorPrimary"
+                    android:textStyle="bold"
+                    android:layout_marginEnd="4dp"
                     tools:text="1:24" />
 
                 <com.looplingo.horizon.ui.common.WaveformSeekBar
                     android:id="@+id/waveform_seek_bar"
                     android:layout_width="0dp"
-                    android:layout_height="32dp"
+                    android:layout_height="38dp"
                     android:layout_weight="1"
+                    android:background="@drawable/bg_waveform_container"
+                    android:paddingHorizontal="4dp"
                     android:contentDescription="@string/content_desc_seek_bar" />
 
                 <TextView
@@ -956,7 +959,7 @@
                     android:layout_height="wrap_content"
                     android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
                     android:textColor="@color/colorOnSurfaceVariant"
-                    android:layout_marginStart="2dp"
+                    android:layout_marginStart="4dp"
                     tools:text="3:45" />
 
             </LinearLayout>

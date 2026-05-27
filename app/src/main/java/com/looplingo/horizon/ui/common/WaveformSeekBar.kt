@@ -18,10 +18,31 @@ class WaveformSeekBar @JvmOverloads constructor(
     private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }
+    private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = resources.getColor(R.color.waveform_unplayed, null)
+        alpha = 60
+    }
+    private val progressTrackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = resources.getColor(R.color.waveform_played, null)
+    }
+    private val thumbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = resources.getColor(R.color.colorPrimary, null)
+    }
+    private val thumbGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = resources.getColor(R.color.colorPrimary, null)
+        alpha = 40
+    }
     private val rectF = RectF()
 
     private val thinBarWidth: Float = 3f * resources.displayMetrics.density
     private val barGap: Float = 1.5f * resources.displayMetrics.density
+    private val trackHeight: Float = 2f * resources.displayMetrics.density
+    private val thumbRadius: Float = 5f * resources.displayMetrics.density
+    private val thumbGlowRadius: Float = 8f * resources.displayMetrics.density
 
     var progress: Int = 0
         set(value) {
@@ -48,10 +69,9 @@ class WaveformSeekBar @JvmOverloads constructor(
 
         val playedColor = resources.getColor(R.color.waveform_played, null)
         val unplayedColor = resources.getColor(R.color.waveform_unplayed, null)
-        val centerY = paddingTop + h / 2f
+        val centerY = paddingTop + h * 0.42f
         val barRadius = barWidth / 2f
 
-        // Center the bars horizontally
         val totalBarsWidth = bars * barWidth + (bars - 1) * gap
         val startX = paddingLeft + (w - totalBarsWidth) / 2f
 
@@ -59,16 +79,48 @@ class WaveformSeekBar @JvmOverloads constructor(
 
         for (i in 0 until bars) {
             val barHeightPercent = BAR_HEIGHTS[i]
-            val barHeight = (h * barHeightPercent / 100f).coerceAtLeast(barWidth)
+            val barHeight = (h * 0.7f * barHeightPercent / 100f).coerceAtLeast(barWidth)
             val left = startX + i * (barWidth + gap)
             val top = centerY - barHeight / 2f
             val right = left + barWidth
             val bottom = top + barHeight
 
-            barPaint.color = if (i < playedBarCount) playedColor else unplayedColor
+            if (i < playedBarCount) {
+                barPaint.color = playedColor
+                barPaint.alpha = 255
+            } else if (i == playedBarCount) {
+                barPaint.color = playedColor
+                barPaint.alpha = 180
+            } else {
+                barPaint.color = unplayedColor
+                barPaint.alpha = 130
+            }
+
             rectF.set(left, top, right, bottom)
             canvas.drawRoundRect(rectF, barRadius, barRadius, barPaint)
         }
+
+        // Progress track line below bars
+        val trackY = paddingTop + h * 0.82f
+        val trackLeft = startX
+        val trackRight = startX + totalBarsWidth
+        val trackRectTop = trackY - trackHeight / 2f
+        val trackRectBottom = trackY + trackHeight / 2f
+
+        // Unplayed track
+        rectF.set(trackLeft, trackRectTop, trackRight, trackRectBottom)
+        canvas.drawRoundRect(rectF, trackHeight / 2f, trackHeight / 2f, trackPaint)
+
+        // Played track
+        val progressX = trackLeft + (trackRight - trackLeft) * progress / 1000f
+        rectF.set(trackLeft, trackRectTop, progressX, trackRectBottom)
+        canvas.drawRoundRect(rectF, trackHeight / 2f, trackHeight / 2f, progressTrackPaint)
+
+        // Thumb glow
+        canvas.drawCircle(progressX, trackY, thumbGlowRadius, thumbGlowPaint)
+
+        // Thumb handle
+        canvas.drawCircle(progressX, trackY, thumbRadius, thumbPaint)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
