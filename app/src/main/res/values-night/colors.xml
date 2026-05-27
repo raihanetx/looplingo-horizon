@@ -27,20 +27,20 @@
 
     <!-- OLED-friendly: pure black background -->
     <color name="colorBackground">#000000</color>
-    <color name="colorOnBackground">#E2E1EA</color>
+    <color name="colorOnBackground">#E2E2E7</color>
     <color name="colorSurface">#000000</color>
-    <color name="colorOnSurface">#C6C5D0</color>
-    <color name="colorSurfaceVariant">#1A1B21</color>
-    <color name="colorOnSurfaceVariant">#C6C5D0</color>
-    <color name="colorOutline">#908F9A</color>
-    <color name="colorOutlineVariant">#2A2B31</color>
+    <color name="colorOnSurface">#C8C8CE</color>
+    <color name="colorSurfaceVariant">#1A1A1C</color>
+    <color name="colorOnSurfaceVariant">#C8C8CE</color>
+    <color name="colorOutline">#929298</color>
+    <color name="colorOutlineVariant">#2A2A2C</color>
 
     <!-- Very dark surface containers for layered depth -->
     <color name="colorSurfaceContainerLowest">#000000</color>
-    <color name="colorSurfaceContainerLow">#0A0A0F</color>
-    <color name="colorSurfaceContainer">#111116</color>
-    <color name="colorSurfaceContainerHigh">#1A1B21</color>
-    <color name="colorSurfaceContainerHighest">#22232A</color>
+    <color name="colorSurfaceContainerLow">#0A0A0C</color>
+    <color name="colorSurfaceContainer">#111113</color>
+    <color name="colorSurfaceContainerHigh">#1A1A1C</color>
+    <color name="colorSurfaceContainerHighest">#222224</color>
 
     <color name="colorInverseSurface">@color/md_theme_dark_inverseSurface</color>
     <color name="colorInverseOnSurface">@color/md_theme_dark_inverseOnSurface</color>
@@ -52,13 +52,13 @@
 
     <!-- Hero card gradient — darker, richer in dark mode -->
     <color name="colorGradientStart">@color/colorPrimaryContainer</color>
-    <color name="colorGradientEnd">#8A273C94</color>
+    <color name="colorGradientEnd">#8A444449</color>
 
     <!-- Bottom player bar — very dark surface -->
-    <color name="colorPlayerBar">#0D0E13</color>
+    <color name="colorPlayerBar">#0D0D0F</color>
 
-    <!-- Active dialogue highlight — teal glow in dark -->
-    <color name="colorActiveIndicator">#0A2E28</color>
+    <!-- Active dialogue highlight — gray glow in dark -->
+    <color name="colorActiveIndicator">#0A2A2A</color>
 
     <!-- ══════════════════════════════════════════════════════════════════════
          HORIZON LOOP PREMIUM DARK — Brand Palette (v6.1.0)
@@ -68,8 +68,8 @@
     <!-- Brand core -->
     <color name="brand_bg">#080b11</color>
     <color name="brand_card">#0f131c</color>
-    <color name="brand_accent">#10b981</color>
-    <color name="brand_accent_dark">#059669</color>
+    <color name="brand_accent">#8B8B92</color>
+    <color name="brand_accent_dark">#6B6B72</color>
 
     <!-- Glass surfaces -->
     <color name="glass_bg">#0f131c</color>
@@ -88,11 +88,11 @@
     <color name="slate_800">#1e293b</color>
 
     <!-- Waveform -->
-    <color name="waveform_played">#10b981</color>
+    <color name="waveform_played">#8B8B92</color>
     <color name="waveform_unplayed">#3f3f46</color>
 
     <!-- Loop card -->
-    <color name="loop_play_bg">#1a10b981</color>
-    <color name="loop_play_border">#10b981</color>
+    <color name="loop_play_bg">#1a8B8B92</color>
+    <color name="loop_play_border">#8B8B92</color>
     <color name="loop_delete_bg">#0dffffff</color>
 </resources>

@@ -136,13 +136,9 @@ class PlaybackSettingsUiBinder @Inject constructor(
         // Setup loop RecyclerView
         loopAdapter = LoopAdapter(
             onLoopClick = { loop, _ ->
-                // Apply loop settings
-                binding.etLoopStart.setText(TimeUtils.formatMsToTime(loop.startMs))
-                binding.etLoopEnd.setText(TimeUtils.formatMsToTime(loop.endMs))
-                loopCount = loop.loopCount
-                binding.tvLoopFormCount.text = loopCount.toString()
-                binding.etLoopName.setText(loop.name)
-                playbackUIHelper.showLoopForm(binding)
+                // Just seek to the loop start position - don't show form
+                AudioPlaybackService.seekToPosition(activity, videoPath, loop.startMs)
+                playbackUIHelper.showSnackbar(binding.root, "Loop: ${loop.name} (${TimeUtils.formatMsToTime(loop.startMs)} - ${TimeUtils.formatMsToTime(loop.endMs)})")
             },
             onDeleteClick = { _, position ->
                 loopAdapter?.removeLoop(position)

@@ -104,9 +104,11 @@ class PlaybackUIHelper @Inject constructor() {
     ) {
         binding.fabAddLoop.setOnClickListener {
             binding.layoutAddLoopForm.visibility = View.VISIBLE
+            binding.fabAddLoop.visibility = View.GONE
         }
         binding.ivCloseLoopForm.setOnClickListener {
             binding.layoutAddLoopForm.visibility = View.GONE
+            binding.fabAddLoop.visibility = View.VISIBLE
             onClose()
         }
         binding.btnLoopPreview.setOnClickListener { onPreview() }
@@ -120,9 +122,11 @@ class PlaybackUIHelper @Inject constructor() {
     ) {
         binding.fabAddNote.setOnClickListener {
             binding.layoutAddNoteForm.visibility = View.VISIBLE
+            binding.fabAddNote.visibility = View.GONE
         }
         binding.ivCloseNoteForm.setOnClickListener {
             binding.layoutAddNoteForm.visibility = View.GONE
+            binding.fabAddNote.visibility = View.VISIBLE
             onClose()
         }
         binding.btnSaveNote.setOnClickListener { onSave() }
@@ -130,18 +134,22 @@ class PlaybackUIHelper @Inject constructor() {
 
     internal fun showLoopForm(binding: FragmentPlaybackSettingsBinding) {
         binding.layoutAddLoopForm.visibility = View.VISIBLE
+        binding.fabAddLoop.visibility = View.GONE
     }
 
     internal fun hideLoopForm(binding: FragmentPlaybackSettingsBinding) {
         binding.layoutAddLoopForm.visibility = View.GONE
+        binding.fabAddLoop.visibility = View.VISIBLE
     }
 
     internal fun showNoteForm(binding: FragmentPlaybackSettingsBinding) {
         binding.layoutAddNoteForm.visibility = View.VISIBLE
+        binding.fabAddNote.visibility = View.GONE
     }
 
     internal fun hideNoteForm(binding: FragmentPlaybackSettingsBinding) {
         binding.layoutAddNoteForm.visibility = View.GONE
+        binding.fabAddNote.visibility = View.VISIBLE
     }
 
     internal fun updateLoopEmptyState(binding: FragmentPlaybackSettingsBinding, hasLoops: Boolean) {
