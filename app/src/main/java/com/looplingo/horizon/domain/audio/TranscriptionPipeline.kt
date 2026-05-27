@@ -58,7 +58,7 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
 
         onProgress?.onProgressUpdate("Translating to Bangla", 55, "Sending ${segments.size} segments to Chat API...")
         onProgress?.onProgress("[Step 2/2] Translating to ${chatTranslator.languageName(targetLanguage)}…")
-        val translatedTexts = chatTranslator.translateSegmentsViaChat(apiKey, segments, targetLanguage)
+        val translatedTexts = chatTranslator.translateSegmentsViaChat(apiKey, segments, targetLanguage, context)
 
         if (translatedTexts.isEmpty()) {
             Timber.w("Translation returned 0 results for %d segments. Chat API may have failed or returned unparseable content.", segments.size)
