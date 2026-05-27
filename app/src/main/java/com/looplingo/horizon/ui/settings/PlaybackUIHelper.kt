@@ -44,17 +44,14 @@ class PlaybackUIHelper @Inject constructor() {
 
     internal fun updateTabStyle(tabLayout: LinearLayout, isSelected: Boolean) {
         val context = tabLayout.context
-        val iconView = tabLayout.getChildAt(0) as ImageView
-        val textView = tabLayout.getChildAt(1) as TextView
+        val textView = tabLayout.getChildAt(0) as TextView
         val resources = context.resources
 
         if (isSelected) {
             tabLayout.background = null
-            iconView.imageTintList = resources.getColorStateList(R.color.colorPrimary, null)
             textView.setTextColor(resources.getColor(R.color.colorPrimary, null))
         } else {
             tabLayout.background = null
-            iconView.imageTintList = resources.getColorStateList(R.color.colorOnSurfaceVariant, null)
             textView.setTextColor(resources.getColor(R.color.colorOnSurfaceVariant, null))
         }
     }

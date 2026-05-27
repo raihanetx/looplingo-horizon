@@ -743,17 +743,9 @@
             android:clickable="true"
             android:focusable="true">
 
-            <ImageView
-                android:layout_width="@dimen/tab_icon_size"
-                android:layout_height="@dimen/tab_icon_size"
-                android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_tab_clean"
-                app:tint="@color/colorPrimary" />
-
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/space_xs"
                 android:text="@string/tab_clean"
                 android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
                 android:textColor="@color/colorPrimary" />
@@ -780,17 +772,9 @@
             android:clickable="true"
             android:focusable="true">
 
-            <ImageView
-                android:layout_width="@dimen/tab_icon_size"
-                android:layout_height="@dimen/tab_icon_size"
-                android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_tab_talk"
-                app:tint="@color/colorOnSurfaceVariant" />
-
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/space_xs"
                 android:text="@string/tab_talk"
                 android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
                 android:textColor="@color/colorOnSurfaceVariant" />
@@ -817,17 +801,9 @@
             android:clickable="true"
             android:focusable="true">
 
-            <ImageView
-                android:layout_width="@dimen/tab_icon_size"
-                android:layout_height="@dimen/tab_icon_size"
-                android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_tab_loop"
-                app:tint="@color/colorOnSurfaceVariant" />
-
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/space_xs"
                 android:text="@string/tab_loop"
                 android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
                 android:textColor="@color/colorOnSurfaceVariant" />
@@ -854,17 +830,9 @@
             android:clickable="true"
             android:focusable="true">
 
-            <ImageView
-                android:layout_width="@dimen/tab_icon_size"
-                android:layout_height="@dimen/tab_icon_size"
-                android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_tab_notes"
-                app:tint="@color/colorOnSurfaceVariant" />
-
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/space_xs"
                 android:text="@string/tab_notes"
                 android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
                 android:textColor="@color/colorOnSurfaceVariant" />
@@ -949,8 +917,6 @@
                     android:layout_width="0dp"
                     android:layout_height="38dp"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_waveform_container"
-                    android:paddingHorizontal="4dp"
                     android:contentDescription="@string/content_desc_seek_bar" />
 
                 <TextView
