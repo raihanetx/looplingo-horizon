@@ -1,5 +1,12 @@
 package com.looplingo.horizon.ui.settings
 
+import android.graphics.Typeface
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.text.style.StyleSpan
+import android.text.style.TypefaceSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -39,7 +46,41 @@ class DialogueAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val segment = segments[position]
         val timestamp = "[${TimeUtils.formatMsToTime(segment.startMs.toLong())}]"
-        holder.tvText.text = "$timestamp ${segment.text}"
+
+        // Build SpannableString: timestamp in mono #71717A 9sp bold, text in #A1A1AA 12sp bold
+        val fullText = "$timestamp  ${segment.text}"
+        val spannable = SpannableString(fullText)
+
+        // Timestamp style: zinc-500 (#71717A), mono, 9sp (0.75x of 12sp), bold
+        spannable.setSpan(
+            ForegroundColorSpan(0xFF71717A.toInt()),
+            0, timestamp.length,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        spannable.setSpan(
+            TypefaceSpan("monospace"),
+            0, timestamp.length,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        spannable.setSpan(
+            RelativeSizeSpan(0.75f),
+            0, timestamp.length,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        spannable.setSpan(
+            StyleSpan(Typeface.BOLD),
+            0, timestamp.length,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+
+        // English text style: #A1A1AA, 12sp, bold (default size, already bold from XML)
+        spannable.setSpan(
+            ForegroundColorSpan(0xFFA1A1AA.toInt()),
+            timestamp.length, fullText.length,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+
+        holder.tvText.text = spannable
 
         val translation = translations[segment.id]
         if (translation != null) {
@@ -48,20 +89,6 @@ class DialogueAdapter(
         } else {
             holder.tvTranslation.visibility = View.GONE
         }
-
-        val isActive = position == selectedPos
-        holder.itemView.isSelected = isActive
-
-        // Active = white, inactive = gray
-        val textColor = holder.itemView.context.getColor(
-            if (isActive) R.color.colorOnSurface else R.color.colorOnSurfaceVariant
-        )
-        val translationColor = holder.itemView.context.getColor(
-            if (isActive) R.color.colorPrimary else R.color.colorOnSurfaceVariant
-        )
-
-        holder.tvText.setTextColor(textColor)
-        holder.tvTranslation.setTextColor(translationColor)
 
         holder.itemView.setOnClickListener {
             val oldPos = selectedPos

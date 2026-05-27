@@ -6,37 +6,42 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:gravity="center_horizontal"
-    android:paddingVertical="@dimen/space_md"
-    android:paddingHorizontal="@dimen/space_lg"
-    android:layout_marginVertical="@dimen/space_xs"
-    android:background="@drawable/bg_dialogue_item"
+    android:paddingVertical="16dp"
+    android:paddingHorizontal="12dp"
     android:clickable="true"
-    android:focusable="true">
+    android:focusable="true"
+    android:background="?attr/selectableItemBackgroundBorderless">
 
-    <!-- English: [timestamp] text -->
+    <!-- Row 1: English with inline timestamp [MM:SS] -->
     <TextView
         android:id="@+id/tv_cue_text"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-        android:textColor="@color/colorOnSurfaceVariant"
-        tools:text="[0:20] Hello, how are you today?" />
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="#A1A1AA"
+        tools:text="[0:20]  Hello, how are you today?" />
 
-    <!-- Bangla translation -->
+    <!-- Spacer 6dp -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="6dp" />
+
+    <!-- Row 2: Bangla Translation -->
     <TextView
         android:id="@+id/tv_cue_translation"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/space_xs"
         android:gravity="center"
-        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-        android:textColor="@color/colorPrimary"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="#A1A1AA"
         android:visibility="gone"
         tools:text="হ্যালো, আজ কেমন আছেন?"
         tools:visibility="visible" />
 
-    <!-- Hidden timestamp (used by adapter, not displayed separately) -->
+    <!-- Hidden timestamp (used by adapter) -->
     <TextView
         android:id="@+id/tv_cue_timestamp"
         android:layout_width="wrap_content"

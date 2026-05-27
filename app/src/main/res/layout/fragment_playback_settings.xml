@@ -202,14 +202,15 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
+            android:background="#27272A"
             android:visibility="gone">
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_dialogue_list"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:paddingHorizontal="@dimen/space_md"
-                android:paddingVertical="@dimen/space_sm"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="16dp"
                 android:clipToPadding="false"
                 android:visibility="gone"
                 tools:listitem="@layout/item_subtitle_cue" />
