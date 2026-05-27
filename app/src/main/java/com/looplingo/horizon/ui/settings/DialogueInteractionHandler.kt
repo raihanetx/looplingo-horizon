@@ -5,7 +5,6 @@ import com.looplingo.horizon.R
 import com.looplingo.horizon.data.remote.Segment
 import com.looplingo.horizon.databinding.FragmentPlaybackSettingsBinding
 import com.looplingo.horizon.domain.audio.service.AudioPlaybackService
-import com.looplingo.horizon.core.TimeUtils
 import com.looplingo.horizon.ui.settings.PlaybackUIHelper
 import com.looplingo.horizon.ui.settings.DialogueAdapter
 import javax.inject.Inject

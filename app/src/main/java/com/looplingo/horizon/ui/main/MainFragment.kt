@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -20,7 +21,6 @@ import com.looplingo.horizon.domain.audio.service.AudioPlaybackService
 import com.looplingo.horizon.domain.model.SortOrder
 import com.looplingo.horizon.ui.common.adapter.VideoAdapter
 import com.looplingo.horizon.core.SecurePrefs
-import com.looplingo.horizon.core.TimeUtils
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import timber.log.Timber
