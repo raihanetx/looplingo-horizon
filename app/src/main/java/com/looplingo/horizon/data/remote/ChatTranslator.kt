@@ -51,15 +51,7 @@ class ChatTranslator @javax.inject.Inject constructor() {
 
     /**
      * Translate transcription segments using Groq's Chat Completion API.
-     *
-     * This sends the full transcript to the LLM in one request and asks it to
-     * translate each segment. The LLM returns a JSON array of translations
-     * that we parse and map back to segment IDs.
-     *
-     * Why not use /v1/audio/translations?
-     * - That endpoint only translates TO English
-     * - For Bangla, Hindi, etc. we need the chat API
-     * - This is also much cheaper than a second Whisper call
+     * Sends English segments to LLM, gets back Bangla (or other language) translations.
      */
     internal suspend fun translateSegmentsViaChat(
         apiKey: String,
@@ -70,40 +62,20 @@ class ChatTranslator @javax.inject.Inject constructor() {
 
         val targetLangName = languageName(targetLanguage)
         val transcriptText = segments.mapIndexed { idx, seg ->
-            "[${idx}] ${seg.text.trim()}"
+            "${idx}: ${seg.text.trim()}"
         }.joinToString("\n")
 
-        val systemPrompt = """You are a precise, context-aware translator for language learning content.
+        val systemPrompt = "You are a translator. Translate each numbered line to $targetLangName. Return ONLY a JSON object mapping line numbers to translations. Example: {\"0\": \"translation\", \"1\": \"translation\"}"
 
-STRICT RULES:
-1. Preserve the EXACT contextual meaning — every nuance, implication, and subtlety must be captured.
-2. Do NOT oversimplify, generalize, or paraphrase. The translation must be as specific as the original.
-3. Do NOT lose or merge information. If the source says 3 things, the translation must convey all 3.
-4. Read the FULL transcript before translating. Each segment's meaning depends on the surrounding context. Use the conversation flow to resolve ambiguous words.
-5. Preserve the speaker's tone, register (formal/casual), and emotional nuance exactly.
-6. Idioms and cultural expressions: translate their MEANING in context, not word-by-word. But do NOT replace them with a generic phrase — capture the specific figurative meaning.
-7. If a word has multiple meanings, pick the one that fits THIS conversation's context.
-8. Do NOT add explanations, notes, or parenthetical clarifications — just the translation itself.
-
-Translate to $targetLangName. Return ONLY a JSON object where keys are segment indices (as strings) and values are the translations.
-Example: {"0": "translation", "1": "translation", ...}"""
-
-        val userMessage = transcriptText
-
-        // Scale max_tokens based on segment count to avoid truncation:
-        // Each segment needs ~30-50 tokens for translation + JSON overhead.
-        val scaledMaxTokens = minOf(
-            4096 + (segments.size * 50),
-            16384
-        )
+        val scaledMaxTokens = minOf(4096 + (segments.size * 50), 16384)
 
         val requestBodyJson = gson.toJson(mapOf(
             "model" to TRANSLATION_MODEL,
             "messages" to listOf(
                 mapOf("role" to "system", "content" to systemPrompt),
-                mapOf("role" to "user", "content" to userMessage)
+                mapOf("role" to "user", "content" to transcriptText)
             ),
-            "temperature" to 0.2,  // Low temperature for precise, deterministic translations (no creativity)
+            "temperature" to 0.1,
             "max_tokens" to scaledMaxTokens
         ))
 
@@ -124,18 +96,17 @@ Example: {"0": "translation", "1": "translation", ...}"""
                 return@withContext emptyMap()
             }
 
-            // Parse the chat response
             val chatResponse = gson.fromJson(responseBody, ChatCompletionResponse::class.java)
             val content = chatResponse.choices?.firstOrNull()?.message?.content
 
             if (content.isNullOrBlank()) {
-                Timber.w("Translation API returned empty content. Full response: %.2000s", responseBody)
+                Timber.w("Translation API returned empty content. Response: %.500s", responseBody)
                 return@withContext emptyMap()
             }
 
-            Timber.i("Translation raw content (%d chars): %.1000s", content.length, content)
+            Timber.i("Translation raw content (%d chars): %.2000s", content.length, content)
 
-            // Try parsing as JSON object first
+            // Parse JSON object
             val jsonStr = extractJsonObject(content)
             var result = mutableMapOf<Int, String>()
 
@@ -151,24 +122,24 @@ Example: {"0": "translation", "1": "translation", ...}"""
                         }
                     }
                 } catch (e: Exception) {
-                    Timber.w(e, "Failed to parse extracted JSON: %.500s", jsonStr)
+                    Timber.w(e, "Failed to parse JSON: %.500s", jsonStr)
                 }
             }
 
-            // Fallback: try parsing line-by-line if JSON parsing failed
+            // Fallback: line-by-line
             if (result.isEmpty()) {
-                Timber.w("JSON parsing returned 0 translations, trying line-by-line fallback")
+                Timber.w("JSON parsing returned 0, trying line-by-line fallback")
                 result = parseLineByLine(content, segments)
             }
 
             if (result.isEmpty()) {
-                Timber.w("Translation parsing returned 0 results. Content was: %.2000s", content)
+                Timber.w("All parsing returned 0. Content: %.2000s", content)
             }
 
             Timber.i("Translated %d/%d segments to %s", result.size, segments.size, targetLangName)
             result
         } catch (e: Exception) {
-            Timber.e(e, "Translation via chat API failed")
+            Timber.e(e, "Translation API call failed")
             emptyMap()
         }
     }
