@@ -185,7 +185,7 @@ class SubtitleGenerationManager @Inject constructor() {
 
     internal fun loadSubtitleCues(
         cues: List<SubtitleCue>,
-        showDialogueList: (List<Segment>) -> Unit
+        showDialogueList: (List<Segment>, Map<Int, String>) -> Unit
     ): Pair<List<Segment>, Map<Int, String>> {
         val dialogueSegments = cues.mapIndexed { index, cue ->
             Segment(
@@ -201,7 +201,7 @@ class SubtitleGenerationManager @Inject constructor() {
                 dialogueSegments[index].id to translationLine
             } else null
         }.toMap()
-        showDialogueList(dialogueSegments)
+        showDialogueList(dialogueSegments, translatedTexts)
         return Pair(dialogueSegments, translatedTexts)
     }
 

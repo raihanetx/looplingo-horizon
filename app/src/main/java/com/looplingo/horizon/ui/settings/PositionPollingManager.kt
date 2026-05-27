@@ -14,11 +14,13 @@ class PositionPollingManager(
     private val getDialogueSegments: () -> List<Segment>,
     private val isCleanCycling: () -> Boolean,
     private val showDialogueOnClean: (Int) -> Unit,
-    private val resetCleanView: () -> Unit
+    private val resetCleanView: () -> Unit,
+    private val onActiveSegmentChanged: (Int) -> Unit = {}
 ) {
     private val positionHandler = Handler(Looper.getMainLooper())
     private var positionPollingRunnable: Runnable? = null
     private val POSITION_POLL_INTERVAL_MS = 500L
+    private var lastActiveSegmentIndex = -1
 
     fun startPositionPolling() {
         stopPositionPolling()
@@ -50,11 +52,19 @@ class PositionPollingManager(
                     val dialogueSegments = getDialogueSegments()
                     if (dialogueSegments.isNotEmpty() && !isCleanCycling()) {
                         val currentSegment = dialogueSegments.find { position >= it.startMs && position < it.endMs }
-                        if (currentSegment != null) {
-                            val segIndex = dialogueSegments.indexOf(currentSegment)
-                            showDialogueOnClean(segIndex)
+                        val segIndex = if (currentSegment != null) dialogueSegments.indexOf(currentSegment) else -1
+                        if (segIndex != lastActiveSegmentIndex) {
+                            lastActiveSegmentIndex = segIndex
+                            if (segIndex >= 0) {
+                                showDialogueOnClean(segIndex)
+                            }
+                            onActiveSegmentChanged(segIndex)
                         }
                     } else if (dialogueSegments.isEmpty()) {
+                        if (lastActiveSegmentIndex != -1) {
+                            lastActiveSegmentIndex = -1
+                            onActiveSegmentChanged(-1)
+                        }
                         resetCleanView()
                     }
                 } catch (e: Exception) {

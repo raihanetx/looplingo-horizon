@@ -11,6 +11,7 @@ import com.looplingo.horizon.domain.audio.service.AudioPlaybackService
 import com.looplingo.horizon.core.TimeUtils
 import com.looplingo.horizon.ui.settings.PlaybackUIHelper
 import com.looplingo.horizon.ui.settings.PositionPollingManager
+import com.looplingo.horizon.ui.settings.DialogueAdapter
 import javax.inject.Inject
 
 class PlaybackSettingsUiBinder @Inject constructor(
@@ -28,6 +29,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
     private var isGeneratingSubtitles: Boolean = false
     private var currentSpeedIndex: Int = SpeedPresets.ALL.indexOf(SpeedPresets.DEFAULT)
     private var loopCount: Int = 3
+    private var dialogueAdapter: DialogueAdapter? = null
     private var cleanCycleIndex: Int = -1
     private var isCleanCycling: Boolean = false
     private var positionPollingManager: PositionPollingManager? = null
@@ -114,6 +116,12 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 binding.ivCleanIcon.visibility = View.VISIBLE; binding.tvCleanTitle.visibility = View.VISIBLE
                 binding.tvCleanSubtitle.visibility = View.VISIBLE
                 binding.tvCleanEnglish.visibility = View.GONE; binding.tvCleanBangla.visibility = View.GONE
+            },
+            onActiveSegmentChanged = { segIndex ->
+                dialogueAdapter?.setActivePosition(segIndex)
+                if (segIndex >= 0) {
+                    binding.rvDialogueList.smoothScrollToPosition(segIndex)
+                }
             }
         )
         positionPollingManager?.startPositionPolling()
@@ -138,7 +146,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
             },
             onError = { isGeneratingSubtitles = false; subtitleGenerated = false },
             showDialogueList = { segs ->
-                dialogueInteractionHandler.showDialogueList(binding, segs, translatedTexts) { segment, _ ->
+                dialogueAdapter = dialogueInteractionHandler.showDialogueList(binding, segs, translatedTexts) { segment, _ ->
                     dialogueInteractionHandler.onDialogueSegmentSelected(binding, playbackUIHelper, videoPath, segment)
                 }
             },
@@ -149,8 +157,8 @@ class PlaybackSettingsUiBinder @Inject constructor(
 
     private fun autoLoadCachedSubtitles(fragment: Fragment, binding: FragmentPlaybackSettingsBinding, viewModel: PlaybackSettingsViewModel, videoPath: String) {
         subtitleGenerationManager.tryAutoLoadCachedSubtitles(fragment, viewModel, videoPath) { cues ->
-            val (segs, texts) = subtitleGenerationManager.loadSubtitleCues(cues) { segs ->
-                dialogueInteractionHandler.showDialogueList(binding, segs, translatedTexts) { segment, _ ->
+            val (segs, texts) = subtitleGenerationManager.loadSubtitleCues(cues) { segs, texts ->
+                dialogueAdapter = dialogueInteractionHandler.showDialogueList(binding, segs, texts) { segment, _ ->
                     dialogueInteractionHandler.onDialogueSegmentSelected(binding, playbackUIHelper, videoPath, segment)
                 }
             }

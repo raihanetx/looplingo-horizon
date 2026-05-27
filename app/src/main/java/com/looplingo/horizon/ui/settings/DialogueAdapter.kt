@@ -17,6 +17,14 @@ class DialogueAdapter(
 
     private var selectedPos = -1
 
+    fun setActivePosition(pos: Int) {
+        if (pos == selectedPos) return
+        val oldPos = selectedPos
+        selectedPos = pos
+        if (oldPos >= 0) notifyItemChanged(oldPos)
+        if (pos >= 0) notifyItemChanged(pos)
+    }
+
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvTimestamp: TextView = view.findViewById(R.id.tv_cue_timestamp)
         val tvText: TextView = view.findViewById(R.id.tv_cue_text)

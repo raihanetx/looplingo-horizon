@@ -19,14 +19,16 @@ class DialogueInteractionHandler @Inject constructor() {
         segments: List<Segment>,
         translatedTexts: Map<Int, String>,
         onSegmentSelected: (Segment, Int) -> Unit
-    ) {
+    ): DialogueAdapter {
         binding.rvDialogueList.visibility = android.view.View.VISIBLE
+        val adapter = DialogueAdapter(segments, translatedTexts) { segment, index ->
+            onSegmentSelected(segment, index)
+        }
         binding.rvDialogueList.apply {
             layoutManager = LinearLayoutManager(binding.root.context)
-            adapter = DialogueAdapter(segments, translatedTexts) { segment, index ->
-                onSegmentSelected(segment, index)
-            }
+            this.adapter = adapter
         }
+        return adapter
     }
 
     fun onDialogueSegmentSelected(
