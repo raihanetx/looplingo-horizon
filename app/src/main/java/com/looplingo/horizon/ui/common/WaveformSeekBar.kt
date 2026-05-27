@@ -20,7 +20,7 @@ class WaveformSeekBar @JvmOverloads constructor(
     }
     private val rectF = RectF()
 
-    private val thinBarWidth: Float = 1.5f * resources.displayMetrics.density
+    private val thinBarWidth: Float = 2.5f * resources.displayMetrics.density
     private val barGap: Float = 2f * resources.displayMetrics.density
 
     var progress: Int = 0
