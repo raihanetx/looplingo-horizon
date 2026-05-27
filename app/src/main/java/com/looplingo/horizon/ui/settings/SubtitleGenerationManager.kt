@@ -272,7 +272,7 @@ class SubtitleGenerationManager @Inject constructor() {
         binding.btnCopyLog.setOnClickListener {
             val ctx = binding.root.context
             val clipboard = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            val clip = android.content.ClipData.newLabel("Process Log", ProcessLogger.getFullLog())
+            val clip = android.content.ClipData.newPlainText("Process Log", ProcessLogger.getFullLog())
             clipboard.setPrimaryClip(clip)
             android.widget.Toast.makeText(ctx, "Log copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
         }
