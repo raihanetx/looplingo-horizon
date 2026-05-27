@@ -17,7 +17,7 @@ class ChatTranslator @javax.inject.Inject constructor() {
     companion object {
         private const val GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
         private const val TRANSLATION_MODEL = "openai/gpt-oss-20b"
-        private const val FALLBACK_MODEL = "gemma2-9b-it"
+        private const val FALLBACK_MODEL = "llama-3.1-8b-instant"
         private const val CHUNK_SIZE = 15
 
         val SUPPORTED_LANGUAGES = listOf(
@@ -172,12 +172,12 @@ Do NOT include any explanation or markdown. ONLY the JSON object."""
                 return null
             }
 
-            val chatResponse = gson.fromJson(responseBody, ChatCompletionResponse::class.java)
-            val content = chatResponse.choices?.firstOrNull()?.message?.content
+            val content = extractContentFromJson(responseBody)
 
             if (content.isNullOrBlank()) {
                 Timber.w("Chunk %d/%d: %s returned empty content", chunkNum, totalChunks, model)
                 com.looplingo.horizon.ui.settings.ProcessLogger.log("API", "Chunk $chunkNum/$totalChunks: $model returned EMPTY content!")
+                com.looplingo.horizon.ui.settings.ProcessLogger.log("API", "Raw response: ${responseBody.take(500)}")
                 return null
             }
 
@@ -242,6 +242,19 @@ Do NOT include any explanation or markdown. ONLY the JSON object."""
     internal fun languageName(code: String): String {
         if (code == "none") return "No Translation"
         return SUPPORTED_LANGUAGES.find { it.first == code }?.second ?: code
+    }
+
+    private fun extractContentFromJson(responseBody: String): String? {
+        return try {
+            val json = org.json.JSONObject(responseBody)
+            val choices = json.optJSONArray("choices") ?: return null
+            if (choices.length() == 0) return null
+            val message = choices.getJSONObject(0).optJSONObject("message") ?: return null
+            message.optString("content", null)
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to parse response JSON manually")
+            null
+        }
     }
 
     internal fun extractJsonObject(text: String): String? {
