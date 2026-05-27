@@ -22,15 +22,27 @@ class DialogueAdapter(
     private val onSegmentClick: (Segment, Int) -> Unit
 ) : RecyclerView.Adapter<DialogueAdapter.ViewHolder>() {
 
-    private var selectedPos = -1
+    private val selectedPositions = mutableSetOf<Int>()
+    private var activePlayPos = -1
 
     fun setActivePosition(pos: Int) {
-        if (pos == selectedPos) return
-        val oldPos = selectedPos
-        selectedPos = pos
+        if (pos == activePlayPos) return
+        val oldPos = activePlayPos
+        activePlayPos = pos
         if (oldPos >= 0) notifyItemChanged(oldPos)
         if (pos >= 0) notifyItemChanged(pos)
     }
+
+    fun toggleSelection(pos: Int) {
+        if (selectedPositions.contains(pos)) {
+            selectedPositions.remove(pos)
+        } else {
+            selectedPositions.add(pos)
+        }
+        notifyItemChanged(pos)
+    }
+
+    fun isSelected(pos: Int): Boolean = selectedPositions.contains(pos)
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvText: TextView = view.findViewById(R.id.tv_cue_text)
@@ -46,14 +58,20 @@ class DialogueAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val segment = segments[position]
         val timestamp = "[${TimeUtils.formatMsToTime(segment.startMs.toLong())}]"
+        val isActive = position == activePlayPos
+        val isSelected = selectedPositions.contains(position)
 
-        // Build SpannableString: timestamp in mono #71717A 9sp bold, text in #A1A1AA 12sp bold
+        // Colors: selected/active = white, unselected = gray
+        val textColor = if (isSelected || isActive) 0xFFFFFFFF.toInt() else 0xFFA1A1AA.toInt()
+        val timestampColor = if (isSelected || isActive) 0xFFD4D4D8.toInt() else 0xFF71717A.toInt()
+
+        // Build SpannableString
         val fullText = "$timestamp  ${segment.text}"
         val spannable = SpannableString(fullText)
 
-        // Timestamp style: zinc-500 (#71717A), mono, 9sp (0.75x of 12sp), bold
+        // Timestamp: mono, bold
         spannable.setSpan(
-            ForegroundColorSpan(0xFF71717A.toInt()),
+            ForegroundColorSpan(timestampColor),
             0, timestamp.length,
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
         )
@@ -73,9 +91,9 @@ class DialogueAdapter(
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
         )
 
-        // English text style: #A1A1AA, 12sp, bold (default size, already bold from XML)
+        // English text
         spannable.setSpan(
-            ForegroundColorSpan(0xFFA1A1AA.toInt()),
+            ForegroundColorSpan(textColor),
             timestamp.length, fullText.length,
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
         )
@@ -85,17 +103,15 @@ class DialogueAdapter(
         val translation = translations[segment.id]
         if (translation != null) {
             holder.tvTranslation.text = translation
+            holder.tvTranslation.setTextColor(textColor)
             holder.tvTranslation.visibility = View.VISIBLE
         } else {
             holder.tvTranslation.visibility = View.GONE
         }
 
         holder.itemView.setOnClickListener {
-            val oldPos = selectedPos
-            selectedPos = holder.bindingAdapterPosition
-            notifyItemChanged(oldPos)
-            notifyItemChanged(selectedPos)
-            onSegmentClick(segment, selectedPos)
+            toggleSelection(holder.bindingAdapterPosition)
+            onSegmentClick(segment, holder.bindingAdapterPosition)
         }
     }
 
