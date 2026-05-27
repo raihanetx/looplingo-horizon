@@ -110,7 +110,6 @@ class PlaybackSettingsUiBinder @Inject constructor(
             showDialogueOnClean = { configSetupManager.showDialogueOnClean(binding, dialogueSegments, translatedTexts, it) },
             resetCleanView = {
                 binding.ivCleanIcon.visibility = View.VISIBLE; binding.tvCleanTitle.visibility = View.VISIBLE
-                binding.tvCleanSubtitle.visibility = View.VISIBLE
                 binding.tvCleanEnglish.visibility = View.GONE; binding.tvCleanBangla.visibility = View.GONE
             },
             onActiveSegmentChanged = { segIndex ->

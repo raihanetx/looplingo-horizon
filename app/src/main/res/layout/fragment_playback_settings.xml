@@ -41,8 +41,7 @@
         android:layout_height="@dimen/header_height"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingHorizontal="@dimen/space_lg"
-        android:background="@color/colorBackground">
+        android:paddingHorizontal="@dimen/space_lg">
 
         <!-- Profile avatar icon -->
         <ImageView
@@ -109,13 +108,6 @@
 
     </LinearLayout>
 
-    <!-- Header bottom divider -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/colorOutlineVariant"
-        android:alpha="0.3" />
-
     <!-- ═══════════════════════════════════════════════════════════════════════
          MAIN DISPLAY AREA (flex-1) — Switchable panels via tab navigation
          ═══════════════════════════════════════════════════════════════════════ -->
@@ -158,16 +150,6 @@
                 android:textAppearance="@style/TextAppearance.Horizon.HeadlineMedium"
                 android:textColor="@color/colorOnSurface"
                 tools:text="Chapter 03" />
-
-            <TextView
-                android:id="@+id/tv_clean_subtitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/space_sm"
-                android:gravity="center"
-                android:text="@string/clean_view_subtitle"
-                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                android:textColor="@color/colorOnSurfaceVariant" />
 
             <!-- English dialogue (shown when subtitles active) -->
             <TextView
@@ -365,7 +347,7 @@
 
             </LinearLayout>
 
-            <!-- Add loop FAB -->
+            <!-- Add loop FAB — mini, perfectly round -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fab_add_loop"
                 android:layout_width="wrap_content"
@@ -374,8 +356,10 @@
                 android:layout_margin="@dimen/space_lg"
                 android:contentDescription="Add Loop"
                 android:src="@drawable/ic_add"
+                app:fabSize="mini"
                 app:backgroundTint="@color/colorPrimary"
-                app:tint="@color/colorOnPrimary" />
+                app:tint="@color/colorOnPrimary"
+                app:maxImageSize="18dp" />
 
             <!-- Add loop form (popup overlay) -->
             <LinearLayout
@@ -634,7 +618,7 @@
 
             </LinearLayout>
 
-            <!-- Add note FAB -->
+            <!-- Add note FAB — mini, perfectly round -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fab_add_note"
                 android:layout_width="wrap_content"
@@ -643,8 +627,10 @@
                 android:layout_margin="@dimen/space_lg"
                 android:contentDescription="Add Note"
                 android:src="@drawable/ic_add"
+                app:fabSize="mini"
                 app:backgroundTint="@color/colorPrimary"
-                app:tint="@color/colorOnPrimary" />
+                app:tint="@color/colorOnPrimary"
+                app:maxImageSize="18dp" />
 
             <!-- Add note form (popup overlay) -->
             <LinearLayout
@@ -877,13 +863,6 @@
 
     </LinearLayout>
 
-    <!-- Tab nav bottom divider -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/colorOutlineVariant"
-        android:alpha="0.3" />
-
     <!-- ═══════════════════════════════════════════════════════════════════════
          PLAYER FOOTER CARD (180dp) — Now Playing controls
          ═══════════════════════════════════════════════════════════════════════ -->
@@ -923,17 +902,6 @@
                     android:textColor="@color/colorOnSurface"
                     android:textStyle="bold"
                     tools:text="Chapter 03" />
-
-                <TextView
-                    android:id="@+id/tv_now_playing_subtitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
-                    android:textColor="@color/colorOnSurfaceVariant"
-                    tools:text="Language Learning Audio" />
 
             </LinearLayout>
 

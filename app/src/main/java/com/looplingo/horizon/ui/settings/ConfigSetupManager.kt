@@ -85,7 +85,6 @@ class ConfigSetupManager @Inject constructor() {
         val translation = translatedTexts[segment.id]
         binding.ivCleanIcon.visibility = View.GONE
         binding.tvCleanTitle.visibility = View.GONE
-        binding.tvCleanSubtitle.visibility = View.GONE
         binding.tvCleanEnglish.text = "[${TimeUtils.formatMsToTime(segment.startMs)}] ${segment.text}"
         binding.tvCleanEnglish.visibility = View.VISIBLE
         binding.tvCleanBangla.text = translation ?: ""

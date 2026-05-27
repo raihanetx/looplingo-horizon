@@ -168,7 +168,6 @@ class PlaybackUIHelper @Inject constructor() {
         subtitle: String
     ) {
         binding.tvNowPlayingTitle.text = title
-        binding.tvNowPlayingSubtitle.text = subtitle
         binding.tvCleanTitle.text = title
         binding.tvCurrentPosition.text = "0:00"
         binding.tvDuration.text = "0:00"
