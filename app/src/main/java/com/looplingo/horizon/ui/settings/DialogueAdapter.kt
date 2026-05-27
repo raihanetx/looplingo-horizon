@@ -26,7 +26,6 @@ class DialogueAdapter(
     }
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvTimestamp: TextView = view.findViewById(R.id.tv_cue_timestamp)
         val tvText: TextView = view.findViewById(R.id.tv_cue_text)
         val tvTranslation: TextView = view.findViewById(R.id.tv_cue_translation)
     }
@@ -39,10 +38,10 @@ class DialogueAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val segment = segments[position]
-        holder.tvTimestamp.text = "[${TimeUtils.formatMsToTime(segment.startMs.toLong())}]"
+        val timestamp = "[${TimeUtils.formatMsToTime(segment.startMs.toLong())}]"
+        holder.tvText.text = "$timestamp ${segment.text}"
 
         val translation = translations[segment.id]
-        holder.tvText.text = segment.text
         if (translation != null) {
             holder.tvTranslation.text = translation
             holder.tvTranslation.visibility = View.VISIBLE
@@ -50,14 +49,19 @@ class DialogueAdapter(
             holder.tvTranslation.visibility = View.GONE
         }
 
-        val isSelected = position == selectedPos
-        holder.itemView.isSelected = isSelected
-        holder.tvTimestamp.setTextColor(
-            holder.itemView.context.getColor(if (isSelected) R.color.colorOnSurface else R.color.colorOnSurfaceVariant)
+        val isActive = position == selectedPos
+        holder.itemView.isSelected = isActive
+
+        // Active = white, inactive = gray
+        val textColor = holder.itemView.context.getColor(
+            if (isActive) R.color.colorOnSurface else R.color.colorOnSurfaceVariant
         )
-        holder.tvText.setTextColor(
-            holder.itemView.context.getColor(if (isSelected) R.color.colorOnSurface else R.color.colorOnSurfaceVariant)
+        val translationColor = holder.itemView.context.getColor(
+            if (isActive) R.color.colorPrimary else R.color.colorOnSurfaceVariant
         )
+
+        holder.tvText.setTextColor(textColor)
+        holder.tvTranslation.setTextColor(translationColor)
 
         holder.itemView.setOnClickListener {
             val oldPos = selectedPos
