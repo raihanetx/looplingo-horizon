@@ -25,22 +25,22 @@
     <color name="colorErrorContainer">@color/md_theme_dark_errorContainer</color>
     <color name="colorOnErrorContainer">@color/md_theme_dark_onErrorContainer</color>
 
-    <!-- OLED-friendly: pure black background -->
-    <color name="colorBackground">#000000</color>
-    <color name="colorOnBackground">#E2E2E7</color>
-    <color name="colorSurface">#000000</color>
-    <color name="colorOnSurface">#C8C8CE</color>
-    <color name="colorSurfaceVariant">#1A1A1C</color>
-    <color name="colorOnSurfaceVariant">#C8C8CE</color>
-    <color name="colorOutline">#929298</color>
-    <color name="colorOutlineVariant">#2A2A2C</color>
+    <!-- Warm dark background (Korean-inspired, easier on eyes) -->
+    <color name="colorBackground">#1A1815</color>
+    <color name="colorOnBackground">#E8E2DA</color>
+    <color name="colorSurface">#1A1815</color>
+    <color name="colorOnSurface">#D0CBC4</color>
+    <color name="colorSurfaceVariant">#2A2723</color>
+    <color name="colorOnSurfaceVariant">#C8C2BA</color>
+    <color name="colorOutline">#928D86</color>
+    <color name="colorOutlineVariant">#2E2B27</color>
 
-    <!-- Very dark surface containers for layered depth -->
-    <color name="colorSurfaceContainerLowest">#000000</color>
-    <color name="colorSurfaceContainerLow">#0A0A0C</color>
-    <color name="colorSurfaceContainer">#111113</color>
-    <color name="colorSurfaceContainerHigh">#1A1A1C</color>
-    <color name="colorSurfaceContainerHighest">#222224</color>
+    <!-- Warm dark surface containers for layered depth -->
+    <color name="colorSurfaceContainerLowest">#151310</color>
+    <color name="colorSurfaceContainerLow">#1F1C19</color>
+    <color name="colorSurfaceContainer">#25221E</color>
+    <color name="colorSurfaceContainerHigh">#2D2A26</color>
+    <color name="colorSurfaceContainerHighest">#35322D</color>
 
     <color name="colorInverseSurface">@color/md_theme_dark_inverseSurface</color>
     <color name="colorInverseOnSurface">@color/md_theme_dark_inverseOnSurface</color>
@@ -54,8 +54,8 @@
     <color name="colorGradientStart">@color/colorPrimaryContainer</color>
     <color name="colorGradientEnd">#8A444449</color>
 
-    <!-- Bottom player bar — very dark surface -->
-    <color name="colorPlayerBar">#0D0D0F</color>
+    <!-- Bottom player bar — warm dark surface -->
+    <color name="colorPlayerBar">#1F1C19</color>
 
     <!-- Active dialogue highlight — gray glow in dark -->
     <color name="colorActiveIndicator">#0A2A2A</color>

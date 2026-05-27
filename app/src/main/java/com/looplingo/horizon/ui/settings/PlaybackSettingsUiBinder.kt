@@ -1,5 +1,7 @@
 package com.looplingo.horizon.ui.settings
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -13,6 +15,8 @@ import com.looplingo.horizon.core.TimeUtils
 import com.looplingo.horizon.ui.settings.PlaybackUIHelper
 import com.looplingo.horizon.ui.settings.PositionPollingManager
 import com.looplingo.horizon.ui.settings.DialogueAdapter
+import org.json.JSONArray
+import org.json.JSONObject
 import javax.inject.Inject
 
 class PlaybackSettingsUiBinder @Inject constructor(
@@ -133,18 +137,23 @@ class PlaybackSettingsUiBinder @Inject constructor(
         activity: android.app.Activity,
         videoPath: String
     ) {
+        val prefs = fragment.requireContext().getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+        val savedLoops = loadLoops(prefs, videoPath)
+
         // Setup loop RecyclerView
         loopAdapter = LoopAdapter(
             onLoopClick = { loop, _ ->
-                // Just seek to the loop start position - don't show form
                 AudioPlaybackService.seekToPosition(activity, videoPath, loop.startMs)
                 playbackUIHelper.showSnackbar(binding.root, "Loop: ${loop.name} (${TimeUtils.formatMsToTime(loop.startMs)} - ${TimeUtils.formatMsToTime(loop.endMs)})")
             },
             onDeleteClick = { _, position ->
                 loopAdapter?.removeLoop(position)
-                playbackUIHelper.updateLoopEmptyState(binding, loopAdapter?.getLoops()?.isNotEmpty() == true)
+                val hasLoops = loopAdapter?.getLoops()?.isNotEmpty() == true
+                playbackUIHelper.updateLoopEmptyState(binding, hasLoops)
+                saveLoops(prefs, videoPath, loopAdapter?.getLoops() ?: emptyList())
             }
         )
+        loopAdapter?.setLoops(savedLoops)
         binding.rvLoopList.layoutManager = LinearLayoutManager(fragment.requireContext())
         binding.rvLoopList.adapter = loopAdapter
 
@@ -154,7 +163,6 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 val startMs = TimeUtils.parseTimeToMs(binding.etLoopStart.text.toString())
                 val endMs = TimeUtils.parseTimeToMs(binding.etLoopEnd.text.toString())
                 if (startMs >= 0 && endMs > startMs) {
-                    // Preview the loop
                     AudioPlaybackService.seekToPosition(activity, videoPath, startMs)
                     playbackUIHelper.showSnackbar(binding.root, "Previewing loop: ${TimeUtils.formatMsToTime(startMs)} - ${TimeUtils.formatMsToTime(endMs)}")
                 } else {
@@ -186,9 +194,10 @@ class PlaybackSettingsUiBinder @Inject constructor(
 
                 val loop = SavedLoop(name, startMs, endMs, loopCount)
                 loopAdapter?.addLoop(loop)
-                playbackUIHelper.updateLoopEmptyState(binding, true)
+                val hasLoops = loopAdapter?.getLoops()?.isNotEmpty() == true
+                playbackUIHelper.updateLoopEmptyState(binding, hasLoops)
+                saveLoops(prefs, videoPath, loopAdapter?.getLoops() ?: emptyList())
 
-                // Clear form and close
                 binding.etLoopName.setText("")
                 binding.etLoopStart.setText("0:00")
                 binding.etLoopEnd.setText("")
@@ -221,8 +230,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
             }
         }
 
-        // Initialize empty state
-        playbackUIHelper.updateLoopEmptyState(binding, false)
+        playbackUIHelper.updateLoopEmptyState(binding, savedLoops.isNotEmpty())
     }
 
     private fun setupNoteForm(
@@ -231,17 +239,22 @@ class PlaybackSettingsUiBinder @Inject constructor(
         activity: android.app.Activity,
         videoPath: String
     ) {
+        val prefs = fragment.requireContext().getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+        val savedNotes = loadNotes(prefs, videoPath)
+
         // Setup notes RecyclerView
         noteAdapter = NoteAdapter(
             onNoteClick = { note, _ ->
-                // Seek to the note's timestamp
                 AudioPlaybackService.seekToPosition(activity, videoPath, note.timestampMs)
             },
             onDeleteClick = { _, position ->
                 noteAdapter?.removeNote(position)
-                playbackUIHelper.updateNoteEmptyState(binding, noteAdapter?.getNotes()?.isNotEmpty() == true)
+                val hasNotes = noteAdapter?.getNotes()?.isNotEmpty() == true
+                playbackUIHelper.updateNoteEmptyState(binding, hasNotes)
+                saveNotes(prefs, videoPath, noteAdapter?.getNotes() ?: emptyList())
             }
         )
+        noteAdapter?.setNotes(savedNotes)
         binding.rvNotesList.layoutManager = LinearLayoutManager(fragment.requireContext())
         binding.rvNotesList.adapter = noteAdapter
 
@@ -258,9 +271,10 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 val currentPosMs = AudioPlaybackService.currentPositionMs
                 val note = SavedNote(text, currentPosMs)
                 noteAdapter?.addNote(note)
-                playbackUIHelper.updateNoteEmptyState(binding, true)
+                val hasNotes = noteAdapter?.getNotes()?.isNotEmpty() == true
+                playbackUIHelper.updateNoteEmptyState(binding, hasNotes)
+                saveNotes(prefs, videoPath, noteAdapter?.getNotes() ?: emptyList())
 
-                // Clear form and close
                 binding.etNoteText.setText("")
                 playbackUIHelper.hideNoteForm(binding)
                 playbackUIHelper.showSnackbar(binding.root, "Note saved at ${TimeUtils.formatMsToTime(currentPosMs)}")
@@ -271,8 +285,67 @@ class PlaybackSettingsUiBinder @Inject constructor(
             }
         )
 
-        // Initialize empty state
-        playbackUIHelper.updateNoteEmptyState(binding, false)
+        playbackUIHelper.updateNoteEmptyState(binding, savedNotes.isNotEmpty())
+    }
+
+    companion object {
+        private const val PREFS_FILE = "horizon_loop_notes"
+        private const val KEY_LOOPS_PREFIX = "loops_"
+        private const val KEY_NOTES_PREFIX = "notes_"
+
+        private fun loadLoops(prefs: SharedPreferences, videoPath: String): List<SavedLoop> {
+            val json = prefs.getString(KEY_LOOPS_PREFIX + videoPath, null) ?: return emptyList()
+            val arr = JSONArray(json)
+            val result = mutableListOf<SavedLoop>()
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                result.add(SavedLoop(
+                    name = obj.getString("name"),
+                    startMs = obj.getLong("startMs"),
+                    endMs = obj.getLong("endMs"),
+                    loopCount = obj.getInt("loopCount")
+                ))
+            }
+            return result
+        }
+
+        private fun saveLoops(prefs: SharedPreferences, videoPath: String, loops: List<SavedLoop>) {
+            val arr = JSONArray()
+            loops.forEach { loop ->
+                val obj = JSONObject()
+                obj.put("name", loop.name)
+                obj.put("startMs", loop.startMs)
+                obj.put("endMs", loop.endMs)
+                obj.put("loopCount", loop.loopCount)
+                arr.put(obj)
+            }
+            prefs.edit().putString(KEY_LOOPS_PREFIX + videoPath, arr.toString()).apply()
+        }
+
+        private fun loadNotes(prefs: SharedPreferences, videoPath: String): List<SavedNote> {
+            val json = prefs.getString(KEY_NOTES_PREFIX + videoPath, null) ?: return emptyList()
+            val arr = JSONArray(json)
+            val result = mutableListOf<SavedNote>()
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                result.add(SavedNote(
+                    text = obj.getString("text"),
+                    timestampMs = obj.getLong("timestampMs")
+                ))
+            }
+            return result
+        }
+
+        private fun saveNotes(prefs: SharedPreferences, videoPath: String, notes: List<SavedNote>) {
+            val arr = JSONArray()
+            notes.forEach { note ->
+                val obj = JSONObject()
+                obj.put("text", note.text)
+                obj.put("timestampMs", note.timestampMs)
+                arr.put(obj)
+            }
+            prefs.edit().putString(KEY_NOTES_PREFIX + videoPath, arr.toString()).apply()
+        }
     }
 
     private fun switchTab(binding: FragmentPlaybackSettingsBinding, viewModel: PlaybackSettingsViewModel, tab: Int) {

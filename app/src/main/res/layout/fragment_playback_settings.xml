@@ -83,7 +83,7 @@
 
         </LinearLayout>
 
-        <!-- Send button (airplane icon) — triggers subtitle generation, hidden when done -->
+        <!-- Options button (double arrow) — triggers subtitle generation / options -->
         <ImageView
             android:id="@+id/iv_send_subtitles"
             android:layout_width="wrap_content"
@@ -93,7 +93,7 @@
             android:clickable="true"
             android:focusable="true"
             android:background="?attr/selectableItemBackgroundBorderless"
-            app:srcCompat="@drawable/ic_send"
+            app:srcCompat="@drawable/ic_double_arrow"
             app:tint="@color/colorOnSurface" />
 
         <!-- Speed indicator (no background, plain text) -->
@@ -136,7 +136,7 @@
             android:paddingHorizontal="@dimen/space_xl"
             android:visibility="visible">
 
-            <!-- Large audio icon (hidden when subtitles shown) -->
+            <!-- Large option icon (hidden when subtitles shown) -->
             <ImageView
                 android:id="@+id/iv_clean_icon"
                 android:layout_width="64dp"
@@ -144,7 +144,7 @@
                 android:alpha="0.3"
                 android:contentDescription="@string/content_desc_video_icon"
                 android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_audio_track"
+                app:srcCompat="@drawable/ic_double_arrow"
                 app:tint="@color/colorPrimary" />
 
             <TextView
@@ -181,14 +181,14 @@
                 android:visibility="gone"
                 tools:text="Hello, how are you today?" />
 
-            <!-- Bangla translation (shown when subtitles active) -->
+            <!-- Bangla translation (shown when subtitles active) — same size as English -->
             <TextView
                 android:id="@+id/tv_clean_bangla"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/space_sm"
                 android:gravity="center"
-                android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                android:textAppearance="@style/TextAppearance.Horizon.HeadlineSmall"
                 android:textColor="@color/colorPrimary"
                 android:visibility="gone"
                 tools:text="হ্যালো, আজ কেমন আছেন?" />
@@ -905,59 +905,34 @@
             android:paddingTop="@dimen/space_md"
             android:paddingBottom="@dimen/space_md">
 
-            <!-- Track Title & Subtitle row -->
+            <!-- Track Title & Subtitle row (centered, no icon) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:orientation="vertical"
+                android:gravity="center">
 
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    app:cardCornerRadius="@dimen/space_sm"
-                    app:cardElevation="0dp"
-                    app:cardBackgroundColor="@color/colorPrimaryContainer">
-
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_gravity="center"
-                        android:contentDescription="@string/content_desc_video_icon"
-                        android:scaleType="centerInside"
-                        app:srcCompat="@drawable/ic_audio_track"
-                        app:tint="@color/colorOnPrimaryContainer" />
-
-                </com.google.android.material.card.MaterialCardView>
-
-                <LinearLayout
-                    android:layout_width="0dp"
+                <TextView
+                    android:id="@+id/tv_now_playing_title"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="@dimen/space_sm"
-                    android:orientation="vertical">
+                    android:gravity="center"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textAppearance="@style/TextAppearance.Horizon.TitleSmall"
+                    android:textColor="@color/colorOnSurface"
+                    tools:text="Chapter 03 - Introducing Yourself" />
 
-                    <TextView
-                        android:id="@+id/tv_now_playing_title"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textAppearance="@style/TextAppearance.Horizon.TitleSmall"
-                        android:textColor="@color/colorOnSurface"
-                        tools:text="Chapter 03 - Introducing Yourself" />
-
-                    <TextView
-                        android:id="@+id/tv_now_playing_subtitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
-                        android:textColor="@color/colorOnSurfaceVariant"
-                        tools:text="Language Learning Audio" />
-
-                </LinearLayout>
+                <TextView
+                    android:id="@+id/tv_now_playing_subtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                    android:textColor="@color/colorOnSurfaceVariant"
+                    tools:text="Language Learning Audio" />
 
             </LinearLayout>
 
@@ -1031,7 +1006,7 @@
                     app:srcCompat="@drawable/ic_rewind_5"
                     app:tint="@color/colorOnSurface" />
 
-                <!-- Play/Pause — large FAB-style circle -->
+                <!-- Play/Pause — compact circle -->
                 <ImageView
                     android:id="@+id/iv_play_pause"
                     android:layout_width="@dimen/play_button_size"
@@ -1039,7 +1014,7 @@
                     android:layout_marginHorizontal="@dimen/space_xl"
                     android:background="@drawable/bg_play_button"
                     android:contentDescription="@string/content_desc_play_pause"
-                    android:padding="@dimen/space_lg"
+                    android:padding="@dimen/space_md"
                     android:scaleType="centerInside"
                     app:srcCompat="@drawable/ic_play"
                     app:tint="@color/colorOnPrimary" />

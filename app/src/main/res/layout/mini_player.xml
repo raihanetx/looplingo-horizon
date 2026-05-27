@@ -104,14 +104,14 @@
                 android:textColor="@color/colorOnPrimary"
                 android:visibility="gone" />
 
-            <!-- Play/Pause — 44dp touch target -->
+            <!-- Play/Pause — 28dp small icon -->
             <ImageView
                 android:id="@+id/iv_mini_play_pause"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/content_desc_play_pause"
-                android:padding="@dimen/space_sm"
+                android:padding="2dp"
                 android:scaleType="centerInside"
                 app:srcCompat="@drawable/ic_pause"
                 app:tint="@color/colorOnSurface" />

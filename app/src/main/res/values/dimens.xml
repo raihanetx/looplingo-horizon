@@ -53,7 +53,7 @@
 
     <!-- Transport controls -->
     <dimen name="transport_button_size">52dp</dimen>
-    <dimen name="play_button_size">72dp</dimen>
+    <dimen name="play_button_size">56dp</dimen>
 
     <!-- Mini player -->
     <dimen name="mini_player_height">64dp</dimen>
