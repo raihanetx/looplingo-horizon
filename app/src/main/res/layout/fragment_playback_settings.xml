@@ -295,8 +295,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/space_sm"
-                android:text="📋 COPY LOG"
+                android:text="COPY LOG"
                 android:textSize="11sp"
+                app:icon="@drawable/ic_content_copy"
+                app:iconGravity="textStart"
                 style="@style/Widget.MaterialComponents.Button.TextButton" />
 
         </LinearLayout>
@@ -347,7 +349,7 @@
 
             </LinearLayout>
 
-            <!-- Add loop FAB — mini, perfectly round -->
+            <!-- Add loop FAB — small, perfectly round -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fab_add_loop"
                 android:layout_width="wrap_content"
@@ -357,9 +359,10 @@
                 android:contentDescription="Add Loop"
                 android:src="@drawable/ic_add"
                 app:fabSize="mini"
+                app:fabCustomSize="36dp"
                 app:backgroundTint="@color/colorPrimary"
                 app:tint="@color/colorOnPrimary"
-                app:maxImageSize="18dp" />
+                app:maxImageSize="14dp" />
 
             <!-- Add loop form (popup overlay) -->
             <LinearLayout
@@ -501,19 +504,19 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_loop_form_minus"
                         style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="28dp"
-                        android:layout_height="28dp"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:layout_marginStart="@dimen/space_sm"
                         android:insetTop="0dp"
                         android:insetBottom="0dp"
                         android:insetLeft="0dp"
                         android:insetRight="0dp"
-                        android:minWidth="28dp"
-                        android:minHeight="28dp"
+                        android:minWidth="24dp"
+                        android:minHeight="24dp"
                         android:padding="0dp"
                         android:text="−"
-                        android:textSize="14sp"
-                        app:cornerRadius="14dp" />
+                        android:textSize="12sp"
+                        app:cornerRadius="12dp" />
 
                     <TextView
                         android:id="@+id/tv_loop_form_count"
@@ -527,18 +530,18 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_loop_form_plus"
                         style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="28dp"
-                        android:layout_height="28dp"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:insetTop="0dp"
                         android:insetBottom="0dp"
                         android:insetLeft="0dp"
                         android:insetRight="0dp"
-                        android:minWidth="28dp"
-                        android:minHeight="28dp"
+                        android:minWidth="24dp"
+                        android:minHeight="24dp"
                         android:padding="0dp"
                         android:text="+"
-                        android:textSize="14sp"
-                        app:cornerRadius="14dp" />
+                        android:textSize="12sp"
+                        app:cornerRadius="12dp" />
 
                 </LinearLayout>
 
@@ -624,7 +627,7 @@
 
             </LinearLayout>
 
-            <!-- Add note FAB — mini, perfectly round -->
+            <!-- Add note FAB — small, perfectly round -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fab_add_note"
                 android:layout_width="wrap_content"
@@ -634,9 +637,10 @@
                 android:contentDescription="Add Note"
                 android:src="@drawable/ic_add"
                 app:fabSize="mini"
+                app:fabCustomSize="36dp"
                 app:backgroundTint="@color/colorPrimary"
                 app:tint="@color/colorOnPrimary"
-                app:maxImageSize="18dp" />
+                app:maxImageSize="14dp" />
 
             <!-- Add note form (popup overlay) -->
             <LinearLayout
@@ -936,13 +940,13 @@
                     android:layout_height="wrap_content"
                     android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
                     android:textColor="@color/colorOnSurfaceVariant"
-                    android:layout_marginEnd="6dp"
+                    android:layout_marginEnd="2dp"
                     tools:text="1:24" />
 
                 <com.looplingo.horizon.ui.common.WaveformSeekBar
                     android:id="@+id/waveform_seek_bar"
                     android:layout_width="0dp"
-                    android:layout_height="28dp"
+                    android:layout_height="32dp"
                     android:layout_weight="1"
                     android:contentDescription="@string/content_desc_seek_bar" />
 
@@ -952,7 +956,7 @@
                     android:layout_height="wrap_content"
                     android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
                     android:textColor="@color/colorOnSurfaceVariant"
-                    android:layout_marginStart="6dp"
+                    android:layout_marginStart="2dp"
                     tools:text="3:45" />
 
             </LinearLayout>
