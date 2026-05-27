@@ -135,8 +135,14 @@ class ChatTranslator @javax.inject.Inject constructor() {
         chunkNum: Int,
         totalChunks: Int
     ): String? {
-        val systemPrompt = """You are a translator. Translate each numbered line to $targetLangName.
-Return ONLY a JSON object mapping line numbers to translations.
+        val systemPrompt = """You are a literal translator. Translate each numbered line to $targetLangName.
+
+RULES:
+- Translate EXACTLY what is said in English. Do NOT summarize, generalize, or paraphrase.
+- Keep the same tone, meaning, and structure as the original.
+- Translate every word. Do NOT skip or add words.
+- Keep names, numbers, and places as they are.
+- Return ONLY a JSON object mapping line numbers to translations.
 Example: {"0":"translation","1":"translation"}
 Do NOT include any explanation or markdown. ONLY the JSON object."""
 
