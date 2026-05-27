@@ -73,6 +73,10 @@ class TranscriptRepository @Inject constructor(
             try {
                 val entities = segments.map { segment ->
                     val vadData = vadRefinements[segment.id]
+                    val tText = translatedTexts[segment.id]
+                    if (tText != null) {
+                        Timber.d("SAVE segment[%d] id=%d → translatedText=%s", segment.id, segment.id, tText.take(50))
+                    }
                     TranscriptionEntity(
                         videoPath = videoPath,
                         text = segment.text.trim(),
@@ -84,16 +88,20 @@ class TranscriptRepository @Inject constructor(
                         avgLogprob = segment.avgLogprob,
                         languageCode = languageCode,
                         isTranslation = isTranslation,
-                        translatedText = translatedTexts[segment.id],
+                        translatedText = tText,
                         translationLanguage = translationLanguage
                     )
                 }
+                val translatedCount = entities.count { !it.translatedText.isNullOrBlank() }
+                Timber.i("SAVE: %d segments, %d with translations, lang=%s → %s",
+                    entities.size, translatedCount, translationLanguage, videoPath.substringAfterLast("/"))
                 db.replaceTranscriptions(videoPath, entities)
                 val cues = entities.mapIndexed { index, entity ->
                     entity.toSubtitleCue(index + 1)
                 }
+                val cuesWithTrans = cues.count { it.hasTranslation }
+                Timber.i("SAVE: Created %d cues, %d with translations", cues.size, cuesWithTrans)
                 cache.put(videoPath, cues)
-                Timber.i("Saved %d transcription segments for: %s", entities.size, videoPath.substringAfterLast("/"))
             } catch (e: Exception) {
                 Timber.e(e, "Failed to save transcriptions for: %s", videoPath)
             }
@@ -138,7 +146,11 @@ class TranscriptRepository @Inject constructor(
     private suspend fun loadTranscriptionsFromDb(videoPath: String): List<SubtitleCue> {
         val entities = db.loadTranscriptions(videoPath)
         if (entities.isEmpty()) return emptyList()
+        val transCount = entities.count { !it.translatedText.isNullOrBlank() }
+        Timber.i("LOAD DB: %d entities, %d with translations for %s", entities.size, transCount, videoPath.substringAfterLast("/"))
         val cues = entities.mapIndexed { index, entity -> entity.toSubtitleCue(index + 1) }
+        val cuesWithTrans = cues.count { it.hasTranslation }
+        Timber.i("LOAD DB: Created %d cues, %d with translations", cues.size, cuesWithTrans)
         cache.put(videoPath, cues)
         return cues
     }
@@ -146,7 +158,11 @@ class TranscriptRepository @Inject constructor(
     private suspend fun loadTranscriptionsWithMetaFromDb(videoPath: String): CachedTranscriptionData {
         val entities = db.loadTranscriptions(videoPath)
         if (entities.isEmpty()) return CachedTranscriptionData(emptyList(), null, "auto")
+        val transCount = entities.count { !it.translatedText.isNullOrBlank() }
+        Timber.i("LOAD META DB: %d entities, %d with translations for %s", entities.size, transCount, videoPath.substringAfterLast("/"))
         val cues = entities.mapIndexed { index, entity -> entity.toSubtitleCue(index + 1) }
+        val cuesWithTrans = cues.count { it.hasTranslation }
+        Timber.i("LOAD META DB: Created %d cues, %d with translations", cues.size, cuesWithTrans)
         cache.put(videoPath, cues)
         val translationLang = entities.firstOrNull()?.translationLanguage
         val sourceLang = entities.firstOrNull()?.languageCode ?: "auto"
