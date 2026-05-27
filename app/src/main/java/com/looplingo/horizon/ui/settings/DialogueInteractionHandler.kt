@@ -37,9 +37,6 @@ class DialogueInteractionHandler @Inject constructor() {
         videoPath: String,
         segment: Segment
     ) {
-        binding.etRangeStart.setText(TimeUtils.formatMsToTime(segment.startMs))
-        binding.etRangeEnd.setText(TimeUtils.formatMsToTime(segment.endMs))
-
         val isCurrentlyPlaying = AudioPlaybackService.isPlaying &&
             AudioPlaybackService.currentVideoPath == videoPath
 

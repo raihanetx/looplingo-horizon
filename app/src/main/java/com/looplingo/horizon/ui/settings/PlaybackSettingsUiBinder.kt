@@ -20,7 +20,6 @@ class PlaybackSettingsUiBinder @Inject constructor(
     private val playbackUIHelper: PlaybackUIHelper,
     private val subtitleGenerationManager: SubtitleGenerationManager,
     private val configSetupManager: ConfigSetupManager,
-    private val tryLoopSetup: TryLoopSetup,
     private val dialogueInteractionHandler: DialogueInteractionHandler
 ) {
     private var dialogueSegments: List<Segment> = emptyList()
@@ -94,10 +93,10 @@ class PlaybackSettingsUiBinder @Inject constructor(
         }
 
         // Setup loop form
-        setupLoopForm(fragment, binding, viewModel, activity)
+        setupLoopForm(fragment, binding, viewModel, activity, videoPath)
 
         // Setup note form
-        setupNoteForm(fragment, binding, activity)
+        setupNoteForm(fragment, binding, activity, videoPath)
 
         val title = videoPath.substringAfterLast("/").substringBeforeLast(".")
         playbackUIHelper.setupNowPlayingCard(binding, title, fragment.getString(R.string.clean_view_subtitle))
@@ -131,7 +130,8 @@ class PlaybackSettingsUiBinder @Inject constructor(
         fragment: Fragment,
         binding: FragmentPlaybackSettingsBinding,
         viewModel: PlaybackSettingsViewModel,
-        activity: android.app.Activity
+        activity: android.app.Activity,
+        videoPath: String
     ) {
         // Setup loop RecyclerView
         loopAdapter = LoopAdapter(
@@ -232,7 +232,8 @@ class PlaybackSettingsUiBinder @Inject constructor(
     private fun setupNoteForm(
         fragment: Fragment,
         binding: FragmentPlaybackSettingsBinding,
-        activity: android.app.Activity
+        activity: android.app.Activity,
+        videoPath: String
     ) {
         // Setup notes RecyclerView
         noteAdapter = NoteAdapter(
