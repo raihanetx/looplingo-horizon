@@ -29,20 +29,20 @@
     <color name="md_theme_light_errorContainer">#FFDAD6</color>
     <color name="md_theme_light_onErrorContainer">#410002</color>
 
-    <!-- Surface / Background — Warm Korean-inspired cream tones -->
-    <color name="md_theme_light_background">#FFF8F0</color>
-    <color name="md_theme_light_onBackground">#1C1814</color>
-    <color name="md_theme_light_surface">#FFF8F0</color>
-    <color name="md_theme_light_onSurface">#1C1814</color>
-    <color name="md_theme_light_surfaceVariant">#F0EBE4</color>
-    <color name="md_theme_light_onSurfaceVariant">#4B4844</color>
-    <color name="md_theme_light_outline">#7B7873</color>
-    <color name="md_theme_light_outlineVariant">#D0CBC4</color>
-    <color name="md_theme_light_surfaceContainerLowest">#FFFDFA</color>
-    <color name="md_theme_light_surfaceContainerLow">#F8F3EC</color>
-    <color name="md_theme_light_surfaceContainer">#F2EDE6</color>
-    <color name="md_theme_light_surfaceContainerHigh">#EBE6DF</color>
-    <color name="md_theme_light_surfaceContainerHighest">#E3DED7</color>
+    <!-- Surface / Background — Clean neutral palette -->
+    <color name="md_theme_light_background">#F8F9FA</color>
+    <color name="md_theme_light_onBackground">#1A1B1E</color>
+    <color name="md_theme_light_surface">#F8F9FA</color>
+    <color name="md_theme_light_onSurface">#1A1B1E</color>
+    <color name="md_theme_light_surfaceVariant">#E8EAED</color>
+    <color name="md_theme_light_onSurfaceVariant">#49454F</color>
+    <color name="md_theme_light_outline">#7C7A80</color>
+    <color name="md_theme_light_outlineVariant">#C8C5CB</color>
+    <color name="md_theme_light_surfaceContainerLowest">#FFFFFF</color>
+    <color name="md_theme_light_surfaceContainerLow">#F2F3F5</color>
+    <color name="md_theme_light_surfaceContainer">#ECEDF0</color>
+    <color name="md_theme_light_surfaceContainerHigh">#E5E6E9</color>
+    <color name="md_theme_light_surfaceContainerHighest">#DDDEE2</color>
     <color name="md_theme_light_inverseSurface">#2E2E33</color>
     <color name="md_theme_light_inverseOnSurface">#F1F0F5</color>
     <color name="md_theme_light_inversePrimary">#C8C8CE</color>

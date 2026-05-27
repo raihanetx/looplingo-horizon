@@ -43,7 +43,7 @@ class VideoAdapter(
 
         fun bind(video: VideoEntity) {
             binding.tvTitle.text = video.title
-            binding.tvPath.text = video.path
+            binding.tvPath.text = video.path.substringAfterLast("/").substringBeforeLast(".")
             binding.tvDuration.text = formatDuration(video.duration)
             binding.tvSize.text = formatFileSize(video.size)
 

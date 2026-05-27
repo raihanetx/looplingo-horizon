@@ -52,11 +52,10 @@ class MainFragmentHelper @Inject constructor() {
             Timber.d("Video clicked: %s", video.title)
             try {
                 requestNotificationPermissionIfNeeded(fragment, notificationPermissionLauncher)
-                AudioPlaybackService.startService(fragment.requireContext(), video.path)
                 val action = MainFragmentDirections.actionMainToPlaybackSettings(video.path, "")
                 fragment.findNavController().navigate(action)
             } catch (e: Exception) {
-                Timber.e(e, "Failed to start playback service for: %s", video.title)
+                Timber.e(e, "Failed to navigate for: %s", video.title)
                 Snackbar.make(
                     binding.root,
                     fragment.getString(R.string.error_starting_playback),

@@ -14,6 +14,7 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.looplingo.horizon.databinding.FragmentPlaybackSettingsBinding
+import com.looplingo.horizon.domain.audio.service.AudioPlaybackService
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import javax.inject.Inject
@@ -66,6 +67,11 @@ class PlaybackSettingsFragment : Fragment() {
             requestNotificationPermission = ::requestNotificationPermissionIfNeeded,
             navigateUp = { findNavController().navigateUp() }
         )
+
+        if (!AudioPlaybackService.isPlaying || AudioPlaybackService.currentVideoPath != videoPath) {
+            requestNotificationPermissionIfNeeded()
+            AudioPlaybackService.startService(requireContext(), videoPath)
+        }
     }
 
     override fun onResume() {

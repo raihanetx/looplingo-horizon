@@ -919,9 +919,10 @@
                     android:gravity="center"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:textAppearance="@style/TextAppearance.Horizon.TitleSmall"
+                    android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
                     android:textColor="@color/colorOnSurface"
-                    tools:text="Chapter 03 - Introducing Yourself" />
+                    android:textStyle="bold"
+                    tools:text="Chapter 03" />
 
                 <TextView
                     android:id="@+id/tv_now_playing_subtitle"
@@ -994,7 +995,7 @@
                 android:orientation="horizontal"
                 android:paddingVertical="@dimen/space_xs">
 
-                <!-- Rewind 5s — transport circle -->
+                <!-- Rewind — double arrow -->
                 <ImageView
                     android:id="@+id/iv_rewind_5"
                     android:layout_width="@dimen/transport_button_size"
@@ -1003,7 +1004,7 @@
                     android:contentDescription="@string/content_desc_rewind_5"
                     android:padding="@dimen/space_md"
                     android:scaleType="centerInside"
-                    app:srcCompat="@drawable/ic_rewind_5"
+                    app:srcCompat="@drawable/ic_fast_rewind"
                     app:tint="@color/colorOnSurface" />
 
                 <!-- Play/Pause — compact circle -->
@@ -1019,7 +1020,7 @@
                     app:srcCompat="@drawable/ic_play"
                     app:tint="@color/colorOnPrimary" />
 
-                <!-- Forward 5s — transport circle -->
+                <!-- Forward — double arrow -->
                 <ImageView
                     android:id="@+id/iv_forward_5"
                     android:layout_width="@dimen/transport_button_size"
@@ -1028,7 +1029,7 @@
                     android:contentDescription="@string/content_desc_forward_5"
                     android:padding="@dimen/space_md"
                     android:scaleType="centerInside"
-                    app:srcCompat="@drawable/ic_forward_5"
+                    app:srcCompat="@drawable/ic_fast_forward"
                     app:tint="@color/colorOnSurface" />
 
             </LinearLayout>
