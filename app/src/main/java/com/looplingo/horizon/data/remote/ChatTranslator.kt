@@ -16,8 +16,8 @@ import java.util.concurrent.TimeUnit
 class ChatTranslator @javax.inject.Inject constructor() {
     companion object {
         private const val GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
-        private const val TRANSLATION_MODEL = "openai/gpt-oss-20b"
-        private const val CHUNK_SIZE = 20 // segments per chunk
+        private const val TRANSLATION_MODEL = "llama-3.3-70b-versatile"
+        private const val CHUNK_SIZE = 15
 
         val SUPPORTED_LANGUAGES = listOf(
             "auto" to "Auto-detect",
@@ -51,11 +51,6 @@ class ChatTranslator @javax.inject.Inject constructor() {
 
     private val gson = Gson()
 
-    /**
-     * Step 1: Save English segments to a temp file for debugging.
-     * Step 2: Send to LLM in chunks if needed.
-     * Step 3: Parse Bangla translations from response.
-     */
     internal suspend fun translateSegmentsViaChat(
         apiKey: String,
         segments: List<Segment>,
@@ -66,7 +61,6 @@ class ChatTranslator @javax.inject.Inject constructor() {
 
         val targetLangName = languageName(targetLanguage)
 
-        // Step 1: Save English text to temp file
         val englishFile = File(context?.cacheDir ?: File("/tmp"), "english_segments.txt")
         val englishText = segments.mapIndexed { idx, seg ->
             "${idx}: ${seg.text.trim()}"
@@ -74,30 +68,28 @@ class ChatTranslator @javax.inject.Inject constructor() {
         englishFile.writeText(englishText)
         Timber.i("Saved %d English segments to %s", segments.size, englishFile.absolutePath)
 
-        // Step 2: Split into chunks and translate each
         val chunks = segments.chunked(CHUNK_SIZE)
-        Timber.i("Translating %d segments in %d chunks (chunk size=%d) to %s",
-            segments.size, chunks.size, CHUNK_SIZE, targetLangName)
+        Timber.i("=== CHAT TRANSLATOR v2 === Model=%s, Segments=%d, Chunks=%d, Target=%s",
+            TRANSLATION_MODEL, segments.size, chunks.size, targetLangName)
 
         val allTranslations = mutableMapOf<Int, String>()
 
         for ((chunkIdx, chunk) in chunks.withIndex()) {
             val chunkStart = chunkIdx * CHUNK_SIZE
-            Timber.i("Processing chunk %d/%d (segments %d-%d)",
-                chunkIdx + 1, chunks.size, chunkStart, chunkStart + chunk.size - 1)
+            Timber.i("Chunk %d/%d: segments %d-%d (%d items)",
+                chunkIdx + 1, chunks.size, chunkStart, chunkStart + chunk.size - 1, chunk.size)
 
             val chunkText = chunk.mapIndexed { idx, seg ->
                 "${idx}: ${seg.text.trim()}"
             }.joinToString("\n")
 
-            val translation = translateChunk(apiKey, chunkText, chunk, targetLangName)
+            val translation = translateChunk(apiKey, chunkText, chunk, targetLangName, chunkIdx + 1, chunks.size)
             allTranslations.putAll(translation)
 
-            Timber.i("Chunk %d/%d: got %d/%d translations",
+            Timber.i("Chunk %d/%d result: %d/%d translations",
                 chunkIdx + 1, chunks.size, translation.size, chunk.size)
         }
 
-        // Step 3: Save Bangla translations to temp file for debugging
         val banglaFile = File(context?.cacheDir ?: File("/tmp"), "bangla_translations.txt")
         val banglaText = allTranslations.entries.sortedBy { it.key }.joinToString("\n") { (segId, trans) ->
             "$segId: $trans"
@@ -105,7 +97,8 @@ class ChatTranslator @javax.inject.Inject constructor() {
         banglaFile.writeText(banglaText)
         Timber.i("Saved %d Bangla translations to %s", allTranslations.size, banglaFile.absolutePath)
 
-        Timber.i("TOTAL: Translated %d/%d segments to %s", allTranslations.size, segments.size, targetLangName)
+        Timber.i("=== TRANSLATION COMPLETE: %d/%d translated to %s ===",
+            allTranslations.size, segments.size, targetLangName)
         allTranslations
     }
 
@@ -113,9 +106,14 @@ class ChatTranslator @javax.inject.Inject constructor() {
         apiKey: String,
         chunkText: String,
         segments: List<Segment>,
-        targetLangName: String
+        targetLangName: String,
+        chunkNum: Int,
+        totalChunks: Int
     ): Map<Int, String> {
-        val systemPrompt = "Translate each numbered line to $targetLangName. Return ONLY a JSON object like {\"0\":\"translation\",\"1\":\"translation\"}"
+        val systemPrompt = """You are a translator. Translate each numbered line to $targetLangName.
+Return ONLY a JSON object mapping line numbers to translations.
+Example: {"0":"translation","1":"translation"}
+Do NOT include any explanation or markdown. ONLY the JSON object."""
 
         val requestBodyJson = gson.toJson(mapOf(
             "model" to TRANSLATION_MODEL,
@@ -135,12 +133,17 @@ class ChatTranslator @javax.inject.Inject constructor() {
             .build()
 
         try {
+            Timber.i("Chunk %d/%d: Calling Groq Chat API (model=%s)...", chunkNum, totalChunks, TRANSLATION_MODEL)
             val response = client.newCall(request).execute()
             val responseBody = response.body?.string()
             response.close()
 
             if (!response.isSuccessful || responseBody.isNullOrBlank()) {
-                Timber.w("API failed: HTTP %d, body: %.500s", response.code, responseBody ?: "null")
+                Timber.e("Chunk %d/%d: API FAILED — HTTP %d", chunkNum, totalChunks, response.code)
+                Timber.e("Chunk %d/%d: Response body: %.1000s", chunkNum, totalChunks, responseBody ?: "null")
+                if (response.code == 404) {
+                    Timber.e("Chunk %d/%d: Model '%s' not found on Groq! Check available models.", chunkNum, totalChunks, TRANSLATION_MODEL)
+                }
                 return emptyMap()
             }
 
@@ -148,13 +151,12 @@ class ChatTranslator @javax.inject.Inject constructor() {
             val content = chatResponse.choices?.firstOrNull()?.message?.content
 
             if (content.isNullOrBlank()) {
-                Timber.w("API returned empty content. Response: %.500s", responseBody)
+                Timber.w("Chunk %d/%d: API returned empty content. Full response: %.1000s", chunkNum, totalChunks, responseBody)
                 return emptyMap()
             }
 
-            Timber.i("LLM response (%d chars): %.2000s", content.length, content)
+            Timber.i("Chunk %d/%d: LLM response (%d chars): %.500s", chunkNum, totalChunks, content.length, content)
 
-            // Try JSON parsing
             val jsonStr = extractJsonObject(content)
             var result = mutableMapOf<Int, String>()
 
@@ -170,23 +172,26 @@ class ChatTranslator @javax.inject.Inject constructor() {
                             }
                         }
                     }
+                    Timber.i("Chunk %d/%d: JSON parsed %d translations", chunkNum, totalChunks, result.size)
                 } catch (e: Exception) {
-                    Timber.w(e, "JSON parse failed: %.500s", jsonStr)
+                    Timber.w(e, "Chunk %d/%d: JSON parse failed for: %.500s", chunkNum, totalChunks, jsonStr)
                 }
+            } else {
+                Timber.w("Chunk %d/%d: No JSON object found in response", chunkNum, totalChunks)
             }
 
-            // Fallback: line-by-line
             if (result.isEmpty()) {
                 result = parseLineByLine(content, segments)
+                Timber.i("Chunk %d/%d: Line-by-line fallback got %d translations", chunkNum, totalChunks, result.size)
             }
 
             if (result.isEmpty()) {
-                Timber.w("Could not parse any translations. Content: %.2000s", content)
+                Timber.w("Chunk %d/%d: ZERO translations parsed! Content: %.2000s", chunkNum, totalChunks, content)
             }
 
             return result
         } catch (e: Exception) {
-            Timber.e(e, "Translation API call failed")
+            Timber.e(e, "Chunk %d/%d: API call EXCEPTION: %s", chunkNum, totalChunks, e.message)
             return emptyMap()
         }
     }
@@ -225,7 +230,6 @@ class ChatTranslator @javax.inject.Inject constructor() {
                 }
             }
         }
-        Timber.i("Line-by-line fallback: %d translations", result.size)
         return result
     }
 }
