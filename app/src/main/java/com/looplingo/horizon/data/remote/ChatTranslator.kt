@@ -16,7 +16,8 @@ import java.util.concurrent.TimeUnit
 class ChatTranslator @javax.inject.Inject constructor() {
     companion object {
         private const val GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
-        private const val TRANSLATION_MODEL = "llama-3.3-70b-versatile"
+        private const val TRANSLATION_MODEL = "openai/gpt-oss-20b"
+        private const val FALLBACK_MODEL = "gemma2-9b-it"
         private const val CHUNK_SIZE = 15
 
         val SUPPORTED_LANGUAGES = listOf(
@@ -110,13 +111,33 @@ class ChatTranslator @javax.inject.Inject constructor() {
         chunkNum: Int,
         totalChunks: Int
     ): Map<Int, String> {
+        val primary = callChatApi(apiKey, chunkText, TRANSLATION_MODEL, targetLangName, chunkNum, totalChunks)
+        if (primary != null) return parseTranslationResponse(primary, segments, chunkNum, totalChunks)
+
+        Timber.w("Chunk %d/%d: Primary model '%s' failed, trying fallback '%s'",
+            chunkNum, totalChunks, TRANSLATION_MODEL, FALLBACK_MODEL)
+        val fallback = callChatApi(apiKey, chunkText, FALLBACK_MODEL, targetLangName, chunkNum, totalChunks)
+        if (fallback != null) return parseTranslationResponse(fallback, segments, chunkNum, totalChunks)
+
+        Timber.e("Chunk %d/%d: BOTH models failed!", chunkNum, totalChunks)
+        return emptyMap()
+    }
+
+    private fun callChatApi(
+        apiKey: String,
+        chunkText: String,
+        model: String,
+        targetLangName: String,
+        chunkNum: Int,
+        totalChunks: Int
+    ): String? {
         val systemPrompt = """You are a translator. Translate each numbered line to $targetLangName.
 Return ONLY a JSON object mapping line numbers to translations.
 Example: {"0":"translation","1":"translation"}
 Do NOT include any explanation or markdown. ONLY the JSON object."""
 
         val requestBodyJson = gson.toJson(mapOf(
-            "model" to TRANSLATION_MODEL,
+            "model" to model,
             "messages" to listOf(
                 mapOf("role" to "system", "content" to systemPrompt),
                 mapOf("role" to "user", "content" to chunkText)
@@ -132,68 +153,74 @@ Do NOT include any explanation or markdown. ONLY the JSON object."""
             .post(requestBodyJson.toRequestBody("application/json".toMediaType()))
             .build()
 
-        try {
-            Timber.i("Chunk %d/%d: Calling Groq Chat API (model=%s)...", chunkNum, totalChunks, TRANSLATION_MODEL)
+        return try {
+            Timber.i("Chunk %d/%d: Calling Groq (model=%s)...", chunkNum, totalChunks, model)
             val response = client.newCall(request).execute()
             val responseBody = response.body?.string()
             response.close()
 
             if (!response.isSuccessful || responseBody.isNullOrBlank()) {
-                Timber.e("Chunk %d/%d: API FAILED — HTTP %d", chunkNum, totalChunks, response.code)
-                Timber.e("Chunk %d/%d: Response body: %.1000s", chunkNum, totalChunks, responseBody ?: "null")
-                if (response.code == 404) {
-                    Timber.e("Chunk %d/%d: Model '%s' not found on Groq! Check available models.", chunkNum, totalChunks, TRANSLATION_MODEL)
-                }
-                return emptyMap()
+                Timber.e("Chunk %d/%d: %s FAILED — HTTP %d, body: %.500s",
+                    chunkNum, totalChunks, model, response.code, responseBody ?: "null")
+                return null
             }
 
             val chatResponse = gson.fromJson(responseBody, ChatCompletionResponse::class.java)
             val content = chatResponse.choices?.firstOrNull()?.message?.content
 
             if (content.isNullOrBlank()) {
-                Timber.w("Chunk %d/%d: API returned empty content. Full response: %.1000s", chunkNum, totalChunks, responseBody)
-                return emptyMap()
+                Timber.w("Chunk %d/%d: %s returned empty content", chunkNum, totalChunks, model)
+                return null
             }
 
-            Timber.i("Chunk %d/%d: LLM response (%d chars): %.500s", chunkNum, totalChunks, content.length, content)
+            Timber.i("Chunk %d/%d: %s responded (%d chars): %.500s",
+                chunkNum, totalChunks, model, content.length, content)
+            content
+        } catch (e: Exception) {
+            Timber.e(e, "Chunk %d/%d: %s EXCEPTION: %s", chunkNum, totalChunks, model, e.message)
+            null
+        }
+    }
 
-            val jsonStr = extractJsonObject(content)
-            var result = mutableMapOf<Int, String>()
+    private fun parseTranslationResponse(
+        content: String,
+        segments: List<Segment>,
+        chunkNum: Int,
+        totalChunks: Int
+    ): Map<Int, String> {
+        val jsonStr = extractJsonObject(content)
+        var result = mutableMapOf<Int, String>()
 
-            if (jsonStr != null) {
-                try {
-                    @Suppress("UNCHECKED_CAST")
-                    val translations = gson.fromJson(jsonStr, Map::class.java) as? Map<String, Any>
-                    if (translations != null) {
-                        for ((key, value) in translations) {
-                            val idx = key.toIntOrNull() ?: continue
-                            if (idx in segments.indices) {
-                                result[segments[idx].id] = value.toString()
-                            }
+        if (jsonStr != null) {
+            try {
+                @Suppress("UNCHECKED_CAST")
+                val translations = gson.fromJson(jsonStr, Map::class.java) as? Map<String, Any>
+                if (translations != null) {
+                    for ((key, value) in translations) {
+                        val idx = key.toIntOrNull() ?: continue
+                        if (idx in segments.indices) {
+                            result[segments[idx].id] = value.toString()
                         }
                     }
-                    Timber.i("Chunk %d/%d: JSON parsed %d translations", chunkNum, totalChunks, result.size)
-                } catch (e: Exception) {
-                    Timber.w(e, "Chunk %d/%d: JSON parse failed for: %.500s", chunkNum, totalChunks, jsonStr)
                 }
-            } else {
-                Timber.w("Chunk %d/%d: No JSON object found in response", chunkNum, totalChunks)
+                Timber.i("Chunk %d/%d: JSON parsed %d translations", chunkNum, totalChunks, result.size)
+            } catch (e: Exception) {
+                Timber.w(e, "Chunk %d/%d: JSON parse failed for: %.500s", chunkNum, totalChunks, jsonStr)
             }
-
-            if (result.isEmpty()) {
-                result = parseLineByLine(content, segments)
-                Timber.i("Chunk %d/%d: Line-by-line fallback got %d translations", chunkNum, totalChunks, result.size)
-            }
-
-            if (result.isEmpty()) {
-                Timber.w("Chunk %d/%d: ZERO translations parsed! Content: %.2000s", chunkNum, totalChunks, content)
-            }
-
-            return result
-        } catch (e: Exception) {
-            Timber.e(e, "Chunk %d/%d: API call EXCEPTION: %s", chunkNum, totalChunks, e.message)
-            return emptyMap()
+        } else {
+            Timber.w("Chunk %d/%d: No JSON object found in response", chunkNum, totalChunks)
         }
+
+        if (result.isEmpty()) {
+            result = parseLineByLine(content, segments)
+            Timber.i("Chunk %d/%d: Line-by-line fallback got %d translations", chunkNum, totalChunks, result.size)
+        }
+
+        if (result.isEmpty()) {
+            Timber.w("Chunk %d/%d: ZERO translations parsed! Content: %.2000s", chunkNum, totalChunks, content)
+        }
+
+        return result
     }
 
     internal fun languageName(code: String): String {
