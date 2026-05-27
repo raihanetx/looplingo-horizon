@@ -922,21 +922,13 @@
                 android:textColor="@color/colorOnSurfaceVariant"
                 tools:text="Mode:Clean | Loop:None | Speed:2x" />
 
-            <!-- Capsule waveform seekbar -->
-            <com.looplingo.horizon.ui.common.WaveformSeekBar
-                android:id="@+id/waveform_seek_bar"
-                android:layout_width="match_parent"
-                android:layout_height="28dp"
-                android:layout_marginTop="@dimen/space_sm"
-                android:contentDescription="@string/content_desc_seek_bar" />
-
-            <!-- Time row: Elapsed | Total -->
+            <!-- Waveform seekbar with inline time labels -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="0dp"
+                android:layout_marginTop="@dimen/space_sm"
                 android:orientation="horizontal"
-                android:paddingHorizontal="4dp">
+                android:gravity="center_vertical">
 
                 <TextView
                     android:id="@+id/tv_current_position"
@@ -944,12 +936,15 @@
                     android:layout_height="wrap_content"
                     android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
                     android:textColor="@color/colorOnSurfaceVariant"
-                    tools:text="1:23" />
+                    android:layout_marginEnd="6dp"
+                    tools:text="1:24" />
 
-                <View
+                <com.looplingo.horizon.ui.common.WaveformSeekBar
+                    android:id="@+id/waveform_seek_bar"
                     android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
+                    android:layout_height="28dp"
+                    android:layout_weight="1"
+                    android:contentDescription="@string/content_desc_seek_bar" />
 
                 <TextView
                     android:id="@+id/tv_duration"
@@ -957,7 +952,8 @@
                     android:layout_height="wrap_content"
                     android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
                     android:textColor="@color/colorOnSurfaceVariant"
-                    tools:text="5:32" />
+                    android:layout_marginStart="6dp"
+                    tools:text="3:45" />
 
             </LinearLayout>
 

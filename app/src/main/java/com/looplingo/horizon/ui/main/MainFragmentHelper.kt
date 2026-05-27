@@ -84,33 +84,6 @@ class MainFragmentHelper @Inject constructor() {
         }
     }
 
-    internal fun setupMiniPlayer(fragment: Fragment, binding: FragmentMainBinding) {
-        val miniPlayer = binding.root.findViewById<View>(R.id.mini_player) ?: run {
-            Timber.w("Mini player view not available in this layout configuration")
-            return
-        }
-        miniPlayer.setOnClickListener {
-            val videoPath = AudioPlaybackService.currentVideoPath
-            if (videoPath.isNotBlank()) {
-                try {
-                    val action = MainFragmentDirections.actionMainToPlaybackSettings(videoPath, "")
-                    fragment.findNavController().navigate(action)
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to navigate from mini player")
-                }
-            }
-        }
-        miniPlayer.findViewById<View>(R.id.iv_mini_play_pause).setOnClickListener {
-            try {
-                AudioPlaybackService.togglePlayback(fragment.requireContext())
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to toggle playback from mini player")
-            }
-        }
-        miniPlayer.findViewById<View>(R.id.iv_mini_close).setOnClickListener {
-            AudioPlaybackService.stopService(fragment.requireContext())
-        }
-    }
 
     internal fun setupObservers(
         fragment: Fragment,

@@ -4,14 +4,9 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.ProgressBar
-import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -42,8 +37,6 @@ class MainFragment : Fragment() {
 
     private lateinit var videoAdapter: VideoAdapter
 
-    private val miniPlayerHandler = Handler(Looper.getMainLooper())
-    private var miniPlayerPollingRunnable: Runnable? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -83,7 +76,6 @@ class MainFragment : Fragment() {
         setupSwipeRefresh()
         helper.setupObservers(this, binding, viewModel, videoAdapter)
         helper.setupSettingsButton(binding, viewModel)
-        helper.setupMiniPlayer(this, binding)
         helper.setupSearchView(binding, viewModel)
         checkPermissionsAndScan()
     }
@@ -185,60 +177,6 @@ class MainFragment : Fragment() {
         }
     }
 
-    private fun getMiniPlayerView(): View? =
-        binding.root.findViewById(R.id.mini_player)
-
-    private fun startMiniPlayerPolling() {
-        stopMiniPlayerPolling()
-        miniPlayerPollingRunnable = object : Runnable {
-            override fun run() {
-                try {
-                    val miniPlayer = getMiniPlayerView()
-                    if (miniPlayer == null) {
-                        miniPlayerHandler.postDelayed(this, 2000L)
-                        return
-                    }
-
-                    val isPlaying = AudioPlaybackService.isPlaying
-                    val currentPath = AudioPlaybackService.currentVideoPath
-                    val position = AudioPlaybackService.currentPositionMs
-                    val duration = AudioPlaybackService.durationMs
-
-                    if (currentPath.isNotBlank()) {
-                        miniPlayer.visibility = View.VISIBLE
-
-                        val title = currentPath.substringAfterLast("/").substringBeforeLast(".")
-                        miniPlayer.findViewById<TextView>(R.id.tv_mini_title).text = title
-
-                        val posText = if (duration > 0) "${formatMsToTime(position)} / ${formatMsToTime(duration)}" else formatMsToTime(position)
-                        miniPlayer.findViewById<TextView>(R.id.tv_mini_position).text = posText
-
-                        if (duration > 0) {
-                            val progress = ((position * 1000) / duration).toInt().coerceIn(0, 1000)
-                            miniPlayer.findViewById<ProgressBar>(R.id.progress_mini_bar).progress = progress
-                        }
-
-                        val playPauseIcon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
-                        miniPlayer.findViewById<ImageView>(R.id.iv_mini_play_pause).setImageResource(playPauseIcon)
-                    } else {
-                        miniPlayer.visibility = View.GONE
-                    }
-                } catch (e: Exception) {
-                    Timber.w(e, "Mini player polling error")
-                }
-                miniPlayerHandler.postDelayed(this, 500L)
-            }
-        }
-        miniPlayerHandler.post(miniPlayerPollingRunnable!!)
-    }
-
-    private fun stopMiniPlayerPolling() {
-        miniPlayerPollingRunnable?.let { miniPlayerHandler.removeCallbacks(it) }
-        miniPlayerPollingRunnable = null
-    }
-
-    private fun formatMsToTime(ms: Long): String = TimeUtils.formatMsToTime(ms)
-
     private fun checkPermissionsAndScan() {
         helper.requestNotificationPermissionIfNeeded(this, notificationPermissionLauncher)
 
@@ -327,17 +265,14 @@ class MainFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        startMiniPlayerPolling()
     }
 
     override fun onPause() {
         super.onPause()
-        stopMiniPlayerPolling()
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        stopMiniPlayerPolling()
         _binding = null
     }
 }

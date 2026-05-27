@@ -117,14 +117,6 @@
 
         </LinearLayout>
 
-        <!-- Mini Player — only visible when audio is playing -->
-        <include
-            android:id="@+id/mini_player"
-            layout="@layout/mini_player"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:visibility="gone" />
-
         <!-- Pull-to-refresh wrapper -->
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
             android:id="@+id/swipe_refresh"

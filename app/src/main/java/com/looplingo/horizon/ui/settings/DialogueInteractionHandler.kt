@@ -39,21 +39,18 @@ class DialogueInteractionHandler @Inject constructor() {
         index: Int,
         adapter: DialogueAdapter?
     ) {
-        val isCurrentlyPlaying = AudioPlaybackService.isPlaying &&
-            AudioPlaybackService.currentVideoPath == videoPath
-
-        if (isCurrentlyPlaying) {
-            // Clicking the already-active segment toggles it off
-            if (adapter?.isActivePosition(index) == true) {
-                adapter.setActivePosition(-1)
-                playbackUIHelper.showSnackbar(
-                    binding.root,
-                    binding.root.context.getString(R.string.dialogue_deselected)
-                )
-                return
-            }
-            AudioPlaybackService.seekToPosition(binding.root.context, videoPath, segment.startMs)
+        // Clicking the already-active segment toggles it off
+        if (adapter?.isActivePosition(index) == true) {
+            adapter.setActivePosition(-1)
+            playbackUIHelper.showSnackbar(
+                binding.root,
+                binding.root.context.getString(R.string.dialogue_deselected)
+            )
+            return
         }
+
+        // Always seek and play from this segment
+        AudioPlaybackService.seekToPosition(binding.root.context, videoPath, segment.startMs)
 
         adapter?.setActivePosition(index)
         binding.rvDialogueList.smoothScrollToPosition(index)

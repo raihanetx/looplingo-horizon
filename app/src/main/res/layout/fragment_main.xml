@@ -141,15 +141,6 @@
 
     </LinearLayout>
 
-    <!-- Mini Player — fixed at bottom, like Spotify -->
-    <include
-        android:id="@+id/mini_player"
-        layout="@layout/mini_player"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:visibility="gone" />
-
     <!-- Loading indicator -->
     <ProgressBar
         android:id="@+id/progress_bar"
