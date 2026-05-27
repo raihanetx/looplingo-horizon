@@ -55,23 +55,30 @@ class SubtitleGenerationManager @Inject constructor() {
         onStart()
         binding.ivSendSubtitles.visibility = View.GONE
         showProgressOverlay(binding, "Checking cache...", 0, "")
+        ProcessLogger.log("Manager", "=== SUBTITLE GENERATION START ===")
+        ProcessLogger.log("Manager", "Video: ${videoPath.substringAfterLast("/")}")
+        ProcessLogger.log("Manager", "API key: ${apiKey.take(8)}...${apiKey.takeLast(4)}")
 
         val effectivePath = if (contentUri.isNotBlank()) contentUri else videoPath
 
         fragment.viewLifecycleOwner.lifecycleScope.launch {
             try {
+                ProcessLogger.log("Manager", "Checking DB for cached translations...")
                 val cachedData = withContext(Dispatchers.IO) {
                     viewModel.getTranscriptionCuesWithMeta(videoPath)
                 }
 
                 val hasCachedTranslations = cachedData.cues.isNotEmpty() && cachedData.cues.any { it.hasTranslation }
+                ProcessLogger.log("Manager", "Cache: ${cachedData.cues.size} cues, hasTranslations=$hasCachedTranslations")
 
                 if (hasCachedTranslations) {
                     Timber.i("Found cached translations (%d cues with Bangla), loading from DB — no API call needed", cachedData.cues.size)
+                    ProcessLogger.log("Manager", "FOUND cached translations! Loading from DB (no API call)")
                     hideProgressOverlay(binding)
                     val (segs, texts) = loadSubtitleCues(cachedData.cues) { s, t ->
                         showDialogueList(s)
                     }
+                    ProcessLogger.log("Manager", "Loaded ${segs.size} segments, ${texts.size} translations from cache")
                     onSuccess(segs, texts)
                     binding.ivSendSubtitles.visibility = View.GONE
                     fragment.safeRequireView()?.let {
@@ -82,15 +89,18 @@ class SubtitleGenerationManager @Inject constructor() {
                 }
 
                 Timber.i("No cached translations found — calling API")
+                ProcessLogger.log("Manager", "No cached translations — calling Groq API...")
                 showProgressOverlay(binding, "Preparing...", 0, "")
                 fragment.safeRequireView()?.let {
                     playbackUIHelper.showSnackbar(it, fragment.getString(R.string.subtitle_generating))
                 }
 
+                ProcessLogger.log("Manager", "Clearing old cache for this video...")
                 withContext(Dispatchers.IO) {
                     viewModel.clearTranscriptionCache(videoPath)
                 }
 
+                ProcessLogger.log("Manager", "Starting transcription + translation pipeline...")
                 val result = withContext(Dispatchers.IO) {
                     groqApiClient.transcribeAndTranslate(
                         fragment.requireContext(), apiKey, effectivePath,
@@ -99,9 +109,11 @@ class SubtitleGenerationManager @Inject constructor() {
                         onProgress = object : ProgressCallback {
                             override fun onProgress(step: String) {
                                 Timber.d("Subtitle progress: %s", step)
+                                ProcessLogger.log("Pipeline", step)
                             }
 
                             override fun onProgressUpdate(step: String, percent: Int, detail: String) {
+                                ProcessLogger.log("Progress", "$step ($percent%) $detail")
                                 fragment.activity?.runOnUiThread {
                                     updateProgressOverlay(binding, step, percent, detail)
                                 }
@@ -112,7 +124,10 @@ class SubtitleGenerationManager @Inject constructor() {
 
                 if (!fragment.isAdded) return@launch
 
+                ProcessLogger.log("Manager", "Pipeline complete! Segments=${result.segments.size}, Translations=${result.translatedTexts.size}")
+
                 if (result.segments.isEmpty()) {
+                    ProcessLogger.log("Manager", "ERROR: No segments detected!")
                     hideProgressOverlay(binding)
                     fragment.safeRequireView()?.let {
                         playbackUIHelper.showSnackbar(
@@ -127,6 +142,8 @@ class SubtitleGenerationManager @Inject constructor() {
 
                 if (result.translatedTexts.isEmpty()) {
                     Timber.w("WARNING: Translation returned 0 results for %d segments. Chat API may have failed.", result.segments.size)
+                    ProcessLogger.log("Manager", "WARNING: Translation returned 0 results! Chat API may have failed.")
+                    ProcessLogger.log("Manager", "Check Logcat tag 'ChatTranslator' for HTTP errors")
                     fragment.safeRequireView()?.let {
                         playbackUIHelper.showSnackbar(
                             it,
@@ -135,8 +152,10 @@ class SubtitleGenerationManager @Inject constructor() {
                     }
                 } else {
                     Timber.i("SUCCESS: Translation returned %d/%d results", result.translatedTexts.size, result.segments.size)
+                    ProcessLogger.log("Manager", "SUCCESS: ${result.translatedTexts.size}/${result.segments.size} translations received!")
                     for ((segId, trans) in result.translatedTexts.entries.take(5)) {
                         Timber.i("  Sample[%d]: \"%s\"", segId, trans.take(100))
+                        ProcessLogger.log("Manager", "  Sample[$segId]: \"${trans.take(80)}\"")
                     }
                 }
 
@@ -144,6 +163,7 @@ class SubtitleGenerationManager @Inject constructor() {
                 binding.ivSendSubtitles.visibility = View.GONE
                 hideProgressOverlay(binding)
 
+                ProcessLogger.log("Manager", "Saving ${result.segments.size} segments + ${result.translatedTexts.size} translations to DB...")
                 viewModel.saveTranscription(
                     videoPath = videoPath,
                     segments = result.segments,
@@ -155,6 +175,7 @@ class SubtitleGenerationManager @Inject constructor() {
 
                 showDialogueList(result.segments)
                 val banglaCount = result.translatedTexts.size
+                ProcessLogger.log("Manager", "DONE! ${result.segments.size} segments, $banglaCount Bangla translations saved")
                 fragment.safeRequireView()?.let {
                     playbackUIHelper.showSnackbar(
                         it,
@@ -164,6 +185,7 @@ class SubtitleGenerationManager @Inject constructor() {
                 switchTab(PlaybackSettingsViewModel.TAB_TALK)
             } catch (e: Exception) {
                 Timber.e(e, "Subtitle generation failed")
+                ProcessLogger.log("Manager", "EXCEPTION: ${e.javaClass.simpleName}: ${e.message?.take(200)}")
                 hideProgressOverlay(binding)
                 onError()
                 binding.ivSendSubtitles.visibility = View.VISIBLE
@@ -246,6 +268,14 @@ class SubtitleGenerationManager @Inject constructor() {
         binding.progressBarGeneration.progress = percent
         binding.tvProgressDetail.text = detail
         binding.tvProgressPercent.text = "$percent%"
+        ProcessLogger.attach(binding.tvProcessLog, binding.scrollProcessLog)
+        binding.btnCopyLog.setOnClickListener {
+            val ctx = binding.root.context
+            val clipboard = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val clip = android.content.ClipData.newLabel("Process Log", ProcessLogger.getFullLog())
+            clipboard.setPrimaryClip(clip)
+            android.widget.Toast.makeText(ctx, "Log copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun updateProgressOverlay(binding: FragmentPlaybackSettingsBinding, step: String, percent: Int, detail: String) {

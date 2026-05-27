@@ -276,6 +276,39 @@
                 android:textAppearance="@style/TextAppearance.Horizon.HeadlineSmall"
                 android:textColor="@color/colorPrimary" />
 
+            <!-- In-app process log (scrollable, copyable) -->
+            <ScrollView
+                android:id="@+id/scroll_process_log"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginTop="@dimen/space_lg"
+                android:background="@color/colorSurfaceVariant"
+                android:padding="@dimen/space_sm"
+                android:fadeScrollbars="false">
+
+                <TextView
+                    android:id="@+id/tv_process_log"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textIsSelectable="true"
+                    android:text=""
+                    android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                    android:textColor="@color/colorOnSurfaceVariant"
+                    android:fontFamily="monospace"
+                    android:lineSpacingExtra="2dp" />
+            </ScrollView>
+
+            <!-- Copy log button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_copy_log"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_sm"
+                android:text="📋 COPY LOG"
+                android:textSize="11sp"
+                style="@style/Widget.MaterialComponents.Button.TextButton" />
+
         </LinearLayout>
 
         <!-- ══════ PANEL: LOOP (A-B Loop Controls + Saved Loops) ═══════════ -->
