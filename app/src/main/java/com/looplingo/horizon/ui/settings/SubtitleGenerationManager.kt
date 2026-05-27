@@ -63,6 +63,10 @@ class SubtitleGenerationManager @Inject constructor() {
 
         fragment.viewLifecycleOwner.lifecycleScope.launch {
             try {
+                withContext(Dispatchers.IO) {
+                    viewModel.clearTranscriptionCache(videoPath)
+                }
+
                 val result = withContext(Dispatchers.IO) {
                     groqApiClient.transcribeAndTranslate(
                         fragment.requireContext(), apiKey, effectivePath,

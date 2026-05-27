@@ -127,6 +127,10 @@ class TranscriptRepository @Inject constructor(
 
     fun clearCacheForVideo(videoPath: String) = cache.remove(videoPath)
 
+    suspend fun deleteTranscriptionsForVideo(videoPath: String) {
+        db.deleteTranscriptionsForVideo(videoPath)
+    }
+
     suspend fun cleanupOldTranscriptions(olderThanDays: Int = 30): Int = db.cleanupOld(olderThanDays)
 
     suspend fun deleteOrphanedTranscriptions(): Int = db.deleteOrphaned()

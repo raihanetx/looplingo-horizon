@@ -59,6 +59,16 @@ class PlaybackSettingsViewModel @Inject constructor(
         return transcriptRepository.getSubtitlesWithMetaAsync(videoPath)
     }
 
+    suspend fun clearTranscriptionCache(videoPath: String) {
+        try {
+            transcriptRepository.clearCacheForVideo(videoPath)
+            transcriptRepository.deleteTranscriptionsForVideo(videoPath)
+            Timber.i("Cleared transcription cache for: %s", videoPath.substringAfterLast("/"))
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to clear transcription cache")
+        }
+    }
+
     private val _config = MutableStateFlow(PlaybackConfig(videoPath = ""))
     val config: StateFlow<PlaybackConfig> = _config.asStateFlow()
 

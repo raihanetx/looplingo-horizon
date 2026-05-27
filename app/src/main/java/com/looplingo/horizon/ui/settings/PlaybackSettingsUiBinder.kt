@@ -53,7 +53,8 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 AudioPlaybackService.setSpeed(activity, preset.speed)
             },
             onSubtitleClick = {
-                if (!isGeneratingSubtitles && !subtitleGenerated) {
+                if (!isGeneratingSubtitles) {
+                    subtitleGenerated = false
                     triggerSubtitles(fragment, binding, viewModel, videoPath, contentUri)
                 }
             },

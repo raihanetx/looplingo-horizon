@@ -54,6 +54,16 @@ class TranscriptDbOperations @Inject constructor(
         }
     }
 
+    suspend fun deleteTranscriptionsForVideo(videoPath: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                transcriptionDao.deleteTranscriptionsForVideo(videoPath)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to delete transcriptions for: %s", videoPath)
+            }
+        }
+    }
+
     suspend fun cleanupOld(days: Int): Int {
         return withContext(Dispatchers.IO) {
             try {
