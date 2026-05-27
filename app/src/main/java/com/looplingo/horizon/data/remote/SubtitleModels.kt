@@ -17,8 +17,9 @@ data class Segment(
     val endMs: Long get() = Math.round(endSec * 1000)
 }
 
-fun interface ProgressCallback {
+interface ProgressCallback {
     fun onProgress(step: String)
+    fun onProgressUpdate(step: String, percent: Int, detail: String = "")
 }
 
 open class SubtitleException(message: String) : Exception(message)

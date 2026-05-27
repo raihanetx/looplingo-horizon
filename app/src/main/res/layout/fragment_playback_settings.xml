@@ -209,6 +209,75 @@
 
         </LinearLayout>
 
+        <!-- ══════ PROGRESS OVERLAY (visible during subtitle generation) ══════ -->
+        <LinearLayout
+            android:id="@+id/layout_progress_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@color/colorBackground"
+            android:paddingHorizontal="@dimen/space_xl"
+            android:visibility="gone">
+
+            <!-- Step icon -->
+            <ImageView
+                android:id="@+id/iv_progress_icon"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:alpha="0.8"
+                android:contentDescription="Progress"
+                android:scaleType="centerInside"
+                app:srcCompat="@drawable/ic_audio_track"
+                app:tint="@color/colorPrimary" />
+
+            <!-- Main step text -->
+            <TextView
+                android:id="@+id/tv_progress_step"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_lg"
+                android:gravity="center"
+                android:text="Preparing..."
+                android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
+                android:textColor="@color/colorOnSurface" />
+
+            <!-- Progress bar -->
+            <ProgressBar
+                android:id="@+id/progress_bar_generation"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_lg"
+                android:max="100"
+                android:progress="0"
+                android:progressTint="@color/colorPrimary"
+                android:progressBackgroundTint="@color/colorSurfaceVariant"
+                android:indeterminate="false" />
+
+            <!-- Sub-step detail text -->
+            <TextView
+                android:id="@+id/tv_progress_detail"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_sm"
+                android:gravity="center"
+                android:text=""
+                android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+                android:textColor="@color/colorOnSurfaceVariant" />
+
+            <!-- Percentage text -->
+            <TextView
+                android:id="@+id/tv_progress_percent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_md"
+                android:text="0%"
+                android:textAppearance="@style/TextAppearance.Horizon.HeadlineSmall"
+                android:textColor="@color/colorPrimary" />
+
+        </LinearLayout>
+
         <!-- ══════ PANEL: LOOP (A-B Loop Controls + Saved Loops) ═══════════ -->
         <androidx.core.widget.NestedScrollView
             android:id="@+id/panel_loop"

@@ -54,6 +54,7 @@ class SubtitleGenerationManager @Inject constructor() {
 
         onStart()
         binding.ivSendSubtitles.visibility = View.GONE
+        showProgressOverlay(binding, "Preparing...", 0, "")
         fragment.safeRequireView()?.let {
             playbackUIHelper.showSnackbar(it, fragment.getString(R.string.subtitle_generating))
         }
@@ -71,6 +72,12 @@ class SubtitleGenerationManager @Inject constructor() {
                             override fun onProgress(step: String) {
                                 Timber.d("Subtitle progress: %s", step)
                             }
+
+                            override fun onProgressUpdate(step: String, percent: Int, detail: String) {
+                                fragment.activity?.runOnUiThread {
+                                    updateProgressOverlay(binding, step, percent, detail)
+                                }
+                            }
                         }
                     )
                 }
@@ -78,6 +85,7 @@ class SubtitleGenerationManager @Inject constructor() {
                 if (!fragment.isAdded) return@launch
 
                 if (result.segments.isEmpty()) {
+                    hideProgressOverlay(binding)
                     fragment.safeRequireView()?.let {
                         playbackUIHelper.showSnackbar(
                             it,
@@ -106,6 +114,7 @@ class SubtitleGenerationManager @Inject constructor() {
 
                 onSuccess(result.segments, result.translatedTexts)
                 binding.ivSendSubtitles.visibility = View.GONE
+                hideProgressOverlay(binding)
 
                 viewModel.saveTranscription(
                     videoPath = videoPath,
@@ -127,6 +136,7 @@ class SubtitleGenerationManager @Inject constructor() {
                 switchTab(PlaybackSettingsViewModel.TAB_TALK)
             } catch (e: Exception) {
                 Timber.e(e, "Subtitle generation failed")
+                hideProgressOverlay(binding)
                 onError()
                 binding.ivSendSubtitles.visibility = View.VISIBLE
                 val summary = buildString {
@@ -200,5 +210,25 @@ class SubtitleGenerationManager @Inject constructor() {
         val savedKey = prefs.getString("groq_api_key", "") ?: ""
         if (savedKey.isNotBlank()) return savedKey
         return BuildConfig.GROQ_API_KEY
+    }
+
+    private fun showProgressOverlay(binding: FragmentPlaybackSettingsBinding, step: String, percent: Int, detail: String) {
+        binding.layoutProgressOverlay.visibility = View.VISIBLE
+        binding.tvProgressStep.text = step
+        binding.progressBarGeneration.progress = percent
+        binding.tvProgressDetail.text = detail
+        binding.tvProgressPercent.text = "$percent%"
+    }
+
+    private fun updateProgressOverlay(binding: FragmentPlaybackSettingsBinding, step: String, percent: Int, detail: String) {
+        binding.layoutProgressOverlay.visibility = View.VISIBLE
+        binding.tvProgressStep.text = step
+        binding.progressBarGeneration.progress = percent
+        binding.tvProgressDetail.text = detail
+        binding.tvProgressPercent.text = "$percent%"
+    }
+
+    private fun hideProgressOverlay(binding: FragmentPlaybackSettingsBinding) {
+        binding.layoutProgressOverlay.visibility = View.GONE
     }
 }

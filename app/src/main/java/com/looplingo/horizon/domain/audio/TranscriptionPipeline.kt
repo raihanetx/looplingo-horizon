@@ -45,6 +45,7 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
         targetLanguage: String,
         onProgress: com.looplingo.horizon.data.remote.ProgressCallback? = null
     ): com.looplingo.horizon.data.remote.TranscriptionWithTranslation = withContext(Dispatchers.IO) {
+        onProgress?.onProgressUpdate("Transcribing English", 5, "Preparing audio...")
         onProgress?.onProgress("[Step 1/2] Transcribing audio…")
         val segments = transcribeAudio(context, apiKey, filePath, language, onProgress)
 
@@ -52,15 +53,19 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
             throw com.looplingo.horizon.data.remote.SubtitleException("No speech detected for transcription — cannot translate")
         }
 
+        onProgress?.onProgressUpdate("Transcribing English", 50, "${segments.size} segments found")
         onProgress?.onProgress("[Step 1/2] ✓ %d segments transcribed".format(segments.size))
 
+        onProgress?.onProgressUpdate("Translating to Bangla", 55, "Sending ${segments.size} segments to Chat API...")
         onProgress?.onProgress("[Step 2/2] Translating to ${chatTranslator.languageName(targetLanguage)}…")
         val translatedTexts = chatTranslator.translateSegmentsViaChat(apiKey, segments, targetLanguage)
 
         if (translatedTexts.isEmpty()) {
             Timber.w("Translation returned 0 results for %d segments. Chat API may have failed or returned unparseable content.", segments.size)
+            onProgress?.onProgressUpdate("Translating to Bangla", 95, "Warning: 0 translations returned")
         } else {
             Timber.i("Translation returned %d/%d segment translations", translatedTexts.size, segments.size)
+            onProgress?.onProgressUpdate("Complete!", 100, "${segments.size} segments, ${translatedTexts.size} translations")
         }
 
         onProgress?.onProgress("[Step 2/2] ✓ Translation complete! (%d/%d translated)".format(translatedTexts.size, segments.size))
@@ -86,6 +91,7 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
         Timber.i("Input: %s, Language: %s", filePath.take(80), language)
 
         onProgress?.onProgress("[Step 0] Checking API key…")
+        onProgress?.onProgressUpdate("Transcribing English", 5, "Validating API key...")
         try {
             validateApiKey(apiKey)
             onProgress?.onProgress("[Step 0] API key valid ✓")
@@ -96,6 +102,7 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
         }
 
         onProgress?.onProgress("[Step 0] Resolving file…")
+        onProgress?.onProgressUpdate("Transcribing English", 8, "Resolving audio file...")
         val (sourceFile, cleanupSource) = fileResolver.resolveToReadableFile(context, filePath)
 
         try {
@@ -109,6 +116,7 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
                 sourceSizeMB, if (isAudio) "AUDIO" else "VIDEO"))
 
             onProgress?.onProgress("[Step 1] Pre-processing to 16KHz mono AAC…")
+            onProgress?.onProgressUpdate("Transcribing English", 12, "Converting audio to 16kHz mono...")
             Timber.i("Step 1: Pre-processing to 16KHz mono AAC")
 
             val preprocessed = audioPreprocessor.preProcessTo16kHzMonoAac(context, sourceFile)
@@ -119,10 +127,12 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
 
                 if (preprocessed.length() <= com.looplingo.horizon.data.remote.WhisperApiClient.GROQ_MAX_FILE_SIZE) {
                     onProgress?.onProgress("[Step 1] Sending to Whisper (%.1fKB)…".format(ppSizeKB))
+                    onProgress?.onProgressUpdate("Transcribing English", 20, "Sending to Whisper API (%.1fKB)...".format(ppSizeKB))
                     try {
                         val result = whisperApiClient.callWhisperApi(apiKey, preprocessed, language)
                         if (result.isNotEmpty()) {
                             preprocessed.delete()
+                            onProgress?.onProgressUpdate("Transcribing English", 45, "${result.size} segments detected")
                             onProgress?.onProgress("[Step 1] ✓ %d segments!".format(result.size))
                             Timber.i("═══ SUCCESS: %d segments from pre-processed audio ═══", result.size)
                             return@withContext refineSegmentsWithVad(filePath, audioChunker.filterLowQualitySegments(result).kept, onProgress)
@@ -213,6 +223,7 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
             }
 
             onProgress?.onProgress("[Step 3] FALLBACK: Decoding to 16KHz mono WAV + normalize…")
+            onProgress?.onProgressUpdate("Transcribing English", 25, "Decoding to WAV format...")
             Timber.i("Step 3: FALLBACK — 16KHz mono WAV with normalization")
 
             val wavChunks = wavProcessor.decodeTo16kHzMonoWavChunks(context, sourceFile)
