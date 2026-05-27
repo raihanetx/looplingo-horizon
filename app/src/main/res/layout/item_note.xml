@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout_note_item"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="@dimen/space_md"
+    android:paddingHorizontal="@dimen/space_lg"
+    android:layout_marginVertical="@dimen/space_xs"
+    android:background="@drawable/bg_dialogue_item"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- Note icon -->
+    <ImageView
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:scaleType="centerInside"
+        android:contentDescription="Note"
+        android:src="@drawable/ic_tab_notes"
+        android:tint="@color/colorPrimary" />
+
+    <!-- Note info -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="@dimen/space_sm"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_note_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+            android:textColor="@color/colorOnSurface"
+            android:maxLines="2"
+            android:ellipsize="end"
+            tools:text="Important vocabulary from this section" />
+
+        <TextView
+            android:id="@+id/tv_note_timestamp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_xs"
+            android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
+            android:textColor="@color/colorOnSurfaceVariant"
+            tools:text="At 1:23" />
+
+    </LinearLayout>
+
+    <!-- Delete button -->
+    <ImageView
+        android:id="@+id/iv_note_delete"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:scaleType="centerInside"
+        android:contentDescription="Delete"
+        android:src="@drawable/ic_delete"
+        android:tint="@color/colorOnSurfaceVariant"
+        android:padding="@dimen/space_xs"
+        android:clickable="true"
+        android:focusable="true" />
+
+</LinearLayout>

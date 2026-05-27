@@ -49,13 +49,11 @@ class PlaybackUIHelper @Inject constructor() {
         val resources = context.resources
 
         if (isSelected) {
-            tabLayout.background = resources.getDrawable(R.drawable.bg_tab_indicator, null)
-            iconView.imageTintList = resources.getColorStateList(R.color.colorOnPrimaryContainer, null)
-            textView.setTextColor(resources.getColor(R.color.colorOnPrimaryContainer, null))
+            tabLayout.background = null
+            iconView.imageTintList = resources.getColorStateList(R.color.colorPrimary, null)
+            textView.setTextColor(resources.getColor(R.color.colorPrimary, null))
         } else {
-            val tv = android.util.TypedValue()
-            context.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tv, true)
-            tabLayout.background = resources.getDrawable(tv.resourceId, context.theme)
+            tabLayout.background = null
             iconView.imageTintList = resources.getColorStateList(R.color.colorOnSurfaceVariant, null)
             textView.setTextColor(resources.getColor(R.color.colorOnSurfaceVariant, null))
         }
@@ -92,10 +90,68 @@ class PlaybackUIHelper @Inject constructor() {
         onLoopMinus: (Int) -> Unit,
         onLoopPlus: (Int) -> Unit
     ) {
-        binding.tvLoopCount.text = initialLoopCount.toString()
+        binding.tvLoopFormCount.text = initialLoopCount.toString()
 
-        binding.btnLoopMinus.setOnClickListener { onLoopMinus(initialLoopCount) }
-        binding.btnLoopPlus.setOnClickListener { onLoopPlus(initialLoopCount) }
+        binding.btnLoopFormMinus.setOnClickListener { onLoopMinus(initialLoopCount) }
+        binding.btnLoopFormPlus.setOnClickListener { onLoopPlus(initialLoopCount) }
+    }
+
+    internal fun setupLoopForm(
+        binding: FragmentPlaybackSettingsBinding,
+        onPreview: () -> Unit,
+        onSave: () -> Unit,
+        onClose: () -> Unit
+    ) {
+        binding.fabAddLoop.setOnClickListener {
+            binding.layoutAddLoopForm.visibility = View.VISIBLE
+        }
+        binding.ivCloseLoopForm.setOnClickListener {
+            binding.layoutAddLoopForm.visibility = View.GONE
+            onClose()
+        }
+        binding.btnLoopPreview.setOnClickListener { onPreview() }
+        binding.btnLoopSave.setOnClickListener { onSave() }
+    }
+
+    internal fun setupNoteForm(
+        binding: FragmentPlaybackSettingsBinding,
+        onSave: () -> Unit,
+        onClose: () -> Unit
+    ) {
+        binding.fabAddNote.setOnClickListener {
+            binding.layoutAddNoteForm.visibility = View.VISIBLE
+        }
+        binding.ivCloseNoteForm.setOnClickListener {
+            binding.layoutAddNoteForm.visibility = View.GONE
+            onClose()
+        }
+        binding.btnSaveNote.setOnClickListener { onSave() }
+    }
+
+    internal fun showLoopForm(binding: FragmentPlaybackSettingsBinding) {
+        binding.layoutAddLoopForm.visibility = View.VISIBLE
+    }
+
+    internal fun hideLoopForm(binding: FragmentPlaybackSettingsBinding) {
+        binding.layoutAddLoopForm.visibility = View.GONE
+    }
+
+    internal fun showNoteForm(binding: FragmentPlaybackSettingsBinding) {
+        binding.layoutAddNoteForm.visibility = View.VISIBLE
+    }
+
+    internal fun hideNoteForm(binding: FragmentPlaybackSettingsBinding) {
+        binding.layoutAddNoteForm.visibility = View.GONE
+    }
+
+    internal fun updateLoopEmptyState(binding: FragmentPlaybackSettingsBinding, hasLoops: Boolean) {
+        binding.layoutLoopEmpty.visibility = if (hasLoops) View.GONE else View.VISIBLE
+        binding.rvLoopList.visibility = if (hasLoops) View.VISIBLE else View.GONE
+    }
+
+    internal fun updateNoteEmptyState(binding: FragmentPlaybackSettingsBinding, hasNotes: Boolean) {
+        binding.layoutNotesEmpty.visibility = if (hasNotes) View.GONE else View.VISIBLE
+        binding.rvNotesList.visibility = if (hasNotes) View.VISIBLE else View.GONE
     }
 
     internal fun setupNowPlayingCard(
@@ -131,6 +187,17 @@ class PlaybackUIHelper @Inject constructor() {
         if (durationMs > 0) {
             binding.waveformSeekBar.progress = waveformProgress
         }
+    }
+
+    internal fun updatePlayerInfoLine(
+        binding: FragmentPlaybackSettingsBinding,
+        tabName: String,
+        loopCount: Int,
+        speedLabel: String,
+        isInLoopMode: Boolean
+    ) {
+        val loopText = if (isInLoopMode) "Loop:$loopCount" else "Loop:None"
+        binding.tvPlayerInfoLine.text = "Mode:$tabName | $loopText | Speed:$speedLabel"
     }
 
     internal fun showSnackbar(view: View, message: String) {

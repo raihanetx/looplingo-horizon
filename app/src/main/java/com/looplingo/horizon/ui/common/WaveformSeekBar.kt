@@ -2,7 +2,9 @@ package com.looplingo.horizon.ui.common
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Shader
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
@@ -15,13 +17,18 @@ class WaveformSeekBar @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     private val playedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = resources.getColor(R.color.waveform_played, null)
         style = Paint.Style.FILL
     }
 
     private val unplayedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = resources.getColor(R.color.waveform_unplayed, null)
         style = Paint.Style.FILL
+    }
+
+    private val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = resources.getColor(R.color.waveform_played, null)
+        style = Paint.Style.FILL
+        alpha = 200
     }
 
     var progress: Int = 0
@@ -32,9 +39,9 @@ class WaveformSeekBar @JvmOverloads constructor(
 
     private var waveHeights: IntArray = DEFAULT_WAVEFORM
 
-    private val barGapPx: Int = (2 * resources.displayMetrics.density).toInt()
+    private val barGapPx: Int = (1.5f * resources.displayMetrics.density).toInt()
 
-    private val barRadiusPx: Float = 2f * resources.displayMetrics.density
+    private val barRadiusPx: Float = 2.5f * resources.displayMetrics.density
 
     var onSeekListener: ((progress: Int) -> Unit)? = null
 
@@ -57,6 +64,8 @@ class WaveformSeekBar @JvmOverloads constructor(
         val barWidth = ((w - totalGapWidth) / bars).coerceAtLeast(1)
 
         val playedBarCount = if (progress >= 1000) bars else (progress * bars / 1000)
+        val playedColor = resources.getColor(R.color.waveform_played, null)
+        val unplayedColor = resources.getColor(R.color.waveform_unplayed, null)
 
         for (i in 0 until bars) {
             val barHeightPercent = waveHeights[i].coerceIn(0, 100)
@@ -66,9 +75,27 @@ class WaveformSeekBar @JvmOverloads constructor(
             val right = left + barWidth
             val bottom = top + barHeight
 
-            val paint = if (i < playedBarCount) playedPaint else unplayedPaint
-            canvas.drawRoundRect(left, top, right, bottom, barRadiusPx, barRadiusPx, paint)
+            when {
+                i < playedBarCount -> {
+                    playedPaint.shader = LinearGradient(
+                        left, top, left, bottom,
+                        intArrayOf(playedColor, adjustAlpha(playedColor, 180)),
+                        null, Shader.TileMode.CLAMP
+                    )
+                    canvas.drawRoundRect(left, top, right, bottom, barRadiusPx, barRadiusPx, playedPaint)
+                }
+                i == playedBarCount -> {
+                    canvas.drawRoundRect(left, top, right, bottom, barRadiusPx, barRadiusPx, highlightPaint)
+                }
+                else -> {
+                    canvas.drawRoundRect(left, top, right, bottom, barRadiusPx, barRadiusPx, unplayedPaint)
+                }
+            }
         }
+    }
+
+    private fun adjustAlpha(color: Int, alpha: Int): Int {
+        return (color and 0x00FFFFFF) or (alpha shl 24)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {

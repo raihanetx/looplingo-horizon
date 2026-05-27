@@ -20,70 +20,6 @@ private fun Fragment.safeRequireView(): View? {
 @Singleton
 class ConfigSetupManager @Inject constructor() {
 
-    internal fun setupApplyButton(
-        binding: FragmentPlaybackSettingsBinding,
-        viewModel: PlaybackSettingsViewModel,
-        playbackUIHelper: PlaybackUIHelper,
-        fragment: Fragment,
-        getLoopCount: () -> Int,
-        getCurrentSpeed: () -> Float,
-        parseTimeToMs: (String) -> Long,
-        onSuccess: () -> Unit
-    ) {
-        binding.btnApply.setOnClickListener {
-            val rangeStartMs = parseTimeToMs(binding.etRangeStart.text.toString())
-            val rangeEndMs = parseTimeToMs(binding.etRangeEnd.text.toString())
-            val effectiveLoopCount = getLoopCount()
-
-            var hasError = false
-            if (rangeStartMs < 0) {
-                binding.tilRangeStart.error = fragment.getString(R.string.error_range_start_negative)
-                hasError = true
-            } else {
-                binding.tilRangeStart.error = null
-            }
-
-            if (rangeEndMs > 0 && rangeEndMs <= rangeStartMs) {
-                binding.tilRangeEnd.error = fragment.getString(R.string.error_range_end_before_start)
-                hasError = true
-            } else {
-                binding.tilRangeEnd.error = null
-            }
-
-            if (effectiveLoopCount < 1) {
-                fragment.safeRequireView()?.let {
-                    playbackUIHelper.showSnackbar(it, fragment.getString(R.string.error_loop_count_minimum))
-                }
-                hasError = true
-            }
-
-            if (hasError) return@setOnClickListener
-
-            viewModel.updateConfig(
-                rangeStartMs = rangeStartMs,
-                rangeEndMs = if (binding.etRangeEnd.text.isNullOrBlank()) -1L else rangeEndMs,
-                loopCount = effectiveLoopCount,
-                speed = getCurrentSpeed()
-            )
-            viewModel.saveConfig()
-            onSuccess()
-        }
-    }
-
-    internal fun setupClearButton(
-        binding: FragmentPlaybackSettingsBinding,
-        viewModel: PlaybackSettingsViewModel,
-        onCleared: () -> Unit
-    ) {
-        binding.btnClear.setOnClickListener {
-            binding.etRangeStart.setText("0:00")
-            binding.etRangeEnd.setText("")
-            binding.tilRangeStart.error = null
-            binding.tilRangeEnd.error = null
-            onCleared()
-        }
-    }
-
     internal fun setupObservers(
         fragment: Fragment,
         binding: FragmentPlaybackSettingsBinding,
@@ -94,14 +30,7 @@ class ConfigSetupManager @Inject constructor() {
         fragment.viewLifecycleOwner.lifecycleScope.launch {
             viewModel.config.collect { config ->
                 config?.let {
-                    binding.etRangeStart.setText(TimeUtils.formatMsToTime(it.rangeStartMs))
-                    if (it.rangeEndMs > 0) {
-                        binding.etRangeEnd.setText(TimeUtils.formatMsToTime(it.rangeEndMs))
-                    } else {
-                        binding.etRangeEnd.setText("")
-                    }
                     val loadedLoopCount = it.loopCount
-                    binding.tvLoopCount.text = loadedLoopCount.toString()
                     val configSpeed = it.speed
                     val speedIndex = SpeedPresets.ALL.indexOfFirst { kotlin.math.abs(it.speed - configSpeed) < 0.001f }
                     if (speedIndex >= 0) {
