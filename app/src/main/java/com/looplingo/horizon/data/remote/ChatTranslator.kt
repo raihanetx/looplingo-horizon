@@ -156,7 +156,7 @@ class ChatTranslator @javax.inject.Inject constructor() {
 
             // Try JSON parsing
             val jsonStr = extractJsonObject(content)
-            val result = mutableMapOf<Int, String>()
+            var result = mutableMapOf<Int, String>()
 
             if (jsonStr != null) {
                 try {
