@@ -20,6 +20,9 @@ class WaveformSeekBar @JvmOverloads constructor(
     }
     private val rectF = RectF()
 
+    private val thinBarWidth: Float = 1.5f * resources.displayMetrics.density
+    private val barGap: Float = 2f * resources.displayMetrics.density
+
     var progress: Int = 0
         set(value) {
             field = value.coerceIn(0, 1000)
@@ -40,27 +43,29 @@ class WaveformSeekBar @JvmOverloads constructor(
         if (w <= 0 || h <= 0) return
 
         val bars = BAR_HEIGHTS.size
-        val gapPx = (2f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
-        val totalGapWidth = (bars - 1) * gapPx
-        val barWidth = ((w - totalGapWidth) / bars).toFloat().coerceAtLeast(1.5f)
-        val barRadius = barWidth / 2f
+        val barWidth = thinBarWidth
+        val gap = barGap
 
         val playedColor = resources.getColor(R.color.waveform_played, null)
         val unplayedColor = resources.getColor(R.color.waveform_unplayed, null)
         val centerY = paddingTop + h / 2f
+        val barRadius = barWidth / 2f
+
+        // Center the bars horizontally
+        val totalBarsWidth = bars * barWidth + (bars - 1) * gap
+        val startX = paddingLeft + (w - totalBarsWidth) / 2f
 
         val playedBarCount = (progress * bars / 1000).coerceIn(0, bars)
 
         for (i in 0 until bars) {
             val barHeightPercent = BAR_HEIGHTS[i]
             val barHeight = (h * barHeightPercent / 100f).coerceAtLeast(barWidth)
-            val left = paddingLeft + i * (barWidth + gapPx)
+            val left = startX + i * (barWidth + gap)
             val top = centerY - barHeight / 2f
             val right = left + barWidth
             val bottom = top + barHeight
 
             barPaint.color = if (i < playedBarCount) playedColor else unplayedColor
-
             rectF.set(left, top, right, bottom)
             canvas.drawRoundRect(rectF, barRadius, barRadius, barPaint)
         }

@@ -44,6 +44,8 @@ class DialogueAdapter(
 
     fun isSelected(pos: Int): Boolean = selectedPositions.contains(pos)
 
+    fun isActivePosition(pos: Int): Boolean = pos == activePlayPos
+
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvText: TextView = view.findViewById(R.id.tv_cue_text)
         val tvTranslation: TextView = view.findViewById(R.id.tv_cue_translation)

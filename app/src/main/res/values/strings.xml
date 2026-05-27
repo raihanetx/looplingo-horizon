@@ -104,6 +104,7 @@
     <string name="dialogue_loop_count_label">Loop count:</string>
     <string name="btn_loop_dialogue">Loop</string>
     <string name="dialogue_selected">Selected: %s…</string>
+    <string name="dialogue_deselected">Deselected</string>
     <string name="dialogue_loop_active" formatted="false">Looping x%d: %s…</string>
     <string name="dialogue_loop_active_with_translation" formatted="false">Looping x%d: %s… → %s</string>
     <string name="error_no_dialogue_selected">Select a dialogue line first</string>

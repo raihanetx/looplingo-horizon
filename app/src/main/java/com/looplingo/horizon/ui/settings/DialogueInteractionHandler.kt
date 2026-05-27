@@ -18,11 +18,11 @@ class DialogueInteractionHandler @Inject constructor() {
         binding: FragmentPlaybackSettingsBinding,
         segments: List<Segment>,
         translatedTexts: Map<Int, String>,
-        onSegmentSelected: (Segment, Int) -> Unit
+        onSegmentClick: (Segment, Int) -> Unit
     ): DialogueAdapter {
         binding.rvDialogueList.visibility = android.view.View.VISIBLE
         val adapter = DialogueAdapter(segments, translatedTexts) { segment, index ->
-            onSegmentSelected(segment, index)
+            onSegmentClick(segment, index)
         }
         binding.rvDialogueList.apply {
             layoutManager = LinearLayoutManager(binding.root.context)
@@ -35,14 +35,28 @@ class DialogueInteractionHandler @Inject constructor() {
         binding: FragmentPlaybackSettingsBinding,
         playbackUIHelper: PlaybackUIHelper,
         videoPath: String,
-        segment: Segment
+        segment: Segment,
+        index: Int,
+        adapter: DialogueAdapter?
     ) {
         val isCurrentlyPlaying = AudioPlaybackService.isPlaying &&
             AudioPlaybackService.currentVideoPath == videoPath
 
         if (isCurrentlyPlaying) {
+            // Clicking the already-active segment toggles it off
+            if (adapter?.isActivePosition(index) == true) {
+                adapter.setActivePosition(-1)
+                playbackUIHelper.showSnackbar(
+                    binding.root,
+                    binding.root.context.getString(R.string.dialogue_deselected)
+                )
+                return
+            }
             AudioPlaybackService.seekToPosition(binding.root.context, videoPath, segment.startMs)
         }
+
+        adapter?.setActivePosition(index)
+        binding.rvDialogueList.smoothScrollToPosition(index)
 
         playbackUIHelper.showSnackbar(
             binding.root,

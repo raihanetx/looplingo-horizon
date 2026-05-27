@@ -501,16 +501,19 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_loop_form_minus"
                         style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
                         android:layout_marginStart="@dimen/space_sm"
                         android:insetTop="0dp"
                         android:insetBottom="0dp"
-                        android:minWidth="32dp"
+                        android:insetLeft="0dp"
+                        android:insetRight="0dp"
+                        android:minWidth="28dp"
+                        android:minHeight="28dp"
                         android:padding="0dp"
                         android:text="−"
-                        android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                        app:cornerRadius="16dp" />
+                        android:textSize="14sp"
+                        app:cornerRadius="14dp" />
 
                     <TextView
                         android:id="@+id/tv_loop_form_count"
@@ -524,15 +527,18 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_loop_form_plus"
                         style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
                         android:insetTop="0dp"
                         android:insetBottom="0dp"
-                        android:minWidth="32dp"
+                        android:insetLeft="0dp"
+                        android:insetRight="0dp"
+                        android:minWidth="28dp"
+                        android:minHeight="28dp"
                         android:padding="0dp"
                         android:text="+"
-                        android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-                        app:cornerRadius="16dp" />
+                        android:textSize="14sp"
+                        app:cornerRadius="14dp" />
 
                 </LinearLayout>
 

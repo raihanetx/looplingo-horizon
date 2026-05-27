@@ -375,8 +375,8 @@ class PlaybackSettingsUiBinder @Inject constructor(
             },
             onError = { isGeneratingSubtitles = false; subtitleGenerated = false },
             showDialogueList = { segs ->
-                dialogueAdapter = dialogueInteractionHandler.showDialogueList(binding, segs, translatedTexts) { segment, _ ->
-                    dialogueInteractionHandler.onDialogueSegmentSelected(binding, playbackUIHelper, videoPath, segment)
+                dialogueAdapter = dialogueInteractionHandler.showDialogueList(binding, segs, translatedTexts) { segment, index ->
+                    dialogueInteractionHandler.onDialogueSegmentSelected(binding, playbackUIHelper, videoPath, segment, index, dialogueAdapter)
                 }
             },
             switchTab = { switchTab(binding, viewModel, it) },
@@ -387,8 +387,8 @@ class PlaybackSettingsUiBinder @Inject constructor(
     private fun autoLoadCachedSubtitles(fragment: Fragment, binding: FragmentPlaybackSettingsBinding, viewModel: PlaybackSettingsViewModel, videoPath: String) {
         subtitleGenerationManager.tryAutoLoadCachedSubtitles(fragment, viewModel, videoPath) { cues ->
             val (segs, texts) = subtitleGenerationManager.loadSubtitleCues(cues) { segs, texts ->
-                dialogueAdapter = dialogueInteractionHandler.showDialogueList(binding, segs, texts) { segment, _ ->
-                    dialogueInteractionHandler.onDialogueSegmentSelected(binding, playbackUIHelper, videoPath, segment)
+                dialogueAdapter = dialogueInteractionHandler.showDialogueList(binding, segs, texts) { segment, index ->
+                    dialogueInteractionHandler.onDialogueSegmentSelected(binding, playbackUIHelper, videoPath, segment, index, dialogueAdapter)
                 }
             }
             dialogueSegments = segs; translatedTexts = texts; selectedSegmentIndex = -1; subtitleGenerated = true
