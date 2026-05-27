@@ -54,15 +54,39 @@ class SubtitleGenerationManager @Inject constructor() {
 
         onStart()
         binding.ivSendSubtitles.visibility = View.GONE
-        showProgressOverlay(binding, "Preparing...", 0, "")
-        fragment.safeRequireView()?.let {
-            playbackUIHelper.showSnackbar(it, fragment.getString(R.string.subtitle_generating))
-        }
+        showProgressOverlay(binding, "Checking cache...", 0, "")
 
         val effectivePath = if (contentUri.isNotBlank()) contentUri else videoPath
 
         fragment.viewLifecycleOwner.lifecycleScope.launch {
             try {
+                val cachedData = withContext(Dispatchers.IO) {
+                    viewModel.getTranscriptionCuesWithMeta(videoPath)
+                }
+
+                val hasCachedTranslations = cachedData.cues.isNotEmpty() && cachedData.cues.any { it.hasTranslation }
+
+                if (hasCachedTranslations) {
+                    Timber.i("Found cached translations (%d cues with Bangla), loading from DB — no API call needed", cachedData.cues.size)
+                    hideProgressOverlay(binding)
+                    val (segs, texts) = loadSubtitleCues(cachedData.cues) { s, t ->
+                        showDialogueList(s)
+                    }
+                    onSuccess(segs, texts)
+                    binding.ivSendSubtitles.visibility = View.GONE
+                    fragment.safeRequireView()?.let {
+                        playbackUIHelper.showSnackbar(it, "Loaded ${segs.size} segments, ${texts.size} Bangla translations from cache")
+                    }
+                    switchTab(PlaybackSettingsViewModel.TAB_TALK)
+                    return@launch
+                }
+
+                Timber.i("No cached translations found — calling API")
+                showProgressOverlay(binding, "Preparing...", 0, "")
+                fragment.safeRequireView()?.let {
+                    playbackUIHelper.showSnackbar(it, fragment.getString(R.string.subtitle_generating))
+                }
+
                 withContext(Dispatchers.IO) {
                     viewModel.clearTranscriptionCache(videoPath)
                 }
