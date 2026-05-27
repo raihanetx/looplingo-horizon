@@ -15,19 +15,10 @@ class WaveformSeekBar @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }
-    private val progressPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-    }
-    private val thumbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-    }
-
-    private val trackRect = RectF()
-    private val thumbRadiusPx: Float = 6f * resources.displayMetrics.density
-    private val trackHeightPx: Float = 4f * resources.displayMetrics.density
+    private val rectF = RectF()
 
     var progress: Int = 0
         set(value) {
@@ -38,7 +29,7 @@ class WaveformSeekBar @JvmOverloads constructor(
     var onSeekListener: ((progress: Int) -> Unit)? = null
 
     fun setWaveformData(heights: IntArray) {
-        // ignored — using simple bar style
+        // ignored — using default waveform pattern
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -48,38 +39,40 @@ class WaveformSeekBar @JvmOverloads constructor(
         val h = height - paddingTop - paddingBottom
         if (w <= 0 || h <= 0) return
 
-        val centerY = paddingTop + h / 2f
-        val trackLeft = paddingLeft.toFloat()
-        val trackRight = paddingLeft + w.toFloat()
+        val bars = BAR_HEIGHTS.size
+        val gapPx = (2f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+        val totalGapWidth = (bars - 1) * gapPx
+        val barWidth = ((w - totalGapWidth) / bars).toFloat().coerceAtLeast(1.5f)
+        val barRadius = barWidth / 2f
 
         val playedColor = resources.getColor(R.color.waveform_played, null)
         val unplayedColor = resources.getColor(R.color.waveform_unplayed, null)
+        val centerY = paddingTop + h / 2f
 
-        val progressFraction = progress / 1000f
-        val progressX = paddingLeft + w * progressFraction
+        val playedBarCount = (progress * bars / 1000).coerceIn(0, bars)
 
-        // Draw track (unplayed portion)
-        trackPaint.color = unplayedColor
-        trackRect.set(progressX, centerY - trackHeightPx / 2f, trackRight, centerY + trackHeightPx / 2f)
-        canvas.drawRoundRect(trackRect, trackHeightPx / 2f, trackHeightPx / 2f, trackPaint)
+        for (i in 0 until bars) {
+            val barHeightPercent = BAR_HEIGHTS[i]
+            val barHeight = (h * barHeightPercent / 100f).coerceAtLeast(barWidth)
+            val left = paddingLeft + i * (barWidth + gapPx)
+            val top = centerY - barHeight / 2f
+            val right = left + barWidth
+            val bottom = top + barHeight
 
-        // Draw progress (played portion)
-        progressPaint.color = playedColor
-        trackRect.set(trackLeft, centerY - trackHeightPx / 2f, progressX, centerY + trackHeightPx / 2f)
-        canvas.drawRoundRect(trackRect, trackHeightPx / 2f, trackHeightPx / 2f, progressPaint)
+            barPaint.color = if (i < playedBarCount) playedColor else unplayedColor
 
-        // Draw thumb
-        thumbPaint.color = playedColor
-        canvas.drawCircle(progressX, centerY, thumbRadiusPx, thumbPaint)
+            rectF.set(left, top, right, bottom)
+            canvas.drawRoundRect(rectF, barRadius, barRadius, barPaint)
+        }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
                 val x = event.x - paddingLeft
-                val w = width - paddingLeft - paddingRight
-                if (w > 0) {
-                    progress = ((x / w * 1000).toInt()).coerceIn(0, 1000)
+                val viewW = width - paddingLeft - paddingRight
+                if (viewW > 0) {
+                    progress = ((x / viewW * 1000).toInt()).coerceIn(0, 1000)
                     onSeekListener?.invoke(progress)
                 }
                 return true
@@ -91,5 +84,15 @@ class WaveformSeekBar @JvmOverloads constructor(
     override fun performClick(): Boolean {
         super.performClick()
         return true
+    }
+
+    companion object {
+        val BAR_HEIGHTS = intArrayOf(
+            10, 15, 20, 30, 45, 55, 35, 20, 15, 25,
+            40, 60, 80, 95, 75, 50, 30, 45, 70, 85,
+            95, 70, 45, 60, 80, 65, 40, 50, 70, 85,
+            60, 35, 20, 15, 25, 40, 60, 50, 30, 20,
+            10, 15, 25, 15, 10
+        )
     }
 }

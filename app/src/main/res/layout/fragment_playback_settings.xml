@@ -916,11 +916,11 @@
                 android:textColor="@color/colorOnSurfaceVariant"
                 tools:text="Mode:Clean | Loop:None | Speed:2x" />
 
-            <!-- Waveform SeekBar row -->
+            <!-- Capsule waveform seekbar -->
             <com.looplingo.horizon.ui.common.WaveformSeekBar
                 android:id="@+id/waveform_seek_bar"
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
+                android:layout_height="28dp"
                 android:layout_marginTop="@dimen/space_sm"
                 android:contentDescription="@string/content_desc_seek_bar" />
 
