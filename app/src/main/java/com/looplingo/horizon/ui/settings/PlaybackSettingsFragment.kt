@@ -9,6 +9,9 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -54,6 +57,15 @@ class PlaybackSettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        // Apply window insets: top padding for header, bottom card extends behind nav bar
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            binding.layoutHeader.updatePadding(top = systemBars.top)
+            binding.cardBottomPlayer.updatePadding(bottom = systemBars.bottom)
+            WindowInsetsCompat.CONSUMED
+        }
+
         val videoPath = args.videoPath
         if (videoPath.isBlank()) {
             findNavController().navigateUp()

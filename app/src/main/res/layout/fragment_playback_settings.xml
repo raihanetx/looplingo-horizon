@@ -29,8 +29,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/colorBackground"
-    android:fitsSystemWindows="true">
+    android:background="@color/colorBackground">
 
     <!-- ═══════════════════════════════════════════════════════════════════════
          HEADER — profile icon + name + speed | secondary: app name + plan
@@ -888,8 +887,8 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="@dimen/space_lg"
-            android:paddingTop="@dimen/space_lg"
-            android:paddingBottom="@dimen/space_lg">
+            android:paddingTop="20dp"
+            android:paddingBottom="20dp">
 
             <!-- Track Title & Subtitle row (centered, no icon) -->
             <LinearLayout
@@ -927,7 +926,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
 
@@ -944,10 +943,10 @@
                 <SeekBar
                     android:id="@+id/seek_bar"
                     android:layout_width="0dp"
-                    android:layout_height="14dp"
+                    android:layout_height="16dp"
                     android:layout_weight="1"
-                    android:maxHeight="14dp"
-                    android:minHeight="14dp"
+                    android:maxHeight="16dp"
+                    android:minHeight="16dp"
                     android:max="1000"
                     android:progressDrawable="@drawable/seekbar_progress"
                     android:thumb="@android:color/transparent"
@@ -976,43 +975,46 @@
                 <!-- -5s rewind -->
                 <TextView
                     android:id="@+id/btn_rewind_5"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:gravity="center"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="20dp"
+                    android:paddingVertical="10dp"
                     android:text="-5s"
-                    android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelLarge"
                     android:textColor="@color/colorOnSurface"
                     android:textStyle="bold"
-                    android:background="@drawable/bg_circle_button"
+                    android:background="@drawable/bg_rounded_button"
                     android:clickable="true"
                     android:focusable="true" />
 
                 <!-- Play/Pause button -->
                 <TextView
                     android:id="@+id/btn_play_pause"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:gravity="center"
-                    android:layout_marginHorizontal="20dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="28dp"
+                    android:paddingVertical="10dp"
+                    android:layout_marginHorizontal="16dp"
                     android:text="Play"
-                    android:textAppearance="@style/TextAppearance.Horizon.TitleSmall"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelLarge"
                     android:textColor="@color/colorOnPrimary"
                     android:textStyle="bold"
-                    android:background="@drawable/bg_play_button"
+                    android:background="@drawable/bg_play_pause_button"
                     android:clickable="true"
                     android:focusable="true" />
 
                 <!-- +5s forward -->
                 <TextView
                     android:id="@+id/btn_forward_5"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:gravity="center"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="20dp"
+                    android:paddingVertical="10dp"
                     android:text="+5s"
-                    android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelLarge"
                     android:textColor="@color/colorOnSurface"
                     android:textStyle="bold"
-                    android:background="@drawable/bg_circle_button"
+                    android:background="@drawable/bg_rounded_button"
                     android:clickable="true"
                     android:focusable="true" />
 
