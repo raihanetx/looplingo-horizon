@@ -64,8 +64,6 @@ class PlaybackUIHelper @Inject constructor() {
         binding.btnPlayPause.setOnClickListener { onPlayPause() }
         binding.btnRewind5.setOnClickListener { onRewind() }
         binding.btnForward5.setOnClickListener { onForward() }
-        binding.btnBackward.setOnClickListener { onRewind() }
-        binding.btnForward.setOnClickListener { onForward() }
     }
 
     internal fun setupSeekBar(
@@ -190,7 +188,7 @@ class PlaybackUIHelper @Inject constructor() {
         durationMs: Long,
         waveformProgress: Int
     ) {
-        binding.btnPlayPause.text = if (isPlaying) "⏸" else "▶"
+        binding.btnPlayPause.text = if (isPlaying) "Pause" else "Play"
 
         binding.tvNowPlayingTitle.text = title
         binding.tvCleanTitle.text = title
