@@ -387,10 +387,11 @@
                 android:contentDescription="Add Loop"
                 android:src="@drawable/ic_add"
                 app:fabSize="mini"
-                app:fabCustomSize="36dp"
+                app:fabCustomSize="40dp"
                 app:backgroundTint="@color/colorPrimary"
                 app:tint="@color/colorOnPrimary"
-                app:maxImageSize="14dp" />
+                app:maxImageSize="18dp"
+                app:elevation="4dp" />
 
             <!-- Add loop form (popup overlay) -->
             <LinearLayout
@@ -532,19 +533,19 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_loop_form_minus"
                         style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:layout_marginStart="@dimen/space_sm"
                         android:insetTop="0dp"
                         android:insetBottom="0dp"
                         android:insetLeft="0dp"
                         android:insetRight="0dp"
-                        android:minWidth="24dp"
-                        android:minHeight="24dp"
+                        android:minWidth="32dp"
+                        android:minHeight="32dp"
                         android:padding="0dp"
                         android:text="−"
-                        android:textSize="12sp"
-                        app:cornerRadius="12dp" />
+                        android:textSize="16sp"
+                        app:cornerRadius="16dp" />
 
                     <TextView
                         android:id="@+id/tv_loop_form_count"
@@ -558,18 +559,18 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_loop_form_plus"
                         style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:insetTop="0dp"
                         android:insetBottom="0dp"
                         android:insetLeft="0dp"
                         android:insetRight="0dp"
-                        android:minWidth="24dp"
-                        android:minHeight="24dp"
+                        android:minWidth="32dp"
+                        android:minHeight="32dp"
                         android:padding="0dp"
                         android:text="+"
-                        android:textSize="12sp"
-                        app:cornerRadius="12dp" />
+                        android:textSize="16sp"
+                        app:cornerRadius="16dp" />
 
                 </LinearLayout>
 
@@ -665,10 +666,11 @@
                 android:contentDescription="Add Note"
                 android:src="@drawable/ic_add"
                 app:fabSize="mini"
-                app:fabCustomSize="36dp"
+                app:fabCustomSize="40dp"
                 app:backgroundTint="@color/colorPrimary"
                 app:tint="@color/colorOnPrimary"
-                app:maxImageSize="14dp" />
+                app:maxImageSize="18dp"
+                app:elevation="4dp" />
 
             <!-- Add note form (popup overlay) -->
             <LinearLayout
