@@ -887,8 +887,8 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="@dimen/space_lg"
-            android:paddingTop="20dp"
-            android:paddingBottom="20dp">
+            android:paddingTop="32dp"
+            android:paddingBottom="32dp">
 
             <!-- Track Title & Subtitle row (centered, no icon) -->
             <LinearLayout
