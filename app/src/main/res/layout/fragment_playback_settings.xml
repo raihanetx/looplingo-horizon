@@ -377,21 +377,20 @@
 
             </LinearLayout>
 
-            <!-- Add loop FAB — small, perfectly round -->
-            <com.google.android.material.floatingactionbutton.FloatingActionButton
+            <!-- Add loop button — round -->
+            <ImageView
                 android:id="@+id/fab_add_loop"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_gravity="bottom|end"
                 android:layout_margin="@dimen/space_lg"
                 android:contentDescription="Add Loop"
                 android:src="@drawable/ic_add"
-                app:fabSize="mini"
-                app:fabCustomSize="40dp"
-                app:backgroundTint="@color/colorPrimary"
+                android:scaleType="centerInside"
+                android:background="@drawable/bg_fab_circle"
                 app:tint="@color/colorOnPrimary"
-                app:maxImageSize="18dp"
-                app:elevation="4dp" />
+                android:clickable="true"
+                android:focusable="true" />
 
             <!-- Add loop form (popup overlay) -->
             <LinearLayout
@@ -656,21 +655,20 @@
 
             </LinearLayout>
 
-            <!-- Add note FAB — small, perfectly round -->
-            <com.google.android.material.floatingactionbutton.FloatingActionButton
+            <!-- Add note button — round -->
+            <ImageView
                 android:id="@+id/fab_add_note"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_gravity="bottom|end"
                 android:layout_margin="@dimen/space_lg"
                 android:contentDescription="Add Note"
                 android:src="@drawable/ic_add"
-                app:fabSize="mini"
-                app:fabCustomSize="40dp"
-                app:backgroundTint="@color/colorPrimary"
+                android:scaleType="centerInside"
+                android:background="@drawable/bg_fab_circle"
                 app:tint="@color/colorOnPrimary"
-                app:maxImageSize="18dp"
-                app:elevation="4dp" />
+                android:clickable="true"
+                android:focusable="true" />
 
             <!-- Add note form (popup overlay) -->
             <LinearLayout
@@ -889,8 +887,8 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="@dimen/space_lg"
-            android:paddingTop="32dp"
-            android:paddingBottom="32dp">
+            android:paddingTop="48dp"
+            android:paddingBottom="48dp">
 
             <!-- Track Title & Subtitle row (centered, no icon) -->
             <LinearLayout
