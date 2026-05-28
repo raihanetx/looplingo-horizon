@@ -67,10 +67,12 @@ class ConfigSetupManager @Inject constructor() {
         dialogueSegments: List<Segment>,
         onCycle: () -> Unit
     ) {
-        binding.panelClean.setOnLongClickListener {
+        binding.panelClean.setOnClickListener {
             if (dialogueSegments.isNotEmpty()) {
                 onCycle()
             }
+        }
+        binding.panelClean.setOnLongClickListener {
             true
         }
     }

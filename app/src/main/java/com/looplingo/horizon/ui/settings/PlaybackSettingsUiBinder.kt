@@ -351,6 +351,9 @@ class PlaybackSettingsUiBinder @Inject constructor(
         configSetupManager.switchTab(binding, playbackUIHelper, tab, viewModel) {
             if (tab == PlaybackSettingsViewModel.TAB_CLEAN) { isCleanCycling = false; cleanCycleIndex = -1 }
         }
+        if (tab == PlaybackSettingsViewModel.TAB_TALK) {
+            playbackUIHelper.updateTalkEmptyState(binding, dialogueSegments.isNotEmpty())
+        }
         updateInfoLine(binding, viewModel)
     }
 

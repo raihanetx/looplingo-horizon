@@ -179,11 +179,10 @@
 
         <!-- ══════ PANEL: TALK (Dialogue List) ═══════════════════════════════ -->
         <!-- Shows only the dialogue segments list -->
-        <LinearLayout
+        <FrameLayout
             android:id="@+id/panel_talk"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical"
             android:background="@color/colorBackground"
             android:visibility="gone">
 
@@ -197,7 +196,37 @@
                 android:visibility="gone"
                 tools:listitem="@layout/item_subtitle_cue" />
 
-        </LinearLayout>
+            <!-- Empty state for Talk panel -->
+            <LinearLayout
+                android:id="@+id/layout_talk_empty"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:paddingHorizontal="@dimen/space_xl"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:alpha="0.3"
+                    android:contentDescription="Dialogue"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_tab_talk"
+                    android:tint="@color/colorPrimary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_lg"
+                    android:gravity="center"
+                    android:text="@string/no_dialogue_yet"
+                    android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                    android:textColor="@color/colorOnSurfaceVariant" />
+
+            </LinearLayout>
+
+        </FrameLayout>
 
         <!-- ══════ PROGRESS OVERLAY (visible during subtitle generation) ══════ -->
         <LinearLayout

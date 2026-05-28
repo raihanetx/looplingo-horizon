@@ -18,6 +18,16 @@ class WaveformSeekBar @JvmOverloads constructor(
     private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }
+    private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = resources.getColor(R.color.waveform_unplayed, null)
+        alpha = 80
+    }
+    private val trackPlayedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = resources.getColor(R.color.colorPrimary, null)
+        alpha = 160
+    }
     private val thumbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = resources.getColor(R.color.colorPrimary, null)
@@ -29,10 +39,11 @@ class WaveformSeekBar @JvmOverloads constructor(
     }
     private val rectF = RectF()
 
-    private val barWidth: Float = 3.5f * resources.displayMetrics.density
-    private val barGap: Float = 1.5f * resources.displayMetrics.density
-    private val thumbRadius: Float = 4.5f * resources.displayMetrics.density
-    private val thumbGlowRadius: Float = 7f * resources.displayMetrics.density
+    private val barWidth: Float = 2f * resources.displayMetrics.density
+    private val barGap: Float = 1.2f * resources.displayMetrics.density
+    private val trackHeight: Float = 2f * resources.displayMetrics.density
+    private val thumbRadius: Float = 4f * resources.displayMetrics.density
+    private val thumbGlowRadius: Float = 6.5f * resources.displayMetrics.density
 
     var progress: Int = 0
         set(value) {
@@ -63,6 +74,20 @@ class WaveformSeekBar @JvmOverloads constructor(
         val startX = paddingLeft + (w - totalBarsWidth) / 2f
         val playedBarCount = (progress * bars / 1000).coerceIn(0, bars)
 
+        // Progress ground bar underneath the waveform
+        val trackTop = centerY + h * 0.28f
+        val trackBottom = trackTop + trackHeight
+        rectF.set(startX, trackTop, startX + totalBarsWidth, trackBottom)
+        canvas.drawRoundRect(rectF, trackHeight / 2f, trackHeight / 2f, trackPaint)
+
+        // Played portion of the ground bar
+        val playedWidth = totalBarsWidth * progress / 1000f
+        if (playedWidth > 0) {
+            rectF.set(startX, trackTop, startX + playedWidth, trackBottom)
+            canvas.drawRoundRect(rectF, trackHeight / 2f, trackHeight / 2f, trackPlayedPaint)
+        }
+
+        // Waveform bars
         for (i in 0 until bars) {
             val barHeightPercent = BAR_HEIGHTS[i]
             val barHeight = (h * barHeightPercent / 100f).coerceAtLeast(barWidth)

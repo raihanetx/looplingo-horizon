@@ -195,6 +195,7 @@
 
     <!-- Clean View -->
     <string name="clean_view_subtitle">Tap Talk to see dialogue</string>
+    <string name="no_dialogue_yet">No dialogue yet.\nGenerate subtitles to see the conversation.</string>
 
     <!-- Fragment titles -->
     <string name="fragment_main_title">Horizon Loop</string>

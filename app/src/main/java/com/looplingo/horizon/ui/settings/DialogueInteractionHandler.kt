@@ -11,7 +11,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class DialogueInteractionHandler @Inject constructor() {
+class DialogueInteractionHandler @Inject constructor(
+    private val playbackUIHelper: PlaybackUIHelper
+) {
 
     fun showDialogueList(
         binding: FragmentPlaybackSettingsBinding,
@@ -19,7 +21,7 @@ class DialogueInteractionHandler @Inject constructor() {
         translatedTexts: Map<Int, String>,
         onSegmentClick: (Segment, Int) -> Unit
     ): DialogueAdapter {
-        binding.rvDialogueList.visibility = android.view.View.VISIBLE
+        playbackUIHelper.updateTalkEmptyState(binding, segments.isNotEmpty())
         val adapter = DialogueAdapter(segments, translatedTexts) { segment, index ->
             onSegmentClick(segment, index)
         }

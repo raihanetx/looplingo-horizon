@@ -159,6 +159,11 @@ class PlaybackUIHelper @Inject constructor() {
         binding.rvNotesList.visibility = if (hasNotes) View.VISIBLE else View.GONE
     }
 
+    internal fun updateTalkEmptyState(binding: FragmentPlaybackSettingsBinding, hasDialogue: Boolean) {
+        binding.layoutTalkEmpty.visibility = if (hasDialogue) View.GONE else View.VISIBLE
+        binding.rvDialogueList.visibility = if (hasDialogue) View.VISIBLE else View.GONE
+    }
+
     internal fun setupNowPlayingCard(
         binding: FragmentPlaybackSettingsBinding,
         title: String,
