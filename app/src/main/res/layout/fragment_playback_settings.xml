@@ -877,7 +877,7 @@
         android:id="@+id/card_bottom_player"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="16dp"
+        app:cardCornerRadius="0dp"
         app:cardElevation="4dp"
         app:cardBackgroundColor="@color/colorPlayerBar"
         app:strokeColor="@color/colorOutlineVariant"
@@ -923,7 +923,7 @@
                 android:textColor="@color/colorOnSurfaceVariant"
                 tools:text="Mode:Clean | Loop:None | Speed:2x" />
 
-            <!-- Waveform seekbar with inline time labels -->
+            <!-- Seekbar with inline time labels -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -941,11 +941,16 @@
                     android:layout_marginEnd="4dp"
                     tools:text="1:24" />
 
-                <com.looplingo.horizon.ui.common.WaveformSeekBar
-                    android:id="@+id/waveform_seek_bar"
+                <SeekBar
+                    android:id="@+id/seek_bar"
                     android:layout_width="0dp"
-                    android:layout_height="38dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:maxHeight="8dp"
+                    android:minHeight="8dp"
+                    android:progressTint="@color/colorPrimary"
+                    android:thumbTint="@color/colorPrimary"
+                    android:progressBackgroundTint="@color/colorOutlineVariant"
                     android:contentDescription="@string/content_desc_seek_bar" />
 
                 <TextView
@@ -959,7 +964,7 @@
 
             </LinearLayout>
 
-            <!-- Transport Controls: [Rewind] [Play] [Forward] -->
+            <!-- Transport Controls: [-5s] [⏮] [▶/⏸] [⏭] [+5s] -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -967,42 +972,77 @@
                 android:orientation="horizontal"
                 android:paddingVertical="@dimen/space_xs">
 
-                <!-- Rewind — double arrow -->
-                <ImageView
-                    android:id="@+id/iv_rewind_5"
-                    android:layout_width="@dimen/transport_button_size"
-                    android:layout_height="@dimen/transport_button_size"
-                    android:background="@drawable/bg_transport_button"
-                    android:contentDescription="@string/content_desc_rewind_5"
-                    android:padding="@dimen/space_md"
-                    android:scaleType="centerInside"
-                    app:srcCompat="@drawable/ic_fast_rewind"
-                    app:tint="@color/colorOnSurface" />
+                <!-- -5s rewind -->
+                <TextView
+                    android:id="@+id/btn_rewind_5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp"
+                    android:text="-5s"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
+                    android:textColor="@color/colorOnSurface"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true" />
 
-                <!-- Play/Pause — compact circle -->
-                <ImageView
-                    android:id="@+id/iv_play_pause"
-                    android:layout_width="@dimen/play_button_size"
-                    android:layout_height="@dimen/play_button_size"
-                    android:layout_marginHorizontal="@dimen/space_xl"
-                    android:background="@drawable/bg_play_button"
-                    android:contentDescription="@string/content_desc_play_pause"
-                    android:padding="@dimen/space_md"
-                    android:scaleType="centerInside"
-                    app:srcCompat="@drawable/ic_play"
-                    app:tint="@color/colorOnPrimary" />
+                <!-- Backward -->
+                <TextView
+                    android:id="@+id/btn_backward"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp"
+                    android:text="⏮"
+                    android:textAppearance="@style/TextAppearance.Horizon.TitleLarge"
+                    android:textColor="@color/colorOnSurface"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true" />
 
-                <!-- Forward — double arrow -->
-                <ImageView
-                    android:id="@+id/iv_forward_5"
-                    android:layout_width="@dimen/transport_button_size"
-                    android:layout_height="@dimen/transport_button_size"
-                    android:background="@drawable/bg_transport_button"
-                    android:contentDescription="@string/content_desc_forward_5"
-                    android:padding="@dimen/space_md"
-                    android:scaleType="centerInside"
-                    app:srcCompat="@drawable/ic_fast_forward"
-                    app:tint="@color/colorOnSurface" />
+                <!-- Play/Pause -->
+                <TextView
+                    android:id="@+id/btn_play_pause"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="8dp"
+                    android:layout_marginHorizontal="8dp"
+                    android:text="▶"
+                    android:textAppearance="@style/TextAppearance.Horizon.TitleLarge"
+                    android:textColor="@color/colorPrimary"
+                    android:textStyle="bold"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+                <!-- Forward -->
+                <TextView
+                    android:id="@+id/btn_forward"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp"
+                    android:text="⏭"
+                    android:textAppearance="@style/TextAppearance.Horizon.TitleLarge"
+                    android:textColor="@color/colorOnSurface"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+                <!-- +5s forward -->
+                <TextView
+                    android:id="@+id/btn_forward_5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp"
+                    android:text="+5s"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
+                    android:textColor="@color/colorOnSurface"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true" />
 
             </LinearLayout>
 

@@ -1,7 +1,6 @@
 package com.looplingo.horizon.ui.settings
 
 import android.view.View
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.android.material.snackbar.Snackbar
@@ -62,23 +61,31 @@ class PlaybackUIHelper @Inject constructor() {
         onRewind: () -> Unit,
         onForward: () -> Unit
     ) {
-        binding.ivPlayPause.setOnClickListener { onPlayPause() }
-        binding.ivRewind5.setOnClickListener { onRewind() }
-        binding.ivForward5.setOnClickListener { onForward() }
+        binding.btnPlayPause.setOnClickListener { onPlayPause() }
+        binding.btnRewind5.setOnClickListener { onRewind() }
+        binding.btnForward5.setOnClickListener { onForward() }
+        binding.btnBackward.setOnClickListener { onRewind() }
+        binding.btnForward.setOnClickListener { onForward() }
     }
 
     internal fun setupSeekBar(
         binding: FragmentPlaybackSettingsBinding,
         onSeek: (Long) -> Unit
     ) {
-        binding.waveformSeekBar.onSeekListener = { progress ->
-            val duration = AudioPlaybackService.durationMs
-            if (duration > 0) {
-                val newPos = (progress.toLong() * duration) / 1000
-                binding.tvCurrentPosition.text = TimeUtils.formatMsToTime(newPos)
-                onSeek(newPos)
+        binding.seekBar.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    val duration = AudioPlaybackService.durationMs
+                    if (duration > 0) {
+                        val newPos = (progress.toLong() * duration) / 1000
+                        binding.tvCurrentPosition.text = TimeUtils.formatMsToTime(newPos)
+                        onSeek(newPos)
+                    }
+                }
             }
-        }
+            override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
+        })
     }
 
     internal fun setupLoopControls(
@@ -183,9 +190,7 @@ class PlaybackUIHelper @Inject constructor() {
         durationMs: Long,
         waveformProgress: Int
     ) {
-        binding.ivPlayPause.setImageResource(
-            if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
-        )
+        binding.btnPlayPause.text = if (isPlaying) "⏸" else "▶"
 
         binding.tvNowPlayingTitle.text = title
         binding.tvCleanTitle.text = title
@@ -194,7 +199,7 @@ class PlaybackUIHelper @Inject constructor() {
         binding.tvDuration.text = if (durationMs > 0) TimeUtils.formatMsToTime(durationMs) else "0:00"
 
         if (durationMs > 0) {
-            binding.waveformSeekBar.progress = waveformProgress
+            binding.seekBar.progress = waveformProgress
         }
     }
 
