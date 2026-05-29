@@ -87,7 +87,7 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
     ): List<com.looplingo.horizon.data.remote.Segment> = withContext(Dispatchers.IO) {
         whisperApiClient.validateInputs(apiKey, filePath)
 
-        Timber.i("═══ TRANSCRIPTION PIPELINE v2.0 ═══")
+        Timber.i("═══ TRANSCRIPTION PIPELINE v3.0 ═══")
         Timber.i("Input: %s, Language: %s", filePath.take(80), language)
 
         onProgress?.onProgress("[Step 0] Checking API key…")
@@ -115,199 +115,168 @@ class TranscriptionPipeline @javax.inject.Inject constructor(
             onProgress?.onProgress("[Step 0] File: ${sourceFile.name} (%.2fMB, %s)".format(
                 sourceSizeMB, if (isAudio) "AUDIO" else "VIDEO"))
 
-            onProgress?.onProgress("[Step 1] Pre-processing to 16KHz mono AAC…")
-            onProgress?.onProgressUpdate("Transcribing English", 12, "Converting audio to 16kHz mono...")
-            Timber.i("Step 1: Pre-processing to 16KHz mono AAC")
+            // ── Step 1: Get audio file (extract from video or use directly) ──
+            val audioFile: File
+            val needsCleanup: Boolean
 
-            val preprocessed = audioPreprocessor.preProcessTo16kHzMonoAac(context, sourceFile)
-            if (preprocessed != null) {
-                val ppSizeKB = preprocessed.length() / 1024.0
-                onProgress?.onProgress("[Step 1] Pre-processed: %.1fKB (16KHz mono AAC)".format(ppSizeKB))
-                Timber.i("Pre-processed: %.1fKB (was %.2fMB)", ppSizeKB, sourceSizeMB)
-
-                if (preprocessed.length() <= com.looplingo.horizon.data.remote.WhisperApiClient.GROQ_MAX_FILE_SIZE) {
-                    onProgress?.onProgress("[Step 1] Sending to Whisper (%.1fKB)…".format(ppSizeKB))
-                    onProgress?.onProgressUpdate("Transcribing English", 20, "Sending to Whisper API (%.1fKB)...".format(ppSizeKB))
-                    try {
-                        val result = whisperApiClient.callWhisperApi(apiKey, preprocessed, language)
-                        if (result.isNotEmpty()) {
-                            preprocessed.delete()
-                            onProgress?.onProgressUpdate("Transcribing English", 45, "${result.size} segments detected")
-                            onProgress?.onProgress("[Step 1] ✓ %d segments!".format(result.size))
-                            Timber.i("═══ SUCCESS: %d segments from pre-processed audio ═══", result.size)
-                            return@withContext refineSegmentsWithVad(filePath, audioChunker.filterLowQualitySegments(result).kept, onProgress)
-                        }
-                        onProgress?.onProgress("[Step 1] No speech detected — trying without pre-process…")
-                        Timber.w("Pre-processed: no speech, trying raw extraction")
-                    } catch (e: com.looplingo.horizon.data.remote.ApiKeyException) {
-                        preprocessed.delete()
-                        throw e
-                    } catch (e: Exception) {
-                        onProgress?.onProgress("[Step 1] API error: ${e.message?.take(80)}")
-                        Timber.w(e, "Pre-processed audio failed")
-                    }
-                    preprocessed.delete()
-                } else {
-                    onProgress?.onProgress("[Step 1] Pre-processed file too large (%.1fKB) → chunking".format(ppSizeKB))
-                    val result = chunkedTranscriber.chunkAndTranscribe(context, apiKey, preprocessed, language, onProgress)
-                    preprocessed.delete()
-                    if (result.isNotEmpty()) {
-                        return@withContext refineSegmentsWithVad(filePath, audioChunker.filterLowQualitySegments(result).kept, onProgress)
-                    }
-                }
+            if (isAudio) {
+                onProgress?.onProgress("[Step 1] Audio file — sending directly")
+                audioFile = sourceFile
+                needsCleanup = false
             } else {
-                onProgress?.onProgress("[Step 1] Pre-processing failed — trying extraction")
-            }
-
-            onProgress?.onProgress("[Step 2] Extracting audio track…")
-            Timber.i("Step 2: Extract + pre-process pipeline")
-
-            val extracted = audioPreprocessor.extractAudioTrack(context, sourceFile)
-            if (extracted != null) {
-                val extractedKB = extracted.length() / 1024.0
-                onProgress?.onProgress("[Step 2] Extracted: %.1fKB".format(extractedKB))
-
-                if (extracted.length() <= com.looplingo.horizon.data.remote.WhisperApiClient.GROQ_MAX_FILE_SIZE) {
-                    onProgress?.onProgress("[Step 2] Sending extracted audio with correct MIME…")
-                    try {
-                        val result = whisperApiClient.callWhisperApi(apiKey, extracted, language)
-                        if (result.isNotEmpty()) {
-                            onProgress?.onProgress("[Step 2] ✓ %d segments from raw extraction!".format(result.size))
-                            Timber.i("═══ SUCCESS: %d segments from extracted audio ═══", result.size)
-                            extracted.delete()
-                            return@withContext refineSegmentsWithVad(filePath, audioChunker.filterLowQualitySegments(result).kept, onProgress)
-                        }
-                    } catch (e: com.looplingo.horizon.data.remote.ApiKeyException) {
-                        extracted.delete()
-                        throw e
-                    } catch (e: Exception) {
-                        Timber.w(e, "Raw extraction send failed")
-                    }
-                }
-
-                onProgress?.onProgress("[Step 2] Pre-processing extracted audio…")
-                val ppExtracted = audioPreprocessor.preProcessTo16kHzMonoAac(context, extracted)
-
-                if (ppExtracted != null) {
-                    extracted.delete()
-                    val ppSizeKB = ppExtracted.length() / 1024.0
-                    onProgress?.onProgress("[Step 2] Pre-processed: %.1fKB".format(ppSizeKB))
-
-                    if (ppExtracted.length() <= com.looplingo.horizon.data.remote.WhisperApiClient.GROQ_MAX_FILE_SIZE) {
-                        try {
-                            val result = whisperApiClient.callWhisperApi(apiKey, ppExtracted, language)
-                            ppExtracted.delete()
-                            if (result.isNotEmpty()) {
-                                onProgress?.onProgress("[Step 2] ✓ %d segments!".format(result.size))
-                                return@withContext refineSegmentsWithVad(filePath, audioChunker.filterLowQualitySegments(result).kept, onProgress)
-                            }
-                        } catch (e: com.looplingo.horizon.data.remote.ApiKeyException) {
-                            ppExtracted.delete()
-                            throw e
-                        } catch (e: Exception) {
-                            Timber.w(e, "Pre-processed extraction failed")
-                        }
-                        ppExtracted.delete()
-                    } else {
-                        val result = chunkedTranscriber.chunkAndTranscribe(context, apiKey, ppExtracted, language, onProgress)
-                        ppExtracted.delete()
-                        if (result.isNotEmpty()) return@withContext refineSegmentsWithVad(filePath, audioChunker.filterLowQualitySegments(result).kept, onProgress)
-                    }
+                onProgress?.onProgress("[Step 1] Extracting audio from video…")
+                onProgress?.onProgressUpdate("Transcribing English", 15, "Extracting audio track...")
+                val extracted = audioPreprocessor.extractAudioTrack(context, sourceFile)
+                if (extracted != null) {
+                    audioFile = extracted
+                    needsCleanup = true
+                    onProgress?.onProgress("[Step 1] Extracted: %.1fKB".format(audioFile.length() / 1024.0))
                 } else {
-                    if (extracted.exists()) {
-                        val result = chunkedTranscriber.chunkAndTranscribe(context, apiKey, extracted, language, onProgress)
-                        extracted.delete()
-                        if (result.isNotEmpty()) return@withContext refineSegmentsWithVad(filePath, result, onProgress)
-                    }
+                    onProgress?.onProgress("[Step 1] Extraction failed — trying WAV fallback…")
+                    return@withContext fallbackToWav(context, apiKey, sourceFile, sourceSizeMB, language, onProgress)
                 }
             }
 
-            onProgress?.onProgress("[Step 3] FALLBACK: Decoding to 16KHz mono WAV + normalize…")
-            onProgress?.onProgressUpdate("Transcribing English", 25, "Decoding to WAV format...")
-            Timber.i("Step 3: FALLBACK — 16KHz mono WAV with normalization")
-
-            val wavChunks = wavProcessor.decodeTo16kHzMonoWavChunks(context, sourceFile)
-            if (wavChunks.isEmpty()) {
-                throw com.looplingo.horizon.data.remote.SubtitleException(
-                    "Could not decode audio. The format may not be supported. Try MP3, M4A, or MP4."
-                )
-            }
-
-            val limitedChunks = wavChunks.take(AudioChunker.MAX_CHUNKS)
-            wavChunks.drop(AudioChunker.MAX_CHUNKS).forEach { it.file.delete() }
-
-            onProgress?.onProgress("Normalizing audio volume…")
-            val normalizedChunks = mutableListOf<AudioChunk>()
-            var droppedSilentChunks = 0
-            var lastDroppedPcmStats: com.looplingo.horizon.data.remote.PcmAnalysisResult? = null
-            for (chunk in limitedChunks) {
-                val stats = wavProcessor.analyzeWavPcm(chunk.file)
-                if (stats.meanAbsSample < 10 && stats.nonZeroPercent < 1.0) {
-                    droppedSilentChunks++
-                    lastDroppedPcmStats = stats
-                    chunk.file.delete()
-                    continue
-                }
-                val normalizedFile = normalizeWavFile(chunk.file, stats)
-                if (normalizedFile != null && normalizedFile != chunk.file) {
-                    chunk.file.delete()
-                }
-                normalizedChunks.add(chunk.copy(file = normalizedFile ?: chunk.file))
-            }
-
-            if (normalizedChunks.isEmpty()) {
-                val pcmInfo = lastDroppedPcmStats?.let { " PCM: meanAbs=${"%.1f".format(it.meanAbsSample)}, nonZero=${"%.1f".format(it.nonZeroPercent)}%" } ?: ""
-                throw com.looplingo.horizon.data.remote.SubtitleException("All audio chunks were silent — no speech in this file.$pcmInfo")
-            }
-
-            val result = chunkedTranscriber.transcribeChunksWithOverlap(apiKey, normalizedChunks, language, onProgress)
-            if (result.isEmpty()) {
-                val lastResp = whisperApiClient.getLastWhisperResponse()
-                val fallbackText = extractTextFromWhisperResponse(lastResp)
-                if (fallbackText.isNotBlank()) {
-                    val totalDuration = normalizedChunks.sumOf { it.durationSec }
-                    val sentences = whisperApiClient.splitIntoSentences(fallbackText)
-                    val timePerChar = if (fallbackText.isNotEmpty() && totalDuration > 0) totalDuration / fallbackText.length else 1.0
-                    var currentTime = 0.0
-                    val segmentsToCreate = if (sentences.size > 1) sentences else listOf(fallbackText)
-                    Timber.w("Transcription returned empty segments but Whisper response has text — creating %d fallback segments", segmentsToCreate.size)
-                    val fallbackSegments = segmentsToCreate.mapIndexed { index, sentence ->
-                        val sentenceDuration = sentence.length * timePerChar
-                        val seg = com.looplingo.horizon.data.remote.Segment(
-                            id = index,
-                            text = sentence.trim(),
-                            startSec = currentTime,
-                            endSec = currentTime + sentenceDuration,
-                            noSpeechProb = 0.0,
-                            avgLogprob = 0.0
-                        )
-                        currentTime += sentenceDuration
-                        seg
-                    }
-                    return@withContext fallbackSegments
-                }
-                val chunkDiag = chunkedTranscriber.lastDiagnostics
-                val pcmInfo = if (droppedSilentChunks > 0) {
-                    val s = lastDroppedPcmStats
-                    " Dropped $droppedSilentChunks silent chunks" + (s?.let { " (meanAbs=${"%.1f".format(it.meanAbsSample)}, nonZero=${"%.1f".format(it.nonZeroPercent)}%)" } ?: "")
-                } else ""
-                val detail = buildString {
-                    append("No speech detected after all pipeline steps (3/3 WAV fallback).")
-                    append(" File: ${sourceFile.name} (%.2fMB)".format(sourceSizeMB))
-                    append(" Chunks: ${normalizedChunks.size}")
-                    if (chunkDiag.isNotBlank()) append(" Transcriber: $chunkDiag")
-                    append(" LastAPI: ${lastResp.take(200)}")
-                    if (pcmInfo.isNotBlank()) append(pcmInfo)
-                }
-                throw com.looplingo.horizon.data.remote.SubtitleException(detail)
-            }
-
-            Timber.i("═══ SUCCESS (fallback): %d segments ═══", result.size)
-            refineSegmentsWithVad(filePath, audioChunker.filterLowQualitySegments(result).kept, onProgress)
+            // ── Step 2: Send to Whisper ──
+            return@withContext sendToWhisper(context, apiKey, audioFile, needsCleanup, sourceSizeMB, language, filePath, onProgress)
 
         } finally {
             cleanupSource()
         }
+    }
+
+    private suspend fun sendToWhisper(
+        context: Context,
+        apiKey: String,
+        audioFile: File,
+        needsCleanup: Boolean,
+        sourceSizeMB: Double,
+        language: String,
+        originalFilePath: String,
+        onProgress: com.looplingo.horizon.data.remote.ProgressCallback? = null
+    ): List<com.looplingo.horizon.data.remote.Segment> {
+        try {
+            if (audioFile.length() <= com.looplingo.horizon.data.remote.WhisperApiClient.GROQ_MAX_FILE_SIZE) {
+                val sizeKB = audioFile.length() / 1024.0
+                onProgress?.onProgress("[Step 2] Sending to Whisper (%.1fKB)…".format(sizeKB))
+                onProgress?.onProgressUpdate("Transcribing English", 25, "Transcribing audio (%.1fKB)...".format(sizeKB))
+
+                val result = whisperApiClient.callWhisperApi(apiKey, audioFile, language)
+                if (needsCleanup) audioFile.delete()
+
+                if (result.isNotEmpty()) {
+                    onProgress?.onProgressUpdate("Transcribing English", 45, "${result.size} segments detected")
+                    onProgress?.onProgress("[Step 2] ✓ %d segments!".format(result.size))
+                    Timber.i("═══ SUCCESS: %d segments ═══", result.size)
+                    return refineSegmentsWithVad(originalFilePath, audioChunker.filterLowQualitySegments(result).kept, onProgress)
+                }
+
+                onProgress?.onProgress("[Step 2] No speech detected")
+                throw com.looplingo.horizon.data.remote.SubtitleException(
+                    "No speech detected in audio. File: ${audioFile.name} (%.2fMB)".format(sourceSizeMB)
+                )
+            } else {
+                // File > 25MB — chunk and transcribe
+                onProgress?.onProgress("[Step 2] File too large (%.1fMB) → chunking…".format(sourceSizeMB))
+                onProgress?.onProgressUpdate("Transcribing English", 20, "Splitting large file into chunks...")
+                val result = chunkedTranscriber.chunkAndTranscribe(context, apiKey, audioFile, language, onProgress)
+                if (needsCleanup) audioFile.delete()
+
+                if (result.isNotEmpty()) {
+                    return refineSegmentsWithVad(originalFilePath, audioChunker.filterLowQualitySegments(result).kept, onProgress)
+                }
+
+                throw com.looplingo.horizon.data.remote.SubtitleException(
+                    "No speech detected after chunking. File: ${audioFile.name} (%.2fMB)".format(sourceSizeMB)
+                )
+            }
+        } catch (e: com.looplingo.horizon.data.remote.ApiKeyException) {
+            if (needsCleanup) audioFile.delete()
+            throw e
+        } catch (e: com.looplingo.horizon.data.remote.SubtitleException) {
+            if (needsCleanup) audioFile.delete()
+            throw e
+        } catch (e: Exception) {
+            if (needsCleanup) audioFile.delete()
+            Timber.w(e, "Whisper API call failed")
+            throw com.looplingo.horizon.data.remote.SubtitleException("Transcription failed: ${e.message}")
+        }
+    }
+
+    private suspend fun fallbackToWav(
+        context: Context,
+        apiKey: String,
+        sourceFile: File,
+        sourceSizeMB: Double,
+        language: String,
+        onProgress: com.looplingo.horizon.data.remote.ProgressCallback? = null
+    ): List<com.looplingo.horizon.data.remote.Segment> {
+        onProgress?.onProgress("[Fallback] Decoding to WAV…")
+        onProgress?.onProgressUpdate("Transcribing English", 20, "Decoding audio to WAV format...")
+
+        val wavChunks = wavProcessor.decodeTo16kHzMonoWavChunks(context, sourceFile)
+        if (wavChunks.isEmpty()) {
+            throw com.looplingo.horizon.data.remote.SubtitleException(
+                "Could not decode audio. The format may not be supported. Try MP3, M4A, or MP4."
+            )
+        }
+
+        val limitedChunks = wavChunks.take(AudioChunker.MAX_CHUNKS)
+        wavChunks.drop(AudioChunker.MAX_CHUNKS).forEach { it.file.delete() }
+
+        onProgress?.onProgress("Normalizing audio volume…")
+        val normalizedChunks = mutableListOf<AudioChunk>()
+        var droppedSilentChunks = 0
+        for (chunk in limitedChunks) {
+            val stats = wavProcessor.analyzeWavPcm(chunk.file)
+            if (stats.meanAbsSample < 10 && stats.nonZeroPercent < 1.0) {
+                droppedSilentChunks++
+                chunk.file.delete()
+                continue
+            }
+            val normalizedFile = normalizeWavFile(chunk.file, stats)
+            if (normalizedFile != null && normalizedFile != chunk.file) {
+                chunk.file.delete()
+            }
+            normalizedChunks.add(chunk.copy(file = normalizedFile ?: chunk.file))
+        }
+
+        if (normalizedChunks.isEmpty()) {
+            throw com.looplingo.horizon.data.remote.SubtitleException("All audio chunks were silent — no speech in this file.")
+        }
+
+        val result = chunkedTranscriber.transcribeChunksWithOverlap(apiKey, normalizedChunks, language, onProgress)
+        if (result.isEmpty()) {
+            val lastResp = whisperApiClient.getLastWhisperResponse()
+            val fallbackText = extractTextFromWhisperResponse(lastResp)
+            if (fallbackText.isNotBlank()) {
+                val totalDuration = normalizedChunks.sumOf { it.durationSec }
+                val sentences = whisperApiClient.splitIntoSentences(fallbackText)
+                val timePerChar = if (fallbackText.isNotEmpty() && totalDuration > 0) totalDuration / fallbackText.length else 1.0
+                var currentTime = 0.0
+                val segmentsToCreate = if (sentences.size > 1) sentences else listOf(fallbackText)
+                Timber.w("Empty segments but response has text — creating %d fallback segments", segmentsToCreate.size)
+                return segmentsToCreate.mapIndexed { index, sentence ->
+                    val sentenceDuration = sentence.length * timePerChar
+                    val seg = com.looplingo.horizon.data.remote.Segment(
+                        id = index,
+                        text = sentence.trim(),
+                        startSec = currentTime,
+                        endSec = currentTime + sentenceDuration,
+                        noSpeechProb = 0.0,
+                        avgLogprob = 0.0
+                    )
+                    currentTime += sentenceDuration
+                    seg
+                }
+            }
+            throw com.looplingo.horizon.data.remote.SubtitleException(
+                "No speech detected. File: ${sourceFile.name} (%.2fMB), Chunks: ${normalizedChunks.size}".format(sourceSizeMB)
+            )
+        }
+
+        Timber.i("═══ SUCCESS (WAV fallback): %d segments ═══", result.size)
+        return refineSegmentsWithVad(sourceFile.absolutePath, audioChunker.filterLowQualitySegments(result).kept, onProgress)
     }
 
     suspend fun refineSegmentsWithVad(
