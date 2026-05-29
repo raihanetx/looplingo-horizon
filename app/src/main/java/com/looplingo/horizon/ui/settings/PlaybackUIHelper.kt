@@ -174,9 +174,15 @@ class PlaybackUIHelper @Inject constructor() {
     internal fun updateAudioMode(binding: FragmentPlaybackSettingsBinding, isAudioOnly: Boolean) {
         val context = binding.tvAudioMode.context
         if (isAudioOnly) {
-            binding.tvAudioMode.setTextColor(context.resources.getColor(R.color.colorPrimary, null))
+            binding.tvAudioMode.text = "Audio On"
+            binding.tvAudioMode.setTextColor(context.resources.getColor(R.color.colorOnPrimaryContainer, null))
+            binding.tvAudioMode.setBackgroundResource(R.drawable.bg_audio_mode_active)
+            binding.tvAudioMode.setPadding(20, 4, 20, 4)
         } else {
+            binding.tvAudioMode.text = "Audio"
             binding.tvAudioMode.setTextColor(context.resources.getColor(R.color.colorOnSurfaceVariant, null))
+            binding.tvAudioMode.background = null
+            binding.tvAudioMode.setPadding(0, 0, 0, 0)
         }
     }
 
