@@ -8,9 +8,9 @@
     android:gravity="center_vertical"
     android:paddingHorizontal="14dp"
     android:paddingVertical="12dp"
-    android:layout_marginHorizontal="8dp"
+    android:layout_marginHorizontal="16dp"
     android:layout_marginVertical="4dp"
-    android:background="@drawable/bg_note_card">
+    android:background="@drawable/bg_glass_card_stroke">
 
     <!-- Loop info -->
     <LinearLayout
@@ -76,6 +76,7 @@
             android:contentDescription="Play loop"
             android:src="@drawable/ic_play"
             android:padding="6dp"
+            android:tint="@color/colorPrimary"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
             android:focusable="true" />

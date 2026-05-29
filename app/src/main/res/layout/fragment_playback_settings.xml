@@ -94,13 +94,6 @@
             app:srcCompat="@drawable/ic_send"
             app:tint="@color/colorOnSurface" />
 
-        <!-- Divider between send and speed -->
-        <View
-            android:layout_width="1dp"
-            android:layout_height="20dp"
-            android:layout_marginEnd="@dimen/space_sm"
-            android:background="@color/colorOutlineVariant" />
-
         <!-- Speed indicator -->
         <TextView
             android:id="@+id/tv_header_speed"
@@ -409,8 +402,8 @@
                 android:id="@+id/layout_add_loop_form"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginHorizontal="8dp"
-                android:layout_marginTop="4dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="8dp"
                 android:layout_marginBottom="4dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
@@ -421,14 +414,14 @@
                     android:id="@+id/et_loop_name"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_weight="1.5"
+                    android:layout_weight="1"
                     android:background="@null"
                     android:hint="Name"
                     android:textColor="@color/colorOnSurface"
                     android:textColorHint="@color/colorOnSurfaceVariant"
                     android:textSize="13sp"
                     android:gravity="center_vertical"
-                    android:paddingHorizontal="10dp"
+                    android:paddingHorizontal="8dp"
                     android:singleLine="true"
                     android:inputType="text"
                     android:importantForAutofill="no" />
@@ -444,15 +437,15 @@
                     android:id="@+id/et_loop_start"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_weight="0.8"
+                    android:layout_weight="1"
                     android:background="@null"
-                    android:hint="0:00"
+                    android:hint="Start"
                     android:text="0:00"
                     android:textColor="@color/colorOnSurface"
                     android:textColorHint="@color/colorOnSurfaceVariant"
                     android:textSize="13sp"
                     android:gravity="center"
-                    android:paddingHorizontal="6dp"
+                    android:paddingHorizontal="4dp"
                     android:singleLine="true"
                     android:inputType="text"
                     android:importantForAutofill="no" />
@@ -468,14 +461,14 @@
                     android:id="@+id/et_loop_end"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_weight="0.8"
+                    android:layout_weight="1"
                     android:background="@null"
                     android:hint="End"
                     android:textColor="@color/colorOnSurface"
                     android:textColorHint="@color/colorOnSurfaceVariant"
                     android:textSize="13sp"
                     android:gravity="center"
-                    android:paddingHorizontal="6dp"
+                    android:paddingHorizontal="4dp"
                     android:singleLine="true"
                     android:inputType="text"
                     android:importantForAutofill="no" />
@@ -491,7 +484,7 @@
                     android:id="@+id/et_loop_count"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_weight="0.5"
+                    android:layout_weight="1"
                     android:background="@null"
                     android:gravity="center"
                     android:text="3"
@@ -506,27 +499,28 @@
                 <!-- Preview icon -->
                 <ImageView
                     android:id="@+id/btn_loop_preview"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="2dp"
                     android:scaleType="centerInside"
                     android:contentDescription="Preview"
                     android:src="@drawable/ic_play"
-                    android:padding="8dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="7dp"
+                    android:background="@drawable/bg_circle_button"
                     android:clickable="true"
                     android:focusable="true" />
 
                 <!-- Save/Add icon -->
                 <ImageView
                     android:id="@+id/btn_save_loop"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:layout_marginEnd="4dp"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="6dp"
                     android:scaleType="centerInside"
                     android:contentDescription="Save loop"
                     android:src="@drawable/ic_add"
-                    android:padding="8dp"
-                    android:background="@drawable/bg_circle_add"
+                    android:padding="7dp"
+                    android:background="@drawable/bg_circle_button"
                     android:clickable="true"
                     android:focusable="true" />
 
@@ -588,8 +582,8 @@
                 android:id="@+id/layout_add_note_form"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginHorizontal="8dp"
-                android:layout_marginTop="4dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="8dp"
                 android:layout_marginBottom="4dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
@@ -615,14 +609,14 @@
                 <!-- Save/Add icon -->
                 <ImageView
                     android:id="@+id/btn_save_note"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:layout_marginEnd="4dp"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="6dp"
                     android:scaleType="centerInside"
                     android:contentDescription="Save note"
                     android:src="@drawable/ic_add"
-                    android:padding="8dp"
-                    android:background="@drawable/bg_circle_add"
+                    android:padding="7dp"
+                    android:background="@drawable/bg_circle_button"
                     android:clickable="true"
                     android:focusable="true" />
 
