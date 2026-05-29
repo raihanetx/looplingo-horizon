@@ -39,6 +39,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
     private var positionPollingManager: PositionPollingManager? = null
     private var loopAdapter: LoopAdapter? = null
     private var noteAdapter: NoteAdapter? = null
+    private var editingNotePosition: Int = -1
 
     fun bind(
         fragment: Fragment,
@@ -251,6 +252,12 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 val hasNotes = noteAdapter?.getNotes()?.isNotEmpty() == true
                 playbackUIHelper.updateNoteEmptyState(binding, hasNotes)
                 saveNotes(prefs, videoPath, noteAdapter?.getNotes() ?: emptyList())
+            },
+            onEditClick = { note, position ->
+                editingNotePosition = position
+                binding.etNoteText.setText(note.text)
+                binding.btnSaveNote.text = "Save Changes"
+                playbackUIHelper.showNoteForm(binding)
             }
         )
         noteAdapter?.setNotes(savedNotes)
@@ -261,26 +268,30 @@ class PlaybackSettingsUiBinder @Inject constructor(
         playbackUIHelper.setupNoteForm(binding,
             onSave = {
                 val text = binding.etNoteText.text.toString().trim()
-                if (text.isEmpty()) {
-                    binding.tilNoteText.error = "Please enter a note"
-                    return@setupNoteForm
-                }
-                binding.tilNoteText.error = null
+                if (text.isEmpty()) return@setupNoteForm
 
-                val currentPosMs = AudioPlaybackService.currentPositionMs
-                val note = SavedNote(text, currentPosMs)
-                noteAdapter?.addNote(note)
+                if (editingNotePosition >= 0) {
+                    // Editing existing note
+                    noteAdapter?.updateNote(editingNotePosition, text)
+                    editingNotePosition = -1
+                    binding.btnSaveNote.text = "Add Note"
+                } else {
+                    // Adding new note
+                    val currentPosMs = AudioPlaybackService.currentPositionMs
+                    val note = SavedNote(text, currentPosMs)
+                    noteAdapter?.addNote(note)
+                }
                 val hasNotes = noteAdapter?.getNotes()?.isNotEmpty() == true
                 playbackUIHelper.updateNoteEmptyState(binding, hasNotes)
                 saveNotes(prefs, videoPath, noteAdapter?.getNotes() ?: emptyList())
 
                 binding.etNoteText.setText("")
                 playbackUIHelper.hideNoteForm(binding)
-                playbackUIHelper.showSnackbar(binding.root, "Note saved at ${TimeUtils.formatMsToTime(currentPosMs)}")
             },
             onClose = {
                 binding.etNoteText.setText("")
-                binding.tilNoteText.error = null
+                editingNotePosition = -1
+                binding.btnSaveNote.text = "Add Note"
             }
         )
 

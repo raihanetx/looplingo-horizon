@@ -126,7 +126,7 @@ class PlaybackUIHelper @Inject constructor() {
             binding.layoutAddNoteForm.visibility = View.VISIBLE
             binding.fabAddNote.visibility = View.GONE
         }
-        binding.ivCloseNoteForm.setOnClickListener {
+        binding.btnCancelNote.setOnClickListener {
             binding.layoutAddNoteForm.visibility = View.GONE
             binding.fabAddNote.visibility = View.VISIBLE
             onClose()

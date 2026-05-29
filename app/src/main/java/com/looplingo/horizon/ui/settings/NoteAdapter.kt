@@ -16,7 +16,8 @@ data class SavedNote(
 
 class NoteAdapter(
     private val onNoteClick: (SavedNote, Int) -> Unit,
-    private val onDeleteClick: (SavedNote, Int) -> Unit
+    private val onDeleteClick: (SavedNote, Int) -> Unit,
+    private val onEditClick: (SavedNote, Int) -> Unit
 ) : RecyclerView.Adapter<NoteAdapter.ViewHolder>() {
 
     private val notes = mutableListOf<SavedNote>()
@@ -32,6 +33,13 @@ class NoteAdapter(
         notifyItemInserted(notes.size - 1)
     }
 
+    fun updateNote(position: Int, newText: String) {
+        if (position in notes.indices) {
+            notes[position] = notes[position].copy(text = newText)
+            notifyItemChanged(position)
+        }
+    }
+
     fun removeNote(position: Int) {
         if (position in notes.indices) {
             notes.removeAt(position)
@@ -43,7 +51,7 @@ class NoteAdapter(
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvText: TextView = view.findViewById(R.id.tv_note_text)
-        val tvTimestamp: TextView = view.findViewById(R.id.tv_note_timestamp)
+        val ivEdit: ImageView = view.findViewById(R.id.iv_note_edit)
         val ivDelete: ImageView = view.findViewById(R.id.iv_note_delete)
     }
 
@@ -56,10 +64,13 @@ class NoteAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val note = notes[position]
         holder.tvText.text = note.text
-        holder.tvTimestamp.text = "At ${TimeUtils.formatMsToTime(note.timestampMs)}"
 
         holder.itemView.setOnClickListener {
             onNoteClick(note, holder.bindingAdapterPosition)
+        }
+
+        holder.ivEdit.setOnClickListener {
+            onEditClick(note, holder.bindingAdapterPosition)
         }
 
         holder.ivDelete.setOnClickListener {

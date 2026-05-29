@@ -606,132 +606,116 @@
             android:layout_height="match_parent"
             android:visibility="gone">
 
-            <!-- Notes list -->
+            <!-- Notes list with spacing between cards -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_notes_list"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:paddingHorizontal="@dimen/space_md"
-                android:paddingTop="@dimen/space_md"
+                android:paddingHorizontal="12dp"
+                android:paddingTop="12dp"
                 android:paddingBottom="72dp"
                 android:clipToPadding="false" />
 
             <!-- Empty state -->
-            <LinearLayout
+            <TextView
                 android:id="@+id/layout_notes_empty"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical"
                 android:gravity="center"
-                android:paddingHorizontal="@dimen/space_xl">
+                android:paddingTop="80dp"
+                android:text="No saved notes yet.\nClick the + button to add one."
+                android:textAlignment="center"
+                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                android:textColor="@color/slate_400"
+                android:visibility="gone" />
 
-                <ImageView
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:alpha="0.3"
-                    android:contentDescription="Notes"
-                    android:scaleType="centerInside"
-                    app:srcCompat="@drawable/ic_tab_notes"
-                    app:tint="@color/colorPrimary" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_lg"
-                    android:gravity="center"
-                    android:text="No saved notes yet.\nTap + to add a note at current position."
-                    android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                    android:textColor="@color/colorOnSurfaceVariant" />
-
-            </LinearLayout>
-
-            <!-- Add note button -->
+            <!-- Dark FAB — slate_900 circle, 56dp -->
             <ImageView
                 android:id="@+id/fab_add_note"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
                 android:layout_gravity="bottom|end"
-                android:layout_margin="@dimen/space_lg"
+                android:layout_margin="16dp"
                 android:contentDescription="Add Note"
                 android:src="@drawable/ic_add"
                 android:scaleType="centerInside"
-                android:background="@drawable/bg_fab_circle"
-                app:tint="@color/colorOnPrimary"
+                android:background="@drawable/bg_dark_fab"
+                app:tint="@color/white"
                 android:clickable="true"
                 android:focusable="true" />
 
-            <!-- Add note form — dropdown card from top -->
-            <com.google.android.material.card.MaterialCardView
+            <!-- Add note form — white card, 12dp corners, slate_200 border -->
+            <LinearLayout
                 android:id="@+id/layout_add_note_form"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="top"
-                android:layout_margin="@dimen/space_md"
-                android:visibility="gone"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="8dp"
-                app:cardBackgroundColor="@color/colorSurface"
-                app:strokeWidth="0dp">
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginTop="12dp"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:background="@drawable/bg_note_form_card"
+                android:visibility="gone">
 
+                <!-- Auto-growing text input -->
+                <EditText
+                    android:id="@+id/et_note_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="44dp"
+                    android:maxHeight="300dp"
+                    android:gravity="top"
+                    android:background="@null"
+                    android:hint="Write a note..."
+                    android:textColor="@color/slate_900"
+                    android:textColorHint="@color/slate_400"
+                    android:textSize="14sp"
+                    android:lineSpacingMultiplier="1.5"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:importantForAutofill="no" />
+
+                <!-- Action buttons row — right-aligned -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:paddingHorizontal="20dp"
-                    android:paddingTop="16dp"
-                    android:paddingBottom="20dp">
+                    android:orientation="horizontal"
+                    android:gravity="end|center_vertical"
+                    android:layout_marginTop="12dp">
 
-                    <!-- Close X at top-right -->
-                    <ImageView
-                        android:id="@+id/iv_close_note_form"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:layout_gravity="end"
-                        android:scaleType="centerInside"
-                        android:contentDescription="Close"
-                        android:src="@drawable/ic_close"
-                        android:tint="@color/colorOnSurfaceVariant"
-                        android:padding="4dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
+                    <!-- Cancel button -->
+                    <TextView
+                        android:id="@+id/btn_cancel_note"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:gravity="center"
+                        android:paddingHorizontal="14dp"
+                        android:text="Cancel"
+                        android:textSize="13sp"
+                        android:textStyle="normal"
+                        android:textColor="@color/slate_600"
+                        android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true" />
 
-                    <!-- Note text -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/til_note_text"
-                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:layout_marginBottom="@dimen/space_lg"
-                        android:hint="Note"
-                        app:errorEnabled="true">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/et_note_text"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textMultiLine"
-                            android:minLines="2"
-                            android:maxLines="4"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- Save button at bottom -->
-                    <com.google.android.material.button.MaterialButton
+                    <!-- Add Note / Save Changes button -->
+                    <TextView
                         android:id="@+id/btn_save_note"
-                        style="@style/Widget.Material3.Button"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Save Note"
-                        app:cornerRadius="12dp"
-                        app:icon="@drawable/ic_check"
-                        app:iconGravity="textStart" />
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:layout_marginStart="8dp"
+                        android:gravity="center"
+                        android:paddingHorizontal="14dp"
+                        android:text="Add Note"
+                        android:textSize="13sp"
+                        android:textStyle="normal"
+                        android:textColor="@color/white"
+                        android:background="@drawable/bg_note_button"
+                        android:clickable="true"
+                        android:focusable="true" />
 
                 </LinearLayout>
 
-            </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
 
         </FrameLayout>
 
