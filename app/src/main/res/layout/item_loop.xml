@@ -6,21 +6,24 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingVertical="@dimen/space_xl"
+    android:paddingVertical="14dp"
     android:paddingHorizontal="@dimen/space_lg"
-    android:layout_marginVertical="@dimen/space_xs"
+    android:layout_marginVertical="4dp"
+    android:layout_marginHorizontal="@dimen/space_sm"
     android:background="@drawable/bg_dialogue_item"
     android:clickable="true"
     android:focusable="true">
 
-    <!-- Headphone icon -->
+    <!-- Loop icon -->
     <ImageView
-        android:layout_width="36dp"
-        android:layout_height="36dp"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
         android:scaleType="centerInside"
         android:contentDescription="Loop"
         android:src="@drawable/ic_audio_track"
-        android:tint="@color/colorPrimary" />
+        android:tint="@color/colorPrimary"
+        android:background="@drawable/bg_fab_circle"
+        android:padding="8dp" />
 
     <!-- Loop info -->
     <LinearLayout
@@ -36,29 +39,31 @@
             android:layout_height="wrap_content"
             android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
             android:textColor="@color/colorOnSurface"
+            android:textStyle="bold"
             tools:text="Practice Greeting" />
 
         <TextView
             android:id="@+id/tv_loop_range"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_xs"
+            android:layout_marginTop="2dp"
             android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
             android:textColor="@color/colorOnSurfaceVariant"
-            tools:text="0:05 - 0:15  •  x3" />
+            tools:text="0:05 - 0:15  •  x3  •  10s" />
 
     </LinearLayout>
 
     <!-- Delete button -->
     <ImageView
         android:id="@+id/iv_loop_delete"
-        android:layout_width="28dp"
-        android:layout_height="28dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
         android:scaleType="centerInside"
         android:contentDescription="Delete"
         android:src="@drawable/ic_delete"
         android:tint="@color/colorOnSurfaceVariant"
-        android:padding="@dimen/space_xs"
+        android:padding="6dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
         android:clickable="true"
         android:focusable="true" />
 

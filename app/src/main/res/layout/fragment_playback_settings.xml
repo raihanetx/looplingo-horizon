@@ -377,7 +377,7 @@
 
             </LinearLayout>
 
-            <!-- Add loop button — round -->
+            <!-- Add loop button -->
             <ImageView
                 android:id="@+id/fab_add_loop"
                 android:layout_width="48dp"
@@ -392,220 +392,219 @@
                 android:clickable="true"
                 android:focusable="true" />
 
-            <!-- Add loop form (popup overlay) -->
-            <LinearLayout
+            <!-- Add loop form — card overlay at bottom -->
+            <com.google.android.material.card.MaterialCardView
                 android:id="@+id/layout_add_loop_form"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:background="@color/colorBackground"
-                android:padding="@dimen/space_lg"
-                android:visibility="gone">
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:visibility="gone"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="8dp"
+                app:cardBackgroundColor="@color/colorSurface"
+                app:strokeWidth="0dp">
 
-                <!-- Form header -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="@dimen/space_lg">
+                    android:orientation="vertical"
+                    android:padding="@dimen/space_lg">
 
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Add Loop"
-                        android:textAppearance="@style/TextAppearance.Horizon.TitleLarge"
-                        android:textColor="@color/colorOnSurface" />
-
-                    <ImageView
-                        android:id="@+id/iv_close_loop_form"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:scaleType="centerInside"
-                        android:contentDescription="Close"
-                        android:src="@drawable/ic_close"
-                        android:tint="@color/colorOnSurface"
-                        android:clickable="true"
-                        android:focusable="true" />
-
-                </LinearLayout>
-
-                <!-- Loop name -->
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/til_loop_name"
-                    style="@style/Widget.Horizon.TextInputLayout.Outlined"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="@dimen/space_md"
-                    android:hint="Loop Name"
-                    app:errorEnabled="true">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/et_loop_name"
+                    <!-- Form header -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="text"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="@dimen/space_md">
 
-                </com.google.android.material.textfield.TextInputLayout>
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Add Loop"
+                            android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
+                            android:textColor="@color/colorOnSurface" />
 
-                <!-- Start / End time row -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="@dimen/space_sm">
+                        <ImageView
+                            android:id="@+id/iv_close_loop_form"
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:scaleType="centerInside"
+                            android:contentDescription="Close"
+                            android:src="@drawable/ic_close"
+                            android:tint="@color/colorOnSurface"
+                            android:clickable="true"
+                            android:focusable="true" />
 
+                    </LinearLayout>
+
+                    <!-- Loop name -->
                     <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/til_loop_start"
+                        android:id="@+id/til_loop_name"
                         style="@style/Widget.Horizon.TextInputLayout.Outlined"
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:hint="Start Time"
+                        android:layout_marginBottom="@dimen/space_sm"
+                        android:hint="Loop Name"
                         app:errorEnabled="true">
 
                         <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/et_loop_start"
+                            android:id="@+id/et_loop_name"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="text"
-                            android:text="0:00"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
 
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <!-- Start / End time row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="center_vertical"
-                        android:layout_marginHorizontal="@dimen/space_sm"
-                        android:text="@string/range_separator"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="@dimen/space_xs">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_loop_start"
+                            style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:hint="Start Time"
+                            app:errorEnabled="true">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/et_loop_start"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:text="0:00"
+                                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginHorizontal="@dimen/space_sm"
+                            android:text="@string/range_separator"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                            android:textColor="@color/colorOnSurfaceVariant" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_loop_end"
+                            style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:hint="End Time"
+                            app:errorEnabled="true">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/et_loop_end"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/space_sm"
+                        android:text="@string/hint_time_format"
+                        android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
                         android:textColor="@color/colorOnSurfaceVariant" />
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/til_loop_end"
-                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
-                        android:layout_width="0dp"
+                    <!-- Loop count + Actions -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:hint="End Time"
-                        app:errorEnabled="true">
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
 
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/et_loop_end"
-                            android:layout_width="match_parent"
+                        <TextView
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:inputType="text"
-                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
+                            android:text="@string/loop_count_label"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                            android:textColor="@color/colorOnSurface" />
 
-                    </com.google.android.material.textfield.TextInputLayout>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_loop_form_minus"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="@dimen/space_sm"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:insetLeft="0dp"
+                            android:insetRight="0dp"
+                            android:minWidth="32dp"
+                            android:minHeight="32dp"
+                            android:padding="0dp"
+                            android:text="−"
+                            android:textSize="16sp"
+                            app:cornerRadius="16dp" />
 
-                </LinearLayout>
+                        <TextView
+                            android:id="@+id/tv_loop_form_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="6dp"
+                            android:text="3"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                            android:textColor="@color/colorOnSurface" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="@dimen/space_md"
-                    android:text="@string/hint_time_format"
-                    android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
-                    android:textColor="@color/colorOnSurfaceVariant" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_loop_form_plus"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:insetLeft="0dp"
+                            android:insetRight="0dp"
+                            android:minWidth="32dp"
+                            android:minHeight="32dp"
+                            android:padding="0dp"
+                            android:text="+"
+                            android:textSize="16sp"
+                            app:cornerRadius="16dp" />
 
-                <!-- Loop count -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="@dimen/space_lg">
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/loop_count_label"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                        android:textColor="@color/colorOnSurface" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_loop_preview"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Preview"
+                            android:textSize="12sp" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_loop_form_minus"
-                        style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:layout_marginStart="@dimen/space_sm"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:insetLeft="0dp"
-                        android:insetRight="0dp"
-                        android:minWidth="32dp"
-                        android:minHeight="32dp"
-                        android:padding="0dp"
-                        android:text="−"
-                        android:textSize="16sp"
-                        app:cornerRadius="16dp" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_loop_save"
+                            style="@style/Widget.Material3.Button"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/space_sm"
+                            android:text="Save"
+                            android:textSize="12sp" />
 
-                    <TextView
-                        android:id="@+id/tv_loop_form_count"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginHorizontal="6dp"
-                        android:text="3"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
-                        android:textColor="@color/colorOnSurface" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_loop_form_plus"
-                        style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:insetLeft="0dp"
-                        android:insetRight="0dp"
-                        android:minWidth="32dp"
-                        android:minHeight="32dp"
-                        android:padding="0dp"
-                        android:text="+"
-                        android:textSize="16sp"
-                        app:cornerRadius="16dp" />
+                    </LinearLayout>
 
                 </LinearLayout>
 
-                <!-- Action buttons: Preview + Save -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_loop_preview"
-                        style="@style/Widget.Horizon.Button.Outlined"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginEnd="@dimen/space_sm"
-                        android:text="Preview"
-                        app:cornerRadius="20dp"
-                        app:icon="@drawable/ic_play"
-                        app:iconGravity="textStart" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_loop_save"
-                        style="@style/Widget.Horizon.Button"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="@dimen/space_sm"
-                        android:text="@string/btn_save"
-                        app:cornerRadius="20dp"
-                        app:icon="@drawable/ic_check"
-                        app:iconGravity="textStart" />
-
-                </LinearLayout>
-
-            </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
         </FrameLayout>
 
@@ -655,7 +654,7 @@
 
             </LinearLayout>
 
-            <!-- Add note button — round -->
+            <!-- Add note button -->
             <ImageView
                 android:id="@+id/fab_add_note"
                 android:layout_width="48dp"
@@ -670,78 +669,88 @@
                 android:clickable="true"
                 android:focusable="true" />
 
-            <!-- Add note form (popup overlay) -->
-            <LinearLayout
+            <!-- Add note form — card overlay at bottom -->
+            <com.google.android.material.card.MaterialCardView
                 android:id="@+id/layout_add_note_form"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:background="@color/colorBackground"
-                android:padding="@dimen/space_lg"
-                android:visibility="gone">
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:visibility="gone"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="8dp"
+                app:cardBackgroundColor="@color/colorSurface"
+                app:strokeWidth="0dp">
 
-                <!-- Form header -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="@dimen/space_lg">
+                    android:orientation="vertical"
+                    android:padding="@dimen/space_lg">
 
-                    <TextView
-                        android:layout_width="0dp"
+                    <!-- Form header -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Add Note"
-                        android:textAppearance="@style/TextAppearance.Horizon.TitleLarge"
-                        android:textColor="@color/colorOnSurface" />
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="@dimen/space_md">
 
-                    <ImageView
-                        android:id="@+id/iv_close_note_form"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:scaleType="centerInside"
-                        android:contentDescription="Close"
-                        android:src="@drawable/ic_close"
-                        android:tint="@color/colorOnSurface"
-                        android:clickable="true"
-                        android:focusable="true" />
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Add Note"
+                            android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
+                            android:textColor="@color/colorOnSurface" />
+
+                        <ImageView
+                            android:id="@+id/iv_close_note_form"
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:scaleType="centerInside"
+                            android:contentDescription="Close"
+                            android:src="@drawable/ic_close"
+                            android:tint="@color/colorOnSurface"
+                            android:clickable="true"
+                            android:focusable="true" />
+
+                    </LinearLayout>
+
+                    <!-- Note text -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_note_text"
+                        style="@style/Widget.Horizon.TextInputLayout.Outlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/space_md"
+                        android:hint="Note"
+                        app:errorEnabled="true">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_note_text"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textMultiLine"
+                            android:minLines="2"
+                            android:maxLines="4"
+                            android:textAppearance="@style/TextAppearance.Horizon.BodyMedium" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Save button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_save_note"
+                        style="@style/Widget.Material3.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Save Note"
+                        app:cornerRadius="12dp"
+                        app:icon="@drawable/ic_check"
+                        app:iconGravity="textStart" />
 
                 </LinearLayout>
 
-                <!-- Note text -->
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/til_note_text"
-                    style="@style/Widget.Horizon.TextInputLayout.Outlined"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="@dimen/space_lg"
-                    android:hint="Note"
-                    app:errorEnabled="true">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/et_note_text"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="textMultiLine"
-                        android:minLines="3"
-                        android:maxLines="6"
-                        android:textAppearance="@style/TextAppearance.Horizon.BodyLarge" />
-
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <!-- Save button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_save_note"
-                    style="@style/Widget.Horizon.Button"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Save Note"
-                    app:cornerRadius="20dp"
-                    app:icon="@drawable/ic_check"
-                    app:iconGravity="textStart" />
-
-            </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
         </FrameLayout>
 
@@ -887,8 +896,8 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="@dimen/space_lg"
-            android:paddingTop="24dp"
-            android:paddingBottom="24dp">
+            android:paddingTop="16dp"
+            android:paddingBottom="20dp">
 
             <!-- Track Title -->
             <TextView
@@ -908,7 +917,7 @@
                 android:id="@+id/tv_player_info_line"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="4dp"
                 android:gravity="center"
                 android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
                 android:textColor="@color/colorOnSurfaceVariant"
@@ -918,7 +927,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
 
@@ -956,6 +965,61 @@
 
             </LinearLayout>
 
+            <!-- Transport Controls -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btn_rewind_5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:gravity="center"
+                    android:paddingHorizontal="20dp"
+                    android:text="-5s"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelLarge"
+                    android:textColor="@color/colorOnSurface"
+                    android:textStyle="bold"
+                    android:background="@drawable/bg_rounded_button"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/btn_play_pause"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:gravity="center"
+                    android:paddingHorizontal="28dp"
+                    android:layout_marginHorizontal="16dp"
+                    android:text="Play"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelLarge"
+                    android:textColor="@color/colorOnPrimary"
+                    android:textStyle="bold"
+                    android:background="@drawable/bg_play_pause_button"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/btn_forward_5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:gravity="center"
+                    android:paddingHorizontal="20dp"
+                    android:text="+5s"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelLarge"
+                    android:textColor="@color/colorOnSurface"
+                    android:textStyle="bold"
+                    android:background="@drawable/bg_rounded_button"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
             <!-- Transport Controls: [-5s] [Play/Pause] [+5s] -->
             <LinearLayout
                 android:layout_width="match_parent"
@@ -964,46 +1028,49 @@
                 android:gravity="center"
                 android:orientation="horizontal">
 
-                <!-- -5s rewind — round -->
+                <!-- -5s rewind -->
                 <TextView
                     android:id="@+id/btn_rewind_5"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
                     android:gravity="center"
+                    android:paddingHorizontal="20dp"
                     android:text="-5s"
-                    android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelLarge"
                     android:textColor="@color/colorOnSurface"
                     android:textStyle="bold"
-                    android:background="@drawable/bg_circle_button"
+                    android:background="@drawable/bg_rounded_button"
                     android:clickable="true"
                     android:focusable="true" />
 
-                <!-- Play/Pause — round -->
+                <!-- Play/Pause -->
                 <TextView
                     android:id="@+id/btn_play_pause"
-                    android:layout_width="52dp"
-                    android:layout_height="52dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
                     android:gravity="center"
-                    android:layout_marginHorizontal="20dp"
+                    android:paddingHorizontal="28dp"
+                    android:layout_marginHorizontal="16dp"
                     android:text="Play"
                     android:textAppearance="@style/TextAppearance.Horizon.LabelLarge"
                     android:textColor="@color/colorOnPrimary"
                     android:textStyle="bold"
-                    android:background="@drawable/bg_play_button"
+                    android:background="@drawable/bg_play_pause_button"
                     android:clickable="true"
                     android:focusable="true" />
 
-                <!-- +5s forward — round -->
+                <!-- +5s forward -->
                 <TextView
                     android:id="@+id/btn_forward_5"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
                     android:gravity="center"
+                    android:paddingHorizontal="20dp"
                     android:text="+5s"
-                    android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelLarge"
                     android:textColor="@color/colorOnSurface"
                     android:textStyle="bold"
-                    android:background="@drawable/bg_circle_button"
+                    android:background="@drawable/bg_rounded_button"
                     android:clickable="true"
                     android:focusable="true" />
 

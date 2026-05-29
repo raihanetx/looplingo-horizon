@@ -60,7 +60,9 @@ class LoopAdapter(
         holder.tvName.text = loop.name
         val start = TimeUtils.formatMsToTime(loop.startMs)
         val end = TimeUtils.formatMsToTime(loop.endMs)
-        holder.tvRange.text = "$start - $end  •  x${loop.loopCount}"
+        val durationSec = ((loop.endMs - loop.startMs) / 1000).toInt()
+        val durationText = if (durationSec >= 60) "${durationSec / 60}m ${durationSec % 60}s" else "${durationSec}s"
+        holder.tvRange.text = "$start - $end  •  x${loop.loopCount}  •  $durationText"
 
         holder.itemView.setOnClickListener {
             onLoopClick(loop, holder.bindingAdapterPosition)
