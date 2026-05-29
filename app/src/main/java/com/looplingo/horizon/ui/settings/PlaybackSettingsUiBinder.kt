@@ -221,11 +221,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 playbackUIHelper.updateLoopEmptyState(binding, hasLoops)
                 saveLoops(prefs, videoPath, loopAdapter?.getLoops() ?: emptyList())
 
-                binding.etLoopName.setText("")
-                binding.etLoopStart.setText("0:00")
-                binding.etLoopEnd.setText("")
-                binding.etLoopCount.setText("3")
-                playbackUIHelper.hideLoopForm(binding)
+                playbackUIHelper.clearLoopForm(binding)
                 playbackUIHelper.showSnackbar(binding.root, "Loop saved: $name")
             }
         )
@@ -256,7 +252,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
             onEditClick = { note, position ->
                 editingNotePosition = position
                 binding.etNoteText.setText(note.text)
-                playbackUIHelper.showNoteForm(binding)
+                binding.etNoteText.requestFocus()
             }
         )
         noteAdapter?.setNotes(savedNotes)
@@ -283,8 +279,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 playbackUIHelper.updateNoteEmptyState(binding, hasNotes)
                 saveNotes(prefs, videoPath, noteAdapter?.getNotes() ?: emptyList())
 
-                binding.etNoteText.setText("")
-                playbackUIHelper.hideNoteForm(binding)
+                playbackUIHelper.clearNoteForm(binding)
             }
         )
 

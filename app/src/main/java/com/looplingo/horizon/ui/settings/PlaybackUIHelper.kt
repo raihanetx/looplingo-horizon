@@ -1,7 +1,6 @@
 package com.looplingo.horizon.ui.settings
 
 import android.view.View
-import android.view.animation.AnimationUtils
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.android.material.snackbar.Snackbar
@@ -94,9 +93,6 @@ class PlaybackUIHelper @Inject constructor() {
         onPreview: () -> Unit,
         onSave: () -> Unit
     ) {
-        binding.fabAddLoop.setOnClickListener {
-            showLoopFormAnimated(binding)
-        }
         binding.btnLoopPreview.setOnClickListener { onPreview() }
         binding.btnSaveLoop.setOnClickListener { onSave() }
     }
@@ -105,66 +101,21 @@ class PlaybackUIHelper @Inject constructor() {
         binding: FragmentPlaybackSettingsBinding,
         onSave: () -> Unit
     ) {
-        binding.fabAddNote.setOnClickListener {
-            showNoteFormAnimated(binding)
-        }
         binding.btnSaveNote.setOnClickListener { onSave() }
     }
 
-    internal fun showLoopFormAnimated(binding: FragmentPlaybackSettingsBinding) {
-        binding.fabAddLoop.visibility = View.GONE
-        binding.layoutAddLoopForm.visibility = View.VISIBLE
-        val slideDown = AnimationUtils.loadAnimation(binding.root.context, R.anim.slide_down)
-        binding.layoutAddLoopForm.startAnimation(slideDown)
+    internal fun clearLoopForm(binding: FragmentPlaybackSettingsBinding) {
+        binding.etLoopName.setText("")
+        binding.etLoopStart.setText("0:00")
+        binding.etLoopEnd.setText("")
+        binding.etLoopCount.setText("3")
+        binding.etLoopName.error = null
+        binding.etLoopStart.error = null
+        binding.etLoopEnd.error = null
     }
 
-    internal fun hideLoopFormAnimated(binding: FragmentPlaybackSettingsBinding) {
-        val slideUp = AnimationUtils.loadAnimation(binding.root.context, R.anim.slide_up)
-        slideUp.setAnimationListener(object : android.view.animation.Animation.AnimationListener {
-            override fun onAnimationStart(animation: android.view.animation.Animation?) {}
-            override fun onAnimationRepeat(animation: android.view.animation.Animation?) {}
-            override fun onAnimationEnd(animation: android.view.animation.Animation?) {
-                binding.layoutAddLoopForm.visibility = View.GONE
-                binding.fabAddLoop.visibility = View.VISIBLE
-            }
-        })
-        binding.layoutAddLoopForm.startAnimation(slideUp)
-    }
-
-    internal fun showLoopForm(binding: FragmentPlaybackSettingsBinding) {
-        showLoopFormAnimated(binding)
-    }
-
-    internal fun hideLoopForm(binding: FragmentPlaybackSettingsBinding) {
-        hideLoopFormAnimated(binding)
-    }
-
-    internal fun showNoteFormAnimated(binding: FragmentPlaybackSettingsBinding) {
-        binding.fabAddNote.visibility = View.GONE
-        binding.layoutAddNoteForm.visibility = View.VISIBLE
-        val slideDown = AnimationUtils.loadAnimation(binding.root.context, R.anim.slide_down)
-        binding.layoutAddNoteForm.startAnimation(slideDown)
-    }
-
-    internal fun hideNoteFormAnimated(binding: FragmentPlaybackSettingsBinding) {
-        val slideUp = AnimationUtils.loadAnimation(binding.root.context, R.anim.slide_up)
-        slideUp.setAnimationListener(object : android.view.animation.Animation.AnimationListener {
-            override fun onAnimationStart(animation: android.view.animation.Animation?) {}
-            override fun onAnimationRepeat(animation: android.view.animation.Animation?) {}
-            override fun onAnimationEnd(animation: android.view.animation.Animation?) {
-                binding.layoutAddNoteForm.visibility = View.GONE
-                binding.fabAddNote.visibility = View.VISIBLE
-            }
-        })
-        binding.layoutAddNoteForm.startAnimation(slideUp)
-    }
-
-    internal fun showNoteForm(binding: FragmentPlaybackSettingsBinding) {
-        showNoteFormAnimated(binding)
-    }
-
-    internal fun hideNoteForm(binding: FragmentPlaybackSettingsBinding) {
-        hideNoteFormAnimated(binding)
+    internal fun clearNoteForm(binding: FragmentPlaybackSettingsBinding) {
+        binding.etNoteText.setText("")
     }
 
     internal fun updateLoopEmptyState(binding: FragmentPlaybackSettingsBinding, hasLoops: Boolean) {

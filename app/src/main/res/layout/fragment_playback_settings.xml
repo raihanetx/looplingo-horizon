@@ -388,19 +388,18 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <!-- Add loop form — compact single-line input (at top) -->
+            <!-- Add loop form — compact single-line input (at top, always visible) -->
             <LinearLayout
                 android:id="@+id/layout_add_loop_form"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginHorizontal="12dp"
-                android:layout_marginTop="12dp"
+                android:layout_marginHorizontal="8dp"
+                android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="4dp"
-                android:background="@drawable/bg_compact_form"
-                android:visibility="gone">
+                android:background="@drawable/bg_compact_form">
 
                 <!-- Loop name -->
                 <EditText
@@ -528,9 +527,9 @@
                     android:id="@+id/rv_loop_list"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:paddingHorizontal="12dp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="72dp"
+                    android:paddingHorizontal="8dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="8dp"
                     android:clipToPadding="false" />
 
                 <!-- Empty state -->
@@ -560,21 +559,6 @@
 
                 </LinearLayout>
 
-                <!-- Dark FAB — slate_900 circle, 56dp -->
-                <ImageView
-                    android:id="@+id/fab_add_loop"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:layout_gravity="bottom|end"
-                    android:layout_margin="16dp"
-                    android:contentDescription="Add Loop"
-                    android:src="@drawable/ic_add"
-                    android:scaleType="centerInside"
-                    android:background="@drawable/bg_dark_fab"
-                    app:tint="@color/white"
-                    android:clickable="true"
-                    android:focusable="true" />
-
             </FrameLayout>
 
         </LinearLayout>
@@ -587,19 +571,18 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <!-- Add note form — compact single-line input (at top) -->
+            <!-- Add note form — compact single-line input (at top, always visible) -->
             <LinearLayout
                 android:id="@+id/layout_add_note_form"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginHorizontal="12dp"
-                android:layout_marginTop="12dp"
+                android:layout_marginHorizontal="8dp"
+                android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="4dp"
-                android:background="@drawable/bg_compact_form"
-                android:visibility="gone">
+                android:background="@drawable/bg_compact_form">
 
                 <!-- Note text input -->
                 <EditText
@@ -644,9 +627,9 @@
                     android:id="@+id/rv_notes_list"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:paddingHorizontal="12dp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="72dp"
+                    android:paddingHorizontal="8dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="8dp"
                     android:clipToPadding="false" />
 
                 <!-- Empty state -->
@@ -671,27 +654,12 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/space_lg"
                         android:gravity="center"
-                        android:text="No saved notes yet.\nClick the + button to add one."
+                        android:text="No saved notes yet."
                         android:textAlignment="center"
                         android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
                         android:textColor="@color/colorOnSurfaceVariant" />
 
                 </LinearLayout>
-
-                <!-- Dark FAB — slate_900 circle, 56dp -->
-                <ImageView
-                    android:id="@+id/fab_add_note"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:layout_gravity="bottom|end"
-                    android:layout_margin="16dp"
-                    android:contentDescription="Add Note"
-                    android:src="@drawable/ic_add"
-                    android:scaleType="centerInside"
-                    android:background="@drawable/bg_dark_fab"
-                    app:tint="@color/white"
-                    android:clickable="true"
-                    android:focusable="true" />
 
             </FrameLayout>
 
