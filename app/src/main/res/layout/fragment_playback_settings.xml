@@ -81,7 +81,7 @@
 
         </LinearLayout>
 
-        <!-- Options button (double arrow) — triggers subtitle generation / options -->
+        <!-- Send button — triggers subtitle generation -->
         <ImageView
             android:id="@+id/iv_send_subtitles"
             android:layout_width="wrap_content"
@@ -91,10 +91,17 @@
             android:clickable="true"
             android:focusable="true"
             android:background="?attr/selectableItemBackgroundBorderless"
-            app:srcCompat="@drawable/ic_double_arrow"
+            app:srcCompat="@drawable/ic_send"
             app:tint="@color/colorOnSurface" />
 
-        <!-- Speed indicator (no background, plain text) -->
+        <!-- Divider between send and speed -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="@dimen/space_sm"
+            android:background="@color/slate_200" />
+
+        <!-- Speed indicator -->
         <TextView
             android:id="@+id/tv_header_speed"
             android:layout_width="wrap_content"
@@ -102,6 +109,24 @@
             android:text="1.0x"
             android:textAppearance="@style/TextAppearance.Horizon.TitleSmall"
             android:textColor="@color/colorOnSurface"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <!-- Divider between speed and audio mode -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="20dp"
+            android:layout_marginHorizontal="@dimen/space_sm"
+            android:background="@color/slate_200" />
+
+        <!-- Audio mode toggle — text only -->
+        <TextView
+            android:id="@+id/tv_audio_mode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Audio"
+            android:textAppearance="@style/TextAppearance.Horizon.TitleSmall"
+            android:textColor="@color/colorOnSurfaceVariant"
             android:clickable="true"
             android:focusable="true" />
 
@@ -127,16 +152,14 @@
             android:paddingHorizontal="@dimen/space_xl"
             android:visibility="visible">
 
-            <!-- Large option icon (hidden when subtitles shown) -->
+            <!-- App logo (shown when no subtitles loaded) -->
             <ImageView
                 android:id="@+id/iv_clean_icon"
-                android:layout_width="64dp"
-                android:layout_height="64dp"
-                android:alpha="0.3"
-                android:contentDescription="@string/content_desc_video_icon"
-                android:scaleType="centerInside"
-                app:srcCompat="@drawable/ic_double_arrow"
-                app:tint="@color/colorPrimary" />
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:contentDescription="App logo"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_launcher_foreground" />
 
             <TextView
                 android:id="@+id/tv_clean_title"
@@ -149,6 +172,32 @@
                 android:textAppearance="@style/TextAppearance.Horizon.HeadlineMedium"
                 android:textColor="@color/colorOnSurface"
                 tools:text="Chapter 03" />
+
+            <!-- Processing state (shown during subtitle generation) -->
+            <LinearLayout
+                android:id="@+id/layout_processing"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_lg"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:visibility="gone">
+
+                <ProgressBar
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:indeterminate="true"
+                    android:indeterminateTint="@color/colorPrimary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_sm"
+                    android:text="Processing..."
+                    android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                    android:textColor="@color/colorOnSurfaceVariant" />
+
+            </LinearLayout>
 
             <!-- English dialogue (shown when subtitles active) -->
             <TextView

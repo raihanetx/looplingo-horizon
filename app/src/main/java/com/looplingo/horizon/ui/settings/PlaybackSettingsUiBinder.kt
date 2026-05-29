@@ -41,6 +41,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
     private var noteAdapter: NoteAdapter? = null
     private var editingNotePosition: Int = -1
     private var editingLoopPosition: Int = -1
+    private var isAudioOnly: Boolean = false
 
     fun bind(
         fragment: Fragment,
@@ -66,6 +67,11 @@ class PlaybackSettingsUiBinder @Inject constructor(
                     subtitleGenerated = false
                     triggerSubtitles(fragment, binding, viewModel, videoPath, contentUri)
                 }
+            },
+            onAudioModeClick = {
+                isAudioOnly = !isAudioOnly
+                playbackUIHelper.updateAudioMode(binding, isAudioOnly)
+                updateInfoLine(binding, viewModel)
             },
             subtitleGenerated = subtitleGenerated
         )
@@ -113,6 +119,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
             resetCleanView = {
                 binding.ivCleanIcon.visibility = View.VISIBLE; binding.tvCleanTitle.visibility = View.VISIBLE
                 binding.tvCleanEnglish.visibility = View.GONE; binding.tvCleanBangla.visibility = View.GONE
+                binding.layoutProcessing.visibility = View.GONE
             },
             onActiveSegmentChanged = { segIndex ->
                 dialogueAdapter?.setActivePosition(segIndex)
@@ -389,16 +396,23 @@ class PlaybackSettingsUiBinder @Inject constructor(
         }
         val speedLabel = SpeedPresets.ALL.getOrNull(currentSpeedIndex)?.label ?: SpeedPresets.DEFAULT.label
         val isInLoopMode = viewModel.currentTab.value == PlaybackSettingsViewModel.TAB_LOOP
-        playbackUIHelper.updatePlayerInfoLine(binding, tabName, loopCount, speedLabel, isInLoopMode)
+        playbackUIHelper.updatePlayerInfoLine(binding, tabName, loopCount, speedLabel, isInLoopMode, isAudioOnly)
     }
 
     private fun triggerSubtitles(fragment: Fragment, binding: FragmentPlaybackSettingsBinding, viewModel: PlaybackSettingsViewModel, videoPath: String, contentUri: String) {
         subtitleGenerationManager.triggerSubtitleGeneration(fragment, binding, viewModel, groqApiClient, playbackUIHelper, videoPath, contentUri,
-            onStart = { isGeneratingSubtitles = true },
+            onStart = {
+                isGeneratingSubtitles = true
+                playbackUIHelper.showProcessing(binding)
+            },
             onSuccess = { segs, texts ->
                 dialogueSegments = segs; translatedTexts = texts; selectedSegmentIndex = -1; subtitleGenerated = true; isGeneratingSubtitles = false
+                playbackUIHelper.hideProcessing(binding)
             },
-            onError = { isGeneratingSubtitles = false; subtitleGenerated = false },
+            onError = {
+                isGeneratingSubtitles = false; subtitleGenerated = false
+                playbackUIHelper.hideProcessing(binding)
+            },
             showDialogueList = { segs ->
                 dialogueAdapter = dialogueInteractionHandler.showDialogueList(binding, segs, translatedTexts) { segment, index ->
                     dialogueInteractionHandler.onDialogueSegmentSelected(binding, playbackUIHelper, videoPath, segment, index, dialogueAdapter)

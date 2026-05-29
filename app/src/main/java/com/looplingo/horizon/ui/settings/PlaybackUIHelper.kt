@@ -21,11 +21,13 @@ class PlaybackUIHelper @Inject constructor() {
         onBackClick: () -> Unit,
         onSpeedClick: () -> Unit,
         onSubtitleClick: () -> Unit,
+        onAudioModeClick: () -> Unit,
         subtitleGenerated: Boolean
     ) {
         binding.ivHeaderAvatar.setOnClickListener { onBackClick() }
         binding.tvHeaderSpeed.setOnClickListener { onSpeedClick() }
         binding.ivSendSubtitles.setOnClickListener { onSubtitleClick() }
+        binding.tvAudioMode.setOnClickListener { onAudioModeClick() }
         if (subtitleGenerated) {
             binding.ivSendSubtitles.visibility = View.GONE
         }
@@ -167,6 +169,27 @@ class PlaybackUIHelper @Inject constructor() {
         binding.rvDialogueList.visibility = if (hasDialogue) View.VISIBLE else View.GONE
     }
 
+    internal fun showProcessing(binding: FragmentPlaybackSettingsBinding) {
+        binding.ivCleanIcon.visibility = View.GONE
+        binding.tvCleanTitle.visibility = View.GONE
+        binding.tvCleanEnglish.visibility = View.GONE
+        binding.tvCleanBangla.visibility = View.GONE
+        binding.layoutProcessing.visibility = View.VISIBLE
+    }
+
+    internal fun hideProcessing(binding: FragmentPlaybackSettingsBinding) {
+        binding.layoutProcessing.visibility = View.GONE
+    }
+
+    internal fun updateAudioMode(binding: FragmentPlaybackSettingsBinding, isAudioOnly: Boolean) {
+        val context = binding.tvAudioMode.context
+        if (isAudioOnly) {
+            binding.tvAudioMode.setTextColor(context.resources.getColor(R.color.colorPrimary, null))
+        } else {
+            binding.tvAudioMode.setTextColor(context.resources.getColor(R.color.colorOnSurfaceVariant, null))
+        }
+    }
+
     internal fun setupNowPlayingCard(
         binding: FragmentPlaybackSettingsBinding,
         title: String,
@@ -204,10 +227,12 @@ class PlaybackUIHelper @Inject constructor() {
         tabName: String,
         loopCount: Int,
         speedLabel: String,
-        isInLoopMode: Boolean
+        isInLoopMode: Boolean,
+        isAudioOnly: Boolean
     ) {
         val loopText = if (isInLoopMode) "Loop:$loopCount" else "Loop:None"
-        binding.tvPlayerInfoLine.text = "Mode:$tabName | $loopText | Speed:$speedLabel"
+        val audioText = if (isAudioOnly) "Audio:On" else "Audio:Off"
+        binding.tvPlayerInfoLine.text = "Mode:$tabName | $loopText | Speed:$speedLabel | $audioText"
     }
 
     internal fun showSnackbar(view: View, message: String) {
