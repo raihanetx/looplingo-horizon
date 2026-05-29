@@ -120,6 +120,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
 
         positionPollingManager = PositionPollingManager(binding, playbackUIHelper, videoPath,
             getDialogueSegments = { dialogueSegments }, isCleanCycling = { isCleanCycling },
+            isAudioOnly = { isAudioOnly },
             showDialogueOnClean = { configSetupManager.showDialogueOnClean(binding, dialogueSegments, translatedTexts, it) },
             resetCleanView = {
                 binding.ivCleanIcon.visibility = View.VISIBLE; binding.tvCleanTitle.visibility = View.VISIBLE

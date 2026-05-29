@@ -21,6 +21,12 @@ class VideoAdapter(
             notifyItemRangeChanged(0, itemCount, PAYLOAD_BADGE_UPDATE)
         }
 
+    var videosWithSubtitles: Set<String> = emptySet()
+        set(value) {
+            field = value
+            notifyItemRangeChanged(0, itemCount, PAYLOAD_SUBTITLE_UPDATE)
+        }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VideoViewHolder {
         val binding = VideoItemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return VideoViewHolder(binding)
@@ -31,10 +37,10 @@ class VideoAdapter(
     }
 
     override fun onBindViewHolder(holder: VideoViewHolder, position: Int, payloads: MutableList<Any>) {
-        if (payloads.contains(PAYLOAD_BADGE_UPDATE)) {
-            holder.bindBadge(getItem(position))
-        } else {
-            super.onBindViewHolder(holder, position, payloads)
+        when {
+            payloads.contains(PAYLOAD_BADGE_UPDATE) -> holder.bindBadge(getItem(position))
+            payloads.contains(PAYLOAD_SUBTITLE_UPDATE) -> holder.bindSubtitleStatus(getItem(position))
+            else -> super.onBindViewHolder(holder, position, payloads)
         }
     }
 
@@ -48,6 +54,7 @@ class VideoAdapter(
             binding.tvSize.text = formatFileSize(video.size)
 
             bindBadge(video)
+            bindSubtitleStatus(video)
 
             binding.root.setOnClickListener {
                 onVideoClick(video)
@@ -63,6 +70,15 @@ class VideoAdapter(
                 binding.tvLoopBadge.visibility = android.view.View.VISIBLE
             } else {
                 binding.tvLoopBadge.visibility = android.view.View.GONE
+            }
+        }
+
+        fun bindSubtitleStatus(video: VideoEntity) {
+            if (videosWithSubtitles.contains(video.path)) {
+                binding.chipSubtitleStatus.visibility = android.view.View.VISIBLE
+                binding.chipSubtitleStatus.text = "Subtitles"
+            } else {
+                binding.chipSubtitleStatus.visibility = android.view.View.GONE
             }
         }
 
@@ -95,6 +111,7 @@ class VideoAdapter(
 
     companion object {
         const val PAYLOAD_BADGE_UPDATE = "badge_update"
+        const val PAYLOAD_SUBTITLE_UPDATE = "subtitle_update"
 
         private val fileSizeFormat = DecimalFormat("#,##0.#")
 

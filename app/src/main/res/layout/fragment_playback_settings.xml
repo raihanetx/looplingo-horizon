@@ -381,72 +381,21 @@
         </LinearLayout>
 
         <!-- ══════ PANEL: LOOP (Saved Loops + Add Loop FAB) ═════════════════ -->
-        <FrameLayout
+        <LinearLayout
             android:id="@+id/panel_loop"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:orientation="vertical"
             android:visibility="gone">
 
-            <!-- Loop list -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rv_loop_list"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:paddingHorizontal="@dimen/space_md"
-                android:paddingTop="@dimen/space_md"
-                android:paddingBottom="72dp"
-                android:clipToPadding="false" />
-
-            <!-- Empty state -->
-            <LinearLayout
-                android:id="@+id/layout_loop_empty"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:paddingHorizontal="@dimen/space_xl">
-
-                <ImageView
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
-                    android:contentDescription="Loop"
-                    android:scaleType="centerCrop"
-                    android:src="@drawable/ic_launcher_foreground" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_lg"
-                    android:gravity="center"
-                    android:text="@string/no_saved_loops"
-                    android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                    android:textColor="@color/colorOnSurfaceVariant" />
-
-            </LinearLayout>
-
-            <!-- Dark FAB — slate_900 circle, 56dp -->
-            <ImageView
-                android:id="@+id/fab_add_loop"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_gravity="bottom|end"
-                android:layout_margin="16dp"
-                android:contentDescription="Add Loop"
-                android:src="@drawable/ic_add"
-                android:scaleType="centerInside"
-                android:background="@drawable/bg_dark_fab"
-                app:tint="@color/white"
-                android:clickable="true"
-                android:focusable="true" />
-
-            <!-- Add loop form — compact single-line input -->
+            <!-- Add loop form — compact single-line input (at top) -->
             <LinearLayout
                 android:id="@+id/layout_add_loop_form"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_gravity="top"
                 android:layout_marginHorizontal="12dp"
                 android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="4dp"
@@ -569,77 +518,83 @@
 
             </LinearLayout>
 
-        </FrameLayout>
+            <!-- Loop list -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_loop_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:paddingHorizontal="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="72dp"
+                    android:clipToPadding="false" />
+
+                <!-- Empty state -->
+                <LinearLayout
+                    android:id="@+id/layout_loop_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:paddingHorizontal="@dimen/space_xl">
+
+                    <ImageView
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:contentDescription="Loop"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/ic_launcher_foreground" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_lg"
+                        android:gravity="center"
+                        android:text="@string/no_saved_loops"
+                        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                        android:textColor="@color/colorOnSurfaceVariant" />
+
+                </LinearLayout>
+
+                <!-- Dark FAB — slate_900 circle, 56dp -->
+                <ImageView
+                    android:id="@+id/fab_add_loop"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_gravity="bottom|end"
+                    android:layout_margin="16dp"
+                    android:contentDescription="Add Loop"
+                    android:src="@drawable/ic_add"
+                    android:scaleType="centerInside"
+                    android:background="@drawable/bg_dark_fab"
+                    app:tint="@color/white"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </FrameLayout>
+
+        </LinearLayout>
 
         <!-- ══════ PANEL: NOTES (Saved Notes + Add Note FAB) ════════════════ -->
-        <FrameLayout
+        <LinearLayout
             android:id="@+id/panel_notes"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:orientation="vertical"
             android:visibility="gone">
 
-            <!-- Notes list with spacing between cards -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rv_notes_list"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:paddingHorizontal="12dp"
-                android:paddingTop="12dp"
-                android:paddingBottom="72dp"
-                android:clipToPadding="false" />
-
-            <!-- Empty state -->
-            <LinearLayout
-                android:id="@+id/layout_notes_empty"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:paddingHorizontal="@dimen/space_xl"
-                android:visibility="gone">
-
-                <ImageView
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
-                    android:contentDescription="Notes"
-                    android:scaleType="centerCrop"
-                    android:src="@drawable/ic_launcher_foreground" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_lg"
-                    android:gravity="center"
-                    android:text="No saved notes yet.\nClick the + button to add one."
-                    android:textAlignment="center"
-                    android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                    android:textColor="@color/colorOnSurfaceVariant" />
-
-            </LinearLayout>
-
-            <!-- Dark FAB — slate_900 circle, 56dp -->
-            <ImageView
-                android:id="@+id/fab_add_note"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_gravity="bottom|end"
-                android:layout_margin="16dp"
-                android:contentDescription="Add Note"
-                android:src="@drawable/ic_add"
-                android:scaleType="centerInside"
-                android:background="@drawable/bg_dark_fab"
-                app:tint="@color/white"
-                android:clickable="true"
-                android:focusable="true" />
-
-            <!-- Add note form — compact single-line input -->
+            <!-- Add note form — compact single-line input (at top) -->
             <LinearLayout
                 android:id="@+id/layout_add_note_form"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_gravity="top"
                 android:layout_marginHorizontal="12dp"
                 android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="4dp"
@@ -679,7 +634,68 @@
 
             </LinearLayout>
 
-        </FrameLayout>
+            <!-- Notes list with spacing between cards -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_notes_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:paddingHorizontal="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="72dp"
+                    android:clipToPadding="false" />
+
+                <!-- Empty state -->
+                <LinearLayout
+                    android:id="@+id/layout_notes_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:paddingHorizontal="@dimen/space_xl"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:contentDescription="Notes"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/ic_launcher_foreground" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_lg"
+                        android:gravity="center"
+                        android:text="No saved notes yet.\nClick the + button to add one."
+                        android:textAlignment="center"
+                        android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                        android:textColor="@color/colorOnSurfaceVariant" />
+
+                </LinearLayout>
+
+                <!-- Dark FAB — slate_900 circle, 56dp -->
+                <ImageView
+                    android:id="@+id/fab_add_note"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_gravity="bottom|end"
+                    android:layout_margin="16dp"
+                    android:contentDescription="Add Note"
+                    android:src="@drawable/ic_add"
+                    android:scaleType="centerInside"
+                    android:background="@drawable/bg_dark_fab"
+                    app:tint="@color/white"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </FrameLayout>
+
+        </LinearLayout>
 
     </FrameLayout>
 

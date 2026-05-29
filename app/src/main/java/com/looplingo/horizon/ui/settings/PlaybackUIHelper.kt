@@ -214,6 +214,8 @@ class PlaybackUIHelper @Inject constructor() {
             binding.tvAudioMode.setPadding(0, 0, 0, 0)
             binding.ivCleanIcon.visibility = View.GONE
             binding.tvCleanTitle.visibility = View.VISIBLE
+            binding.tvCleanEnglish.visibility = View.GONE
+            binding.tvCleanBangla.visibility = View.GONE
         }
     }
 

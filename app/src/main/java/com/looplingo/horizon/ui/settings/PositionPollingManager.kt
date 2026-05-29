@@ -13,6 +13,7 @@ class PositionPollingManager(
     private val videoPath: String,
     private val getDialogueSegments: () -> List<Segment>,
     private val isCleanCycling: () -> Boolean,
+    private val isAudioOnly: () -> Boolean,
     private val showDialogueOnClean: (Int) -> Unit,
     private val resetCleanView: () -> Unit,
     private val onActiveSegmentChanged: (Int) -> Unit = {}
@@ -50,7 +51,7 @@ class PositionPollingManager(
                     )
 
                     val dialogueSegments = getDialogueSegments()
-                    if (dialogueSegments.isNotEmpty() && !isCleanCycling()) {
+                    if (dialogueSegments.isNotEmpty() && !isCleanCycling() && !isAudioOnly()) {
                         val currentSegment = dialogueSegments.find { position >= it.startMs && position < it.endMs }
                         val segIndex = if (currentSegment != null) dialogueSegments.indexOf(currentSegment) else -1
                         if (segIndex != lastActiveSegmentIndex) {

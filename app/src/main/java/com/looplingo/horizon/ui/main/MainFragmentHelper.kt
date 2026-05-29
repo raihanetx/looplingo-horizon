@@ -25,7 +25,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class MainFragmentHelper @Inject constructor() {
+class MainFragmentHelper @Inject constructor(
+    private val transcriptRepository: com.looplingo.horizon.data.repository.TranscriptRepository
+) {
 
     internal fun requestNotificationPermissionIfNeeded(
         fragment: Fragment,
@@ -97,6 +99,20 @@ class MainFragmentHelper @Inject constructor() {
                     viewModel.videos.collect { videoList ->
                         videoAdapter.submitList(videoList)
                         showEmptyState(binding, videoList.isEmpty())
+                        // Check which videos have subtitles
+                        launch {
+                            val videosWithSubs = mutableSetOf<String>()
+                            for (video in videoList) {
+                                try {
+                                    if (transcriptRepository.hasSubtitlesAsync(video.path)) {
+                                        videosWithSubs.add(video.path)
+                                    }
+                                } catch (e: Exception) {
+                                    Timber.w(e, "Failed to check subtitles for: %s", video.title)
+                                }
+                            }
+                            videoAdapter.videosWithSubtitles = videosWithSubs
+                        }
                     }
                 }
                 launch {

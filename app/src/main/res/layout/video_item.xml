@@ -4,8 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="@dimen/space_lg"
-    android:layout_marginVertical="@dimen/space_xs"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginVertical="4dp"
     app:cardCornerRadius="@dimen/glass_card_corner_radius"
     app:cardElevation="@dimen/card_elevation"
     app:strokeColor="@color/colorOutlineVariant"
@@ -16,8 +16,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:minHeight="@dimen/video_item_height"
-        android:paddingHorizontal="@dimen/space_lg"
-        android:paddingVertical="@dimen/space_md">
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp">
 
         <!-- Audio track icon — larger icon container (52dp) with rounded corners -->
         <com.google.android.material.card.MaterialCardView
