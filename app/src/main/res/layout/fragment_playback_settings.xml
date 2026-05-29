@@ -407,13 +407,11 @@
                 android:paddingHorizontal="@dimen/space_xl">
 
                 <ImageView
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:alpha="0.3"
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
                     android:contentDescription="Loop"
-                    android:scaleType="centerInside"
-                    android:src="@drawable/ic_tab_loop"
-                    android:tint="@color/colorPrimary" />
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_launcher_foreground" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -462,8 +460,8 @@
                     android:minHeight="44dp"
                     android:background="@null"
                     android:hint="Loop name..."
-                    android:textColor="@color/slate_900"
-                    android:textColorHint="@color/slate_400"
+                    android:textColor="@color/colorOnSurface"
+                    android:textColorHint="@color/colorOnSurfaceVariant"
                     android:textSize="14sp"
                     android:inputType="text"
                     android:importantForAutofill="no" />
@@ -473,7 +471,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginVertical="8dp"
-                    android:background="@color/slate_200" />
+                    android:background="@color/colorOutlineVariant" />
 
                 <!-- Start / End time row -->
                 <LinearLayout
@@ -492,8 +490,8 @@
                         android:background="@null"
                         android:hint="Start (0:00)"
                         android:text="0:00"
-                        android:textColor="@color/slate_900"
-                        android:textColorHint="@color/slate_400"
+                        android:textColor="@color/colorOnSurface"
+                        android:textColorHint="@color/colorOnSurfaceVariant"
                         android:textSize="14sp"
                         android:inputType="text"
                         android:importantForAutofill="no" />
@@ -503,7 +501,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="8dp"
                         android:text="@string/range_separator"
-                        android:textColor="@color/slate_400"
+                        android:textColor="@color/colorOnSurfaceVariant"
                         android:textSize="14sp" />
 
                     <EditText
@@ -514,8 +512,8 @@
                         android:minHeight="40dp"
                         android:background="@null"
                         android:hint="End"
-                        android:textColor="@color/slate_900"
-                        android:textColorHint="@color/slate_400"
+                        android:textColor="@color/colorOnSurface"
+                        android:textColorHint="@color/colorOnSurfaceVariant"
                         android:textSize="14sp"
                         android:inputType="text"
                         android:importantForAutofill="no" />
@@ -526,7 +524,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/hint_time_format"
-                    android:textColor="@color/slate_400"
+                    android:textColor="@color/colorOnSurfaceVariant"
                     android:textSize="11sp"
                     android:layout_marginBottom="8dp" />
 
@@ -542,7 +540,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/loop_count_label"
-                        android:textColor="@color/slate_600"
+                        android:textColor="@color/colorOnSurfaceVariant"
                         android:textSize="14sp" />
 
                     <TextView
@@ -553,7 +551,7 @@
                         android:gravity="center"
                         android:text="−"
                         android:textSize="18sp"
-                        android:textColor="@color/slate_600"
+                        android:textColor="@color/colorOnSurfaceVariant"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:focusable="true" />
@@ -564,7 +562,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="4dp"
                         android:text="3"
-                        android:textColor="@color/slate_900"
+                        android:textColor="@color/colorOnSurface"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -575,7 +573,7 @@
                         android:gravity="center"
                         android:text="+"
                         android:textSize="18sp"
-                        android:textColor="@color/slate_600"
+                        android:textColor="@color/colorOnSurfaceVariant"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:focusable="true" />
@@ -588,20 +586,20 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="end|center_vertical"
-                    android:layout_marginTop="12dp">
+                    android:layout_marginTop="16dp">
 
                     <!-- Cancel button -->
                     <TextView
                         android:id="@+id/btn_cancel_loop"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="38dp"
                         android:gravity="center"
-                        android:paddingHorizontal="14dp"
+                        android:paddingHorizontal="18dp"
                         android:text="Cancel"
                         android:textSize="13sp"
                         android:textStyle="normal"
-                        android:textColor="@color/slate_600"
-                        android:background="?attr/selectableItemBackground"
+                        android:textColor="@color/colorOnSurfaceVariant"
+                        android:background="@drawable/bg_cancel_button"
                         android:clickable="true"
                         android:focusable="true" />
 
@@ -609,14 +607,14 @@
                     <TextView
                         android:id="@+id/btn_save_loop"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginStart="8dp"
+                        android:layout_height="38dp"
+                        android:layout_marginStart="10dp"
                         android:gravity="center"
-                        android:paddingHorizontal="14dp"
+                        android:paddingHorizontal="18dp"
                         android:text="Save Loop"
                         android:textSize="13sp"
                         android:textStyle="normal"
-                        android:textColor="@color/white"
+                        android:textColor="@color/colorSurface"
                         android:background="@drawable/bg_note_button"
                         android:clickable="true"
                         android:focusable="true" />
@@ -645,17 +643,33 @@
                 android:clipToPadding="false" />
 
             <!-- Empty state -->
-            <TextView
+            <LinearLayout
                 android:id="@+id/layout_notes_empty"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:orientation="vertical"
                 android:gravity="center"
-                android:paddingTop="80dp"
-                android:text="No saved notes yet.\nClick the + button to add one."
-                android:textAlignment="center"
-                android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                android:textColor="@color/slate_400"
-                android:visibility="gone" />
+                android:paddingHorizontal="@dimen/space_xl"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:contentDescription="Notes"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_launcher_foreground" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_lg"
+                    android:gravity="center"
+                    android:text="No saved notes yet.\nClick the + button to add one."
+                    android:textAlignment="center"
+                    android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                    android:textColor="@color/colorOnSurfaceVariant" />
+
+            </LinearLayout>
 
             <!-- Dark FAB — slate_900 circle, 56dp -->
             <ImageView
@@ -695,8 +709,8 @@
                     android:gravity="top"
                     android:background="@null"
                     android:hint="Write a note..."
-                    android:textColor="@color/slate_900"
-                    android:textColorHint="@color/slate_400"
+                    android:textColor="@color/colorOnSurface"
+                    android:textColorHint="@color/colorOnSurfaceVariant"
                     android:textSize="14sp"
                     android:lineSpacingMultiplier="1.5"
                     android:inputType="textMultiLine|textCapSentences"
@@ -708,20 +722,20 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="end|center_vertical"
-                    android:layout_marginTop="12dp">
+                    android:layout_marginTop="16dp">
 
                     <!-- Cancel button -->
                     <TextView
                         android:id="@+id/btn_cancel_note"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="38dp"
                         android:gravity="center"
-                        android:paddingHorizontal="14dp"
+                        android:paddingHorizontal="18dp"
                         android:text="Cancel"
                         android:textSize="13sp"
                         android:textStyle="normal"
-                        android:textColor="@color/slate_600"
-                        android:background="?attr/selectableItemBackground"
+                        android:textColor="@color/colorOnSurfaceVariant"
+                        android:background="@drawable/bg_cancel_button"
                         android:clickable="true"
                         android:focusable="true" />
 
@@ -729,14 +743,14 @@
                     <TextView
                         android:id="@+id/btn_save_note"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginStart="8dp"
+                        android:layout_height="38dp"
+                        android:layout_marginStart="10dp"
                         android:gravity="center"
-                        android:paddingHorizontal="14dp"
+                        android:paddingHorizontal="18dp"
                         android:text="Add Note"
                         android:textSize="13sp"
                         android:textStyle="normal"
-                        android:textColor="@color/white"
+                        android:textColor="@color/colorSurface"
                         android:background="@drawable/bg_note_button"
                         android:clickable="true"
                         android:focusable="true" />
