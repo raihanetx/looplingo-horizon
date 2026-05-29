@@ -115,6 +115,11 @@ class PlaybackSettingsUiBinder @Inject constructor(
         // Setup note form
         setupNoteForm(fragment, binding, activity, videoPath)
 
+        // Setup play selected button
+        binding.btnPlaySelected.setOnClickListener {
+            dialogueInteractionHandler.playSelectedDialogues(binding, videoPath, dialogueAdapter)
+        }
+
         val title = videoPath.substringAfterLast("/").substringBeforeLast(".")
         playbackUIHelper.setupNowPlayingCard(binding, title, fragment.getString(R.string.clean_view_subtitle))
 
@@ -386,6 +391,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
             showDialogueList = { segs ->
                 dialogueAdapter = dialogueInteractionHandler.showDialogueList(binding, segs, translatedTexts) { segment, index ->
                     dialogueInteractionHandler.onDialogueSegmentSelected(binding, playbackUIHelper, videoPath, segment, index, dialogueAdapter)
+                    dialogueInteractionHandler.updatePlaySelectedButton(binding, dialogueAdapter)
                 }
             },
             switchTab = { switchTab(binding, viewModel, it) },
@@ -398,6 +404,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
             val (segs, texts) = subtitleGenerationManager.loadSubtitleCues(cues) { segs, texts ->
                 dialogueAdapter = dialogueInteractionHandler.showDialogueList(binding, segs, texts) { segment, index ->
                     dialogueInteractionHandler.onDialogueSegmentSelected(binding, playbackUIHelper, videoPath, segment, index, dialogueAdapter)
+                    dialogueInteractionHandler.updatePlaySelectedButton(binding, dialogueAdapter)
                 }
             }
             dialogueSegments = segs; translatedTexts = texts; selectedSegmentIndex = -1; subtitleGenerated = true

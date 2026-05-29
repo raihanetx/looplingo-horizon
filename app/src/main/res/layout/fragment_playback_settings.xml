@@ -239,7 +239,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:paddingHorizontal="16dp"
-                android:paddingVertical="16dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="72dp"
                 android:clipToPadding="false"
                 android:visibility="gone"
                 tools:listitem="@layout/item_subtitle_cue" />
@@ -273,6 +274,21 @@
                     android:textColor="@color/colorOnSurfaceVariant" />
 
             </LinearLayout>
+
+            <!-- Play Selected button (shown when items are selected) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_play_selected"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="16dp"
+                android:text="Play Selected"
+                android:textSize="13sp"
+                android:visibility="gone"
+                app:icon="@drawable/ic_play"
+                app:iconGravity="textStart"
+                app:cornerRadius="22dp"
+                style="@style/Widget.MaterialComponents.Button" />
 
         </FrameLayout>
 

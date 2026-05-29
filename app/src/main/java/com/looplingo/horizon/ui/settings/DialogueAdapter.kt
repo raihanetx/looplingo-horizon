@@ -46,6 +46,18 @@ class DialogueAdapter(
 
     fun isActivePosition(pos: Int): Boolean = pos == activePlayPos
 
+    fun getSelectedIndices(): IntArray = selectedPositions.sorted().toIntArray()
+
+    fun getSelectedCount(): Int = selectedPositions.size
+
+    fun clearSelection() {
+        val oldPositions = selectedPositions.toList()
+        selectedPositions.clear()
+        oldPositions.forEach { notifyItemChanged(it) }
+    }
+
+    fun getSegments(): List<Segment> = segments
+
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvText: TextView = view.findViewById(R.id.tv_cue_text)
         val tvTranslation: TextView = view.findViewById(R.id.tv_cue_translation)

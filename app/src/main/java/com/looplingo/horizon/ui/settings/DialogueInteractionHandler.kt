@@ -1,5 +1,6 @@
 package com.looplingo.horizon.ui.settings
 
+import android.view.View
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.looplingo.horizon.R
 import com.looplingo.horizon.data.remote.Segment
@@ -59,6 +60,49 @@ class DialogueInteractionHandler @Inject constructor(
         playbackUIHelper.showSnackbar(
             binding.root,
             binding.root.context.getString(R.string.dialogue_selected, segment.text.take(30))
+        )
+    }
+
+    fun updatePlaySelectedButton(
+        binding: FragmentPlaybackSettingsBinding,
+        adapter: DialogueAdapter?
+    ) {
+        val selectedCount = adapter?.getSelectedCount() ?: 0
+        binding.btnPlaySelected.visibility = if (selectedCount >= 2) View.VISIBLE else View.GONE
+        if (selectedCount >= 2) {
+            binding.btnPlaySelected.text = "Play Selected ($selectedCount)"
+        }
+    }
+
+    fun playSelectedDialogues(
+        binding: FragmentPlaybackSettingsBinding,
+        videoPath: String,
+        adapter: DialogueAdapter?,
+        loopCount: Int = 3
+    ) {
+        val indices = adapter?.getSelectedIndices() ?: return
+        if (indices.size < 2) return
+
+        val segments = adapter.getSegments()
+        val selectedSegments = indices.map { segments[it] }.sortedBy { it.startMs }
+
+        val rangeStartMs = selectedSegments.first().startMs.toLong()
+        val rangeEndMs = selectedSegments.last().endMs.toLong()
+
+        AudioPlaybackService.setABLoop(
+            binding.root.context,
+            videoPath,
+            rangeStartMs,
+            rangeEndMs,
+            loopCount
+        )
+
+        adapter.clearSelection()
+        updatePlaySelectedButton(binding, adapter)
+
+        playbackUIHelper.showSnackbar(
+            binding.root,
+            "Playing ${selectedSegments.size} dialogues in loop"
         )
     }
 }
