@@ -265,7 +265,6 @@ class PlaybackSettingsUiBinder @Inject constructor(
             onEditClick = { note, position ->
                 editingNotePosition = position
                 binding.etNoteText.setText(note.text)
-                binding.btnSaveNote.text = "Save"
                 playbackUIHelper.showNoteForm(binding)
             }
         )
