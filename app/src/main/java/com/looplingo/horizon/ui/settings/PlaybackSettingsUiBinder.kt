@@ -165,9 +165,9 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 binding.etLoopName.setText(loop.name)
                 binding.etLoopStart.setText(TimeUtils.formatMsToTime(loop.startMs))
                 binding.etLoopEnd.setText(TimeUtils.formatMsToTime(loop.endMs))
-                binding.tvLoopFormCount.text = loop.loopCount.toString()
+                binding.etLoopCount.setText(loop.loopCount.toString())
                 loopCount = loop.loopCount
-                binding.btnSaveLoop.text = "Save Changes"
+                binding.btnSaveLoop.text = "Save"
                 playbackUIHelper.showLoopForm(binding)
             }
         )
@@ -177,10 +177,22 @@ class PlaybackSettingsUiBinder @Inject constructor(
 
         // Setup loop form controls
         playbackUIHelper.setupLoopForm(binding,
+            onPreview = {
+                val startMs = TimeUtils.parseTimeToMs(binding.etLoopStart.text.toString())
+                val endMs = TimeUtils.parseTimeToMs(binding.etLoopEnd.text.toString())
+                if (startMs >= 0 && endMs > startMs) {
+                    AudioPlaybackService.seekToPosition(activity, videoPath, startMs)
+                    playbackUIHelper.showSnackbar(binding.root, "Preview: ${TimeUtils.formatMsToTime(startMs)} — ${TimeUtils.formatMsToTime(endMs)}")
+                } else {
+                    playbackUIHelper.showSnackbar(binding.root, "Enter valid start and end times")
+                }
+            },
             onSave = {
                 val name = binding.etLoopName.text.toString().trim()
                 val startMs = TimeUtils.parseTimeToMs(binding.etLoopStart.text.toString())
                 val endMs = TimeUtils.parseTimeToMs(binding.etLoopEnd.text.toString())
+                val countText = binding.etLoopCount.text.toString().trim()
+                val count = countText.toIntOrNull() ?: 3
 
                 if (name.isEmpty()) {
                     binding.etLoopName.error = "Please enter a name"
@@ -200,14 +212,14 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 }
                 binding.etLoopEnd.error = null
 
+                val validCount = count.coerceIn(1, 10000)
+
                 if (editingLoopPosition >= 0) {
-                    // Editing existing loop
-                    loopAdapter?.updateLoop(editingLoopPosition, name, startMs, endMs, loopCount)
+                    loopAdapter?.updateLoop(editingLoopPosition, name, startMs, endMs, validCount)
                     editingLoopPosition = -1
-                    binding.btnSaveLoop.text = "Save Loop"
+                    binding.btnSaveLoop.text = "Save"
                 } else {
-                    // Adding new loop
-                    val loop = SavedLoop(name, startMs, endMs, loopCount)
+                    val loop = SavedLoop(name, startMs, endMs, validCount)
                     loopAdapter?.addLoop(loop)
                 }
                 val hasLoops = loopAdapter?.getLoops()?.isNotEmpty() == true
@@ -217,6 +229,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 binding.etLoopName.setText("")
                 binding.etLoopStart.setText("0:00")
                 binding.etLoopEnd.setText("")
+                binding.etLoopCount.setText("3")
                 playbackUIHelper.hideLoopForm(binding)
                 playbackUIHelper.showSnackbar(binding.root, "Loop saved: $name")
             },
@@ -224,29 +237,14 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 binding.etLoopName.setText("")
                 binding.etLoopStart.setText("0:00")
                 binding.etLoopEnd.setText("")
+                binding.etLoopCount.setText("3")
                 binding.etLoopName.error = null
                 binding.etLoopStart.error = null
                 binding.etLoopEnd.error = null
                 editingLoopPosition = -1
-                binding.btnSaveLoop.text = "Save Loop"
+                binding.btnSaveLoop.text = "Save"
             }
         )
-
-        // Setup loop count controls in form
-        binding.btnLoopFormMinus.setOnClickListener {
-            if (loopCount > 1) {
-                loopCount--
-                binding.tvLoopFormCount.text = loopCount.toString()
-                updateInfoLine(binding, viewModel)
-            }
-        }
-        binding.btnLoopFormPlus.setOnClickListener {
-            if (loopCount < 10000) {
-                loopCount++
-                binding.tvLoopFormCount.text = loopCount.toString()
-                updateInfoLine(binding, viewModel)
-            }
-        }
 
         playbackUIHelper.updateLoopEmptyState(binding, savedLoops.isNotEmpty())
     }
@@ -274,7 +272,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
             onEditClick = { note, position ->
                 editingNotePosition = position
                 binding.etNoteText.setText(note.text)
-                binding.btnSaveNote.text = "Save Changes"
+                binding.btnSaveNote.text = "Save"
                 playbackUIHelper.showNoteForm(binding)
             }
         )
@@ -292,7 +290,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
                     // Editing existing note
                     noteAdapter?.updateNote(editingNotePosition, text)
                     editingNotePosition = -1
-                    binding.btnSaveNote.text = "Add Note"
+                    binding.btnSaveNote.text = "Save"
                 } else {
                     // Adding new note
                     val currentPosMs = AudioPlaybackService.currentPositionMs
@@ -309,7 +307,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
             onClose = {
                 binding.etNoteText.setText("")
                 editingNotePosition = -1
-                binding.btnSaveNote.text = "Add Note"
+                binding.btnSaveNote.text = "Save"
             }
         )
 

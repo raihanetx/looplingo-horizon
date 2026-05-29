@@ -88,20 +88,9 @@ class PlaybackUIHelper @Inject constructor() {
         })
     }
 
-    internal fun setupLoopControls(
-        binding: FragmentPlaybackSettingsBinding,
-        initialLoopCount: Int,
-        onLoopMinus: (Int) -> Unit,
-        onLoopPlus: (Int) -> Unit
-    ) {
-        binding.tvLoopFormCount.text = initialLoopCount.toString()
-
-        binding.btnLoopFormMinus.setOnClickListener { onLoopMinus(initialLoopCount) }
-        binding.btnLoopFormPlus.setOnClickListener { onLoopPlus(initialLoopCount) }
-    }
-
     internal fun setupLoopForm(
         binding: FragmentPlaybackSettingsBinding,
+        onPreview: () -> Unit,
         onSave: () -> Unit,
         onClose: () -> Unit
     ) {
@@ -114,6 +103,7 @@ class PlaybackUIHelper @Inject constructor() {
             binding.fabAddLoop.visibility = View.VISIBLE
             onClose()
         }
+        binding.btnLoopPreview.setOnClickListener { onPreview() }
         binding.btnSaveLoop.setOnClickListener { onSave() }
     }
 
