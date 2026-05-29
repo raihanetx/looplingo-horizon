@@ -44,6 +44,7 @@ class DialogueInteractionHandler @Inject constructor(
         // Clicking the already-active segment toggles it off
         if (adapter?.isActivePosition(index) == true) {
             adapter.setActivePosition(-1)
+            AudioPlaybackService.clearABLoop(binding.root.context, videoPath)
             playbackUIHelper.showSnackbar(
                 binding.root,
                 binding.root.context.getString(R.string.dialogue_deselected)
@@ -51,8 +52,15 @@ class DialogueInteractionHandler @Inject constructor(
             return
         }
 
-        // Always seek and play from this segment
-        AudioPlaybackService.seekToPosition(binding.root.context, videoPath, segment.startMs)
+        // Set up AB loop for this single segment and play
+        val loopCount = 3
+        AudioPlaybackService.setABLoop(
+            binding.root.context,
+            videoPath,
+            segment.startMs,
+            segment.endMs,
+            loopCount
+        )
 
         adapter?.setActivePosition(index)
         binding.rvDialogueList.smoothScrollToPosition(index)

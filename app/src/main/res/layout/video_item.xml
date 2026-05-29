@@ -6,10 +6,11 @@
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="8dp"
     android:layout_marginVertical="4dp"
-    app:cardCornerRadius="@dimen/glass_card_corner_radius"
-    app:cardElevation="@dimen/card_elevation"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp"
     app:strokeColor="@color/colorOutlineVariant"
-    app:strokeWidth="0dp"
+    app:strokeWidth="1dp"
+    app:cardBackgroundColor="@color/colorSurface"
     android:foreground="?attr/selectableItemBackground">
 
     <LinearLayout
@@ -17,29 +18,26 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingHorizontal="12dp"
-        android:paddingVertical="10dp">
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="12dp">
 
         <!-- Audio track icon -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/card_icon_bg"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            app:cardCornerRadius="@dimen/glass_card_corner_radius"
-            app:cardElevation="0dp"
-            app:cardBackgroundColor="@color/colorPrimaryContainer">
+        <FrameLayout
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/bg_icon_circle">
 
             <ImageView
                 android:id="@+id/iv_video_icon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
                 android:layout_gravity="center"
                 android:contentDescription="@string/content_desc_video_icon"
                 android:scaleType="centerInside"
                 app:srcCompat="@drawable/ic_audio_track"
-                app:tint="@color/colorOnPrimaryContainer" />
+                app:tint="@color/colorPrimary" />
 
-        </com.google.android.material.card.MaterialCardView>
+        </FrameLayout>
 
         <!-- Text content -->
         <LinearLayout
@@ -56,7 +54,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
+                android:textSize="14sp"
                 android:textColor="@color/colorOnSurface"
                 tools:text="Chapter 03 - Introducing Yourself" />
 
@@ -64,7 +62,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="3dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
 
@@ -73,15 +71,15 @@
                     android:id="@+id/tv_size"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                    android:textSize="11sp"
                     android:textColor="@color/colorOnSurfaceVariant"
                     tools:text="24.5 MB" />
 
                 <!-- Divider -->
                 <View
-                    android:layout_width="3dp"
-                    android:layout_height="3dp"
-                    android:layout_marginHorizontal="6dp"
+                    android:layout_width="2dp"
+                    android:layout_height="2dp"
+                    android:layout_marginHorizontal="5dp"
                     android:background="@color/colorOutlineVariant" />
 
                 <!-- Duration -->
@@ -89,16 +87,16 @@
                     android:id="@+id/tv_duration"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                    android:textSize="11sp"
                     android:textColor="@color/colorOnSurfaceVariant"
                     tools:text="05:32" />
 
                 <!-- Divider -->
                 <View
                     android:id="@+id/divider_subtitle"
-                    android:layout_width="3dp"
-                    android:layout_height="3dp"
-                    android:layout_marginHorizontal="6dp"
+                    android:layout_width="2dp"
+                    android:layout_height="2dp"
+                    android:layout_marginHorizontal="5dp"
                     android:background="@color/colorOutlineVariant"
                     android:visibility="gone" />
 
@@ -107,7 +105,7 @@
                     android:id="@+id/tv_subtitle_status"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                    android:textSize="11sp"
                     android:textColor="@color/colorTertiary"
                     android:visibility="gone"
                     tools:text="Subtitles" />

@@ -91,6 +91,10 @@ class AudioPlaybackService : LifecycleService() {
             })
         }
 
+        fun clearABLoop(context: Context, videoPath: String) {
+            setABLoop(context, videoPath, 0L, -1L, 1)
+        }
+
         fun stopService(context: Context) {
             context.startService(Intent(context, AudioPlaybackService::class.java).apply { action = ACTION_STOP })
         }
