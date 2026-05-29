@@ -7,6 +7,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.looplingo.horizon.R
+import com.looplingo.horizon.core.TimeUtils
 
 data class SavedLoop(
     val name: String,
@@ -16,9 +17,8 @@ data class SavedLoop(
 )
 
 class LoopAdapter(
-    private val onLoopClick: (SavedLoop, Int) -> Unit,
-    private val onDeleteClick: (SavedLoop, Int) -> Unit,
-    private val onEditClick: (SavedLoop, Int) -> Unit
+    private val onPlayClick: (SavedLoop, Int) -> Unit,
+    private val onDeleteClick: (SavedLoop, Int) -> Unit
 ) : RecyclerView.Adapter<LoopAdapter.ViewHolder>() {
 
     private val loops = mutableListOf<SavedLoop>()
@@ -52,8 +52,9 @@ class LoopAdapter(
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvName: TextView = view.findViewById(R.id.tv_loop_name)
-        val tvRange: TextView = view.findViewById(R.id.tv_loop_range)
-        val ivEdit: ImageView = view.findViewById(R.id.iv_loop_edit)
+        val tvCount: TextView = view.findViewById(R.id.tv_loop_count)
+        val tvTime: TextView = view.findViewById(R.id.tv_loop_time)
+        val ivPlay: ImageView = view.findViewById(R.id.iv_loop_play)
         val ivDelete: ImageView = view.findViewById(R.id.iv_loop_delete)
     }
 
@@ -66,14 +67,11 @@ class LoopAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val loop = loops[position]
         holder.tvName.text = loop.name
-        holder.tvRange.text = "${loop.loopCount} loops"
+        holder.tvCount.text = "${loop.loopCount} loops"
+        holder.tvTime.text = "${TimeUtils.formatMsToTime(loop.startMs)} — ${TimeUtils.formatMsToTime(loop.endMs)}"
 
-        holder.itemView.setOnClickListener {
-            onLoopClick(loop, holder.bindingAdapterPosition)
-        }
-
-        holder.ivEdit.setOnClickListener {
-            onEditClick(loop, holder.bindingAdapterPosition)
+        holder.ivPlay.setOnClickListener {
+            onPlayClick(loop, holder.bindingAdapterPosition)
         }
 
         holder.ivDelete.setOnClickListener {

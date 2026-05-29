@@ -53,6 +53,11 @@ class PlaybackSettingsUiBinder @Inject constructor(
         navigateUp: () -> Unit
     ) {
         val activity = fragment.requireActivity()
+        
+        // Initial state: hide logo, show track name
+        binding.ivCleanIcon.visibility = View.GONE
+        binding.tvCleanTitle.visibility = View.VISIBLE
+        
         playbackUIHelper.setupHeader(binding,
             onBackClick = navigateUp,
             onSpeedClick = {
@@ -150,25 +155,15 @@ class PlaybackSettingsUiBinder @Inject constructor(
 
         // Setup loop RecyclerView
         loopAdapter = LoopAdapter(
-            onLoopClick = { loop, _ ->
+            onPlayClick = { loop, _ ->
                 AudioPlaybackService.seekToPosition(activity, videoPath, loop.startMs)
-                playbackUIHelper.showSnackbar(binding.root, "Loop: ${loop.name} (${TimeUtils.formatMsToTime(loop.startMs)} - ${TimeUtils.formatMsToTime(loop.endMs)})")
+                playbackUIHelper.showSnackbar(binding.root, "Playing: ${loop.name}")
             },
             onDeleteClick = { _, position ->
                 loopAdapter?.removeLoop(position)
                 val hasLoops = loopAdapter?.getLoops()?.isNotEmpty() == true
                 playbackUIHelper.updateLoopEmptyState(binding, hasLoops)
                 saveLoops(prefs, videoPath, loopAdapter?.getLoops() ?: emptyList())
-            },
-            onEditClick = { loop, position ->
-                editingLoopPosition = position
-                binding.etLoopName.setText(loop.name)
-                binding.etLoopStart.setText(TimeUtils.formatMsToTime(loop.startMs))
-                binding.etLoopEnd.setText(TimeUtils.formatMsToTime(loop.endMs))
-                binding.etLoopCount.setText(loop.loopCount.toString())
-                loopCount = loop.loopCount
-                binding.btnSaveLoop.text = "Save"
-                playbackUIHelper.showLoopForm(binding)
             }
         )
         loopAdapter?.setLoops(savedLoops)

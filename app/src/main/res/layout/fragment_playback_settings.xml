@@ -563,66 +563,47 @@
                     android:layout_marginTop="6dp"
                     android:layout_marginBottom="12dp" />
 
-                <!-- Loop count input -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Loop Count"
-                    android:textColor="@color/colorOnSurfaceVariant"
-                    android:textSize="12sp"
-                    android:layout_marginBottom="6dp" />
-
-                <EditText
-                    android:id="@+id/et_loop_count"
-                    android:layout_width="80dp"
-                    android:layout_height="44dp"
-                    android:background="@drawable/bg_form_input"
-                    android:gravity="center"
-                    android:text="3"
-                    android:textColor="@color/colorOnSurface"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:paddingHorizontal="12dp"
-                    android:inputType="number"
-                    android:importantForAutofill="no" />
-
-                <!-- Divider -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginTop="16dp"
-                    android:layout_marginBottom="12dp"
-                    android:background="@color/colorOutlineVariant" />
-
-                <!-- Action buttons row -->
+                <!-- Loop count + Preview + Save row -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:gravity="end|center_vertical">
+                    android:gravity="center_vertical">
 
-                    <!-- Cancel button -->
                     <TextView
-                        android:id="@+id/btn_cancel_loop"
                         android:layout_width="wrap_content"
-                        android:layout_height="38dp"
-                        android:gravity="center"
-                        android:paddingHorizontal="18dp"
-                        android:text="Cancel"
-                        android:textSize="13sp"
+                        android:layout_height="wrap_content"
+                        android:text="Loop Count"
                         android:textColor="@color/colorOnSurfaceVariant"
-                        android:background="@drawable/bg_cancel_button"
-                        android:clickable="true"
-                        android:focusable="true" />
+                        android:textSize="12sp" />
+
+                    <EditText
+                        android:id="@+id/et_loop_count"
+                        android:layout_width="60dp"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/bg_form_input"
+                        android:gravity="center"
+                        android:text="3"
+                        android:textColor="@color/colorOnSurface"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:paddingHorizontal="8dp"
+                        android:inputType="number"
+                        android:importantForAutofill="no" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
 
                     <!-- Preview button -->
                     <TextView
                         android:id="@+id/btn_loop_preview"
                         android:layout_width="wrap_content"
-                        android:layout_height="38dp"
-                        android:layout_marginStart="8dp"
+                        android:layout_height="36dp"
                         android:gravity="center"
-                        android:paddingHorizontal="18dp"
+                        android:paddingHorizontal="16dp"
                         android:text="Preview"
                         android:textSize="13sp"
                         android:textColor="@color/colorOnSurfaceVariant"
@@ -634,10 +615,10 @@
                     <TextView
                         android:id="@+id/btn_save_loop"
                         android:layout_width="wrap_content"
-                        android:layout_height="38dp"
+                        android:layout_height="36dp"
                         android:layout_marginStart="8dp"
                         android:gravity="center"
-                        android:paddingHorizontal="18dp"
+                        android:paddingHorizontal="16dp"
                         android:text="Save"
                         android:textSize="13sp"
                         android:textColor="@color/colorSurface"

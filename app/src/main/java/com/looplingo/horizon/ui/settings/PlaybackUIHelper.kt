@@ -1,6 +1,7 @@
 package com.looplingo.horizon.ui.settings
 
 import android.view.View
+import android.view.animation.AnimationUtils
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.android.material.snackbar.Snackbar
@@ -91,17 +92,10 @@ class PlaybackUIHelper @Inject constructor() {
     internal fun setupLoopForm(
         binding: FragmentPlaybackSettingsBinding,
         onPreview: () -> Unit,
-        onSave: () -> Unit,
-        onClose: () -> Unit
+        onSave: () -> Unit
     ) {
         binding.fabAddLoop.setOnClickListener {
-            binding.layoutAddLoopForm.visibility = View.VISIBLE
-            binding.fabAddLoop.visibility = View.GONE
-        }
-        binding.btnCancelLoop.setOnClickListener {
-            binding.layoutAddLoopForm.visibility = View.GONE
-            binding.fabAddLoop.visibility = View.VISIBLE
-            onClose()
+            showLoopFormAnimated(binding)
         }
         binding.btnLoopPreview.setOnClickListener { onPreview() }
         binding.btnSaveLoop.setOnClickListener { onSave() }
@@ -113,35 +107,69 @@ class PlaybackUIHelper @Inject constructor() {
         onClose: () -> Unit
     ) {
         binding.fabAddNote.setOnClickListener {
-            binding.layoutAddNoteForm.visibility = View.VISIBLE
-            binding.fabAddNote.visibility = View.GONE
+            showNoteFormAnimated(binding)
         }
         binding.btnCancelNote.setOnClickListener {
-            binding.layoutAddNoteForm.visibility = View.GONE
-            binding.fabAddNote.visibility = View.VISIBLE
+            hideNoteFormAnimated(binding)
             onClose()
         }
         binding.btnSaveNote.setOnClickListener { onSave() }
     }
 
-    internal fun showLoopForm(binding: FragmentPlaybackSettingsBinding) {
-        binding.layoutAddLoopForm.visibility = View.VISIBLE
+    internal fun showLoopFormAnimated(binding: FragmentPlaybackSettingsBinding) {
         binding.fabAddLoop.visibility = View.GONE
+        binding.layoutAddLoopForm.visibility = View.VISIBLE
+        val slideDown = AnimationUtils.loadAnimation(binding.root.context, R.anim.slide_down)
+        binding.layoutAddLoopForm.startAnimation(slideDown)
+    }
+
+    internal fun hideLoopFormAnimated(binding: FragmentPlaybackSettingsBinding) {
+        val slideUp = AnimationUtils.loadAnimation(binding.root.context, R.anim.slide_up)
+        slideUp.setAnimationListener(object : android.view.animation.Animation.AnimationListener {
+            override fun onAnimationStart(animation: android.view.animation.Animation?) {}
+            override fun onAnimationRepeat(animation: android.view.animation.Animation?) {}
+            override fun onAnimationEnd(animation: android.view.animation.Animation?) {
+                binding.layoutAddLoopForm.visibility = View.GONE
+                binding.fabAddLoop.visibility = View.VISIBLE
+            }
+        })
+        binding.layoutAddLoopForm.startAnimation(slideUp)
+    }
+
+    internal fun showLoopForm(binding: FragmentPlaybackSettingsBinding) {
+        showLoopFormAnimated(binding)
     }
 
     internal fun hideLoopForm(binding: FragmentPlaybackSettingsBinding) {
-        binding.layoutAddLoopForm.visibility = View.GONE
-        binding.fabAddLoop.visibility = View.VISIBLE
+        hideLoopFormAnimated(binding)
+    }
+
+    internal fun showNoteFormAnimated(binding: FragmentPlaybackSettingsBinding) {
+        binding.fabAddNote.visibility = View.GONE
+        binding.layoutAddNoteForm.visibility = View.VISIBLE
+        val slideDown = AnimationUtils.loadAnimation(binding.root.context, R.anim.slide_down)
+        binding.layoutAddNoteForm.startAnimation(slideDown)
+    }
+
+    internal fun hideNoteFormAnimated(binding: FragmentPlaybackSettingsBinding) {
+        val slideUp = AnimationUtils.loadAnimation(binding.root.context, R.anim.slide_up)
+        slideUp.setAnimationListener(object : android.view.animation.Animation.AnimationListener {
+            override fun onAnimationStart(animation: android.view.animation.Animation?) {}
+            override fun onAnimationRepeat(animation: android.view.animation.Animation?) {}
+            override fun onAnimationEnd(animation: android.view.animation.Animation?) {
+                binding.layoutAddNoteForm.visibility = View.GONE
+                binding.fabAddNote.visibility = View.VISIBLE
+            }
+        })
+        binding.layoutAddNoteForm.startAnimation(slideUp)
     }
 
     internal fun showNoteForm(binding: FragmentPlaybackSettingsBinding) {
-        binding.layoutAddNoteForm.visibility = View.VISIBLE
-        binding.fabAddNote.visibility = View.GONE
+        showNoteFormAnimated(binding)
     }
 
     internal fun hideNoteForm(binding: FragmentPlaybackSettingsBinding) {
-        binding.layoutAddNoteForm.visibility = View.GONE
-        binding.fabAddNote.visibility = View.VISIBLE
+        hideNoteFormAnimated(binding)
     }
 
     internal fun updateLoopEmptyState(binding: FragmentPlaybackSettingsBinding, hasLoops: Boolean) {
@@ -178,11 +206,19 @@ class PlaybackUIHelper @Inject constructor() {
             binding.tvAudioMode.setTextColor(context.resources.getColor(R.color.colorOnPrimaryContainer, null))
             binding.tvAudioMode.setBackgroundResource(R.drawable.bg_audio_mode_active)
             binding.tvAudioMode.setPadding(20, 4, 20, 4)
+            binding.ivCleanIcon.setImageResource(R.drawable.ic_music_note)
+            binding.ivCleanIcon.visibility = View.VISIBLE
+            binding.tvCleanTitle.visibility = View.GONE
+            binding.tvCleanEnglish.visibility = View.GONE
+            binding.tvCleanBangla.visibility = View.GONE
+            binding.layoutProcessing.visibility = View.GONE
         } else {
             binding.tvAudioMode.text = "Audio"
             binding.tvAudioMode.setTextColor(context.resources.getColor(R.color.colorOnSurfaceVariant, null))
             binding.tvAudioMode.background = null
             binding.tvAudioMode.setPadding(0, 0, 0, 0)
+            binding.ivCleanIcon.visibility = View.GONE
+            binding.tvCleanTitle.visibility = View.VISIBLE
         }
     }
 
