@@ -1,6 +1,7 @@
 package com.looplingo.horizon.ui.common.adapter
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -49,7 +50,6 @@ class VideoAdapter(
 
         fun bind(video: VideoEntity) {
             binding.tvTitle.text = video.title
-            binding.tvPath.text = video.path.substringAfterLast("/").substringBeforeLast(".")
             binding.tvDuration.text = formatDuration(video.duration)
             binding.tvSize.text = formatFileSize(video.size)
 
@@ -67,18 +67,20 @@ class VideoAdapter(
             val modeLabel = configuredModes[video.path]
             if (modeLabel != null) {
                 binding.tvLoopBadge.text = modeLabel
-                binding.tvLoopBadge.visibility = android.view.View.VISIBLE
+                binding.tvLoopBadge.visibility = View.VISIBLE
             } else {
-                binding.tvLoopBadge.visibility = android.view.View.GONE
+                binding.tvLoopBadge.visibility = View.GONE
             }
         }
 
         fun bindSubtitleStatus(video: VideoEntity) {
             if (videosWithSubtitles.contains(video.path)) {
-                binding.chipSubtitleStatus.visibility = android.view.View.VISIBLE
-                binding.chipSubtitleStatus.text = "Subtitles"
+                binding.tvSubtitleStatus.visibility = View.VISIBLE
+                binding.dividerSubtitle.visibility = View.VISIBLE
+                binding.tvSubtitleStatus.text = "Subtitles"
             } else {
-                binding.chipSubtitleStatus.visibility = android.view.View.GONE
+                binding.tvSubtitleStatus.visibility = View.GONE
+                binding.dividerSubtitle.visibility = View.GONE
             }
         }
 

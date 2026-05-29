@@ -12,29 +12,27 @@
     app:strokeWidth="0dp"
     android:foreground="?attr/selectableItemBackground">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="@dimen/video_item_height"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:paddingHorizontal="12dp"
         android:paddingVertical="10dp">
 
-        <!-- Audio track icon — larger icon container (52dp) with rounded corners -->
+        <!-- Audio track icon -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/card_icon_bg"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             app:cardCornerRadius="@dimen/glass_card_corner_radius"
             app:cardElevation="0dp"
-            app:cardBackgroundColor="@color/colorPrimaryContainer"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            app:cardBackgroundColor="@color/colorPrimaryContainer">
 
             <ImageView
                 android:id="@+id/iv_video_icon"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:layout_gravity="center"
                 android:contentDescription="@string/content_desc_video_icon"
                 android:scaleType="centerInside"
@@ -43,7 +41,82 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Loop mode badge (top-right corner of icon) -->
+        <!-- Text content -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical">
+
+            <!-- Title -->
+            <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
+                android:textColor="@color/colorOnSurface"
+                tools:text="Chapter 03 - Introducing Yourself" />
+
+            <!-- Info line: size | duration | subtitle -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <!-- File size -->
+                <TextView
+                    android:id="@+id/tv_size"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                    android:textColor="@color/colorOnSurfaceVariant"
+                    tools:text="24.5 MB" />
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="3dp"
+                    android:layout_height="3dp"
+                    android:layout_marginHorizontal="6dp"
+                    android:background="@color/colorOutlineVariant" />
+
+                <!-- Duration -->
+                <TextView
+                    android:id="@+id/tv_duration"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                    android:textColor="@color/colorOnSurfaceVariant"
+                    tools:text="05:32" />
+
+                <!-- Divider -->
+                <View
+                    android:id="@+id/divider_subtitle"
+                    android:layout_width="3dp"
+                    android:layout_height="3dp"
+                    android:layout_marginHorizontal="6dp"
+                    android:background="@color/colorOutlineVariant"
+                    android:visibility="gone" />
+
+                <!-- Subtitle status -->
+                <TextView
+                    android:id="@+id/tv_subtitle_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
+                    android:textColor="@color/colorTertiary"
+                    android:visibility="gone"
+                    tools:text="Subtitles" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Loop mode badge -->
         <TextView
             android:id="@+id/tv_loop_badge"
             android:layout_width="@dimen/video_item_badge_size"
@@ -54,91 +127,8 @@
             android:textSize="10sp"
             android:visibility="gone"
             android:contentDescription="@string/content_desc_loop_badge"
-            app:layout_constraintEnd_toEndOf="@id/card_icon_bg"
-            app:layout_constraintTop_toTopOf="@id/card_icon_bg"
-            tools:text="∞"
-            tools:visibility="visible" />
+            tools:text="∞" />
 
-        <!-- Video title -->
-        <TextView
-            android:id="@+id/tv_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/space_md"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
-            android:textColor="@color/colorOnSurface"
-            app:layout_constraintEnd_toStartOf="@id/tv_duration"
-            app:layout_constraintStart_toEndOf="@id/card_icon_bg"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:text="Chapter 03 - Introducing Yourself" />
-
-        <!-- Video path (secondary info) -->
-        <TextView
-            android:id="@+id/tv_path"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/space_md"
-            android:layout_marginTop="@dimen/space_xs"
-            android:ellipsize="middle"
-            android:maxLines="1"
-            android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
-            android:textColor="@color/colorOnSurfaceVariant"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/card_icon_bg"
-            app:layout_constraintTop_toBottomOf="@id/tv_title"
-            tools:text="/storage/emulated/0/Movies/lesson3.mp4" />
-
-        <!-- Duration (right-aligned) -->
-        <TextView
-            android:id="@+id/tv_duration"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
-            android:textColor="@color/colorOnSurfaceVariant"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:text="05:32" />
-
-        <!-- File size (below path, with better spacing) -->
-        <TextView
-            android:id="@+id/tv_size"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/space_md"
-            android:layout_marginTop="@dimen/space_xs"
-            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-            android:textColor="@color/colorOutline"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/card_icon_bg"
-            app:layout_constraintTop_toBottomOf="@id/tv_path"
-            tools:text="24.5 MB" />
-
-        <!-- Subtitle status chip with icon -->
-        <com.google.android.material.chip.Chip
-            android:id="@+id/chip_subtitle_status"
-            android:layout_width="wrap_content"
-            android:layout_height="24dp"
-            android:layout_marginStart="@dimen/space_md"
-            android:layout_marginTop="@dimen/space_xs"
-            android:visibility="gone"
-            app:chipIcon="@drawable/ic_audio_track"
-            app:chipIconVisible="true"
-            app:chipIconSize="12dp"
-            app:chipMinHeight="24dp"
-            app:chipStartPadding="4dp"
-            app:chipEndPadding="4dp"
-            app:chipBackgroundColor="@color/colorTertiaryContainer"
-            app:textStartPadding="4dp"
-            app:textEndPadding="4dp"
-            android:textAppearance="@style/TextAppearance.Horizon.LabelSmall"
-            android:textColor="@color/colorOnTertiaryContainer"
-            app:layout_constraintStart_toEndOf="@id/card_icon_bg"
-            app:layout_constraintTop_toBottomOf="@id/tv_size"
-            tools:text="Subtitles"
-            tools:visibility="visible" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>
