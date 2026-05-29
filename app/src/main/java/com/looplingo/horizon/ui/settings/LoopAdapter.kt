@@ -46,6 +46,7 @@ class LoopAdapter(
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvName: TextView = view.findViewById(R.id.tv_loop_name)
         val tvRange: TextView = view.findViewById(R.id.tv_loop_range)
+        val tvCountBadge: TextView = view.findViewById(R.id.tv_loop_count_badge)
         val ivDelete: ImageView = view.findViewById(R.id.iv_loop_delete)
     }
 
@@ -60,9 +61,8 @@ class LoopAdapter(
         holder.tvName.text = loop.name
         val start = TimeUtils.formatMsToTime(loop.startMs)
         val end = TimeUtils.formatMsToTime(loop.endMs)
-        val durationSec = ((loop.endMs - loop.startMs) / 1000).toInt()
-        val durationText = if (durationSec >= 60) "${durationSec / 60}m ${durationSec % 60}s" else "${durationSec}s"
-        holder.tvRange.text = "$start - $end  •  x${loop.loopCount}  •  $durationText"
+        holder.tvRange.text = "$start - $end  •  x${loop.loopCount}"
+        holder.tvCountBadge.text = "${loop.loopCount} loops"
 
         holder.itemView.setOnClickListener {
             onLoopClick(loop, holder.bindingAdapterPosition)

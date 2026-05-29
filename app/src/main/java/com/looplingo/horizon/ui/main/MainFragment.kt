@@ -17,7 +17,6 @@ import com.google.android.material.snackbar.Snackbar
 import com.looplingo.horizon.BuildConfig
 import com.looplingo.horizon.R
 import com.looplingo.horizon.databinding.FragmentMainBinding
-import com.looplingo.horizon.domain.audio.service.AudioPlaybackService
 import com.looplingo.horizon.domain.model.SortOrder
 import com.looplingo.horizon.ui.common.adapter.VideoAdapter
 import com.looplingo.horizon.core.SecurePrefs
@@ -86,11 +85,6 @@ class MainFragment : Fragment() {
                 R.id.action_sort -> {
                     Timber.d("Sort action clicked")
                     showSortDialog()
-                    true
-                }
-                R.id.action_stop_playback -> {
-                    Timber.d("Stop playback action clicked")
-                    AudioPlaybackService.stopService(requireContext())
                     true
                 }
                 R.id.action_settings -> {

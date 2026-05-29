@@ -392,12 +392,13 @@
                 android:clickable="true"
                 android:focusable="true" />
 
-            <!-- Add loop form — card overlay at bottom -->
+            <!-- Add loop form — dropdown card from top -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/layout_add_loop_form"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
+                android:layout_gravity="top"
+                android:layout_margin="@dimen/space_md"
                 android:visibility="gone"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="8dp"
@@ -408,36 +409,24 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="@dimen/space_lg">
+                    android:paddingHorizontal="20dp"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="20dp">
 
-                    <!-- Form header -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:layout_marginBottom="@dimen/space_md">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Add Loop"
-                            android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
-                            android:textColor="@color/colorOnSurface" />
-
-                        <ImageView
-                            android:id="@+id/iv_close_loop_form"
-                            android:layout_width="28dp"
-                            android:layout_height="28dp"
-                            android:scaleType="centerInside"
-                            android:contentDescription="Close"
-                            android:src="@drawable/ic_close"
-                            android:tint="@color/colorOnSurface"
-                            android:clickable="true"
-                            android:focusable="true" />
-
-                    </LinearLayout>
+                    <!-- Close X at top-right -->
+                    <ImageView
+                        android:id="@+id/iv_close_loop_form"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_gravity="end"
+                        android:scaleType="centerInside"
+                        android:contentDescription="Close"
+                        android:src="@drawable/ic_close"
+                        android:tint="@color/colorOnSurfaceVariant"
+                        android:padding="4dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:focusable="true" />
 
                     <!-- Loop name -->
                     <com.google.android.material.textfield.TextInputLayout
@@ -445,6 +434,7 @@
                         style="@style/Widget.Horizon.TextInputLayout.Outlined"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
                         android:layout_marginBottom="@dimen/space_sm"
                         android:hint="Loop Name"
                         app:errorEnabled="true">
@@ -517,17 +507,18 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/space_sm"
+                        android:layout_marginBottom="@dimen/space_md"
                         android:text="@string/hint_time_format"
                         android:textAppearance="@style/TextAppearance.Horizon.BodySmall"
                         android:textColor="@color/colorOnSurfaceVariant" />
 
-                    <!-- Loop count + Actions -->
+                    <!-- Loop count row -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:gravity="center_vertical">
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="@dimen/space_lg">
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -557,7 +548,7 @@
                             android:id="@+id/tv_loop_form_count"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginHorizontal="6dp"
+                            android:layout_marginHorizontal="8dp"
                             android:text="3"
                             android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
                             android:textColor="@color/colorOnSurface" />
@@ -669,12 +660,13 @@
                 android:clickable="true"
                 android:focusable="true" />
 
-            <!-- Add note form — card overlay at bottom -->
+            <!-- Add note form — dropdown card from top -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/layout_add_note_form"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
+                android:layout_gravity="top"
+                android:layout_margin="@dimen/space_md"
                 android:visibility="gone"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="8dp"
@@ -685,36 +677,24 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="@dimen/space_lg">
+                    android:paddingHorizontal="20dp"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="20dp">
 
-                    <!-- Form header -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:layout_marginBottom="@dimen/space_md">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Add Note"
-                            android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
-                            android:textColor="@color/colorOnSurface" />
-
-                        <ImageView
-                            android:id="@+id/iv_close_note_form"
-                            android:layout_width="28dp"
-                            android:layout_height="28dp"
-                            android:scaleType="centerInside"
-                            android:contentDescription="Close"
-                            android:src="@drawable/ic_close"
-                            android:tint="@color/colorOnSurface"
-                            android:clickable="true"
-                            android:focusable="true" />
-
-                    </LinearLayout>
+                    <!-- Close X at top-right -->
+                    <ImageView
+                        android:id="@+id/iv_close_note_form"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_gravity="end"
+                        android:scaleType="centerInside"
+                        android:contentDescription="Close"
+                        android:src="@drawable/ic_close"
+                        android:tint="@color/colorOnSurfaceVariant"
+                        android:padding="4dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:focusable="true" />
 
                     <!-- Note text -->
                     <com.google.android.material.textfield.TextInputLayout
@@ -722,7 +702,8 @@
                         style="@style/Widget.Horizon.TextInputLayout.Outlined"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/space_md"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="@dimen/space_lg"
                         android:hint="Note"
                         app:errorEnabled="true">
 
@@ -737,7 +718,7 @@
 
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <!-- Save button -->
+                    <!-- Save button at bottom -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_save_note"
                         style="@style/Widget.Material3.Button"
@@ -976,11 +957,11 @@
                 <TextView
                     android:id="@+id/btn_rewind_5"
                     android:layout_width="wrap_content"
-                    android:layout_height="40dp"
+                    android:layout_height="34dp"
                     android:gravity="center"
                     android:paddingHorizontal="20dp"
                     android:text="-5s"
-                    android:textAppearance="@style/TextAppearance.Horizon.LabelLarge"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
                     android:textColor="@color/colorOnSurface"
                     android:textStyle="bold"
                     android:background="@drawable/bg_rounded_button"
@@ -990,12 +971,12 @@
                 <TextView
                     android:id="@+id/btn_play_pause"
                     android:layout_width="wrap_content"
-                    android:layout_height="40dp"
+                    android:layout_height="34dp"
                     android:gravity="center"
                     android:paddingHorizontal="28dp"
                     android:layout_marginHorizontal="16dp"
                     android:text="Play"
-                    android:textAppearance="@style/TextAppearance.Horizon.LabelLarge"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
                     android:textColor="@color/colorOnPrimary"
                     android:textStyle="bold"
                     android:background="@drawable/bg_play_pause_button"
@@ -1005,11 +986,11 @@
                 <TextView
                     android:id="@+id/btn_forward_5"
                     android:layout_width="wrap_content"
-                    android:layout_height="40dp"
+                    android:layout_height="34dp"
                     android:gravity="center"
                     android:paddingHorizontal="20dp"
                     android:text="+5s"
-                    android:textAppearance="@style/TextAppearance.Horizon.LabelLarge"
+                    android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
                     android:textColor="@color/colorOnSurface"
                     android:textStyle="bold"
                     android:background="@drawable/bg_rounded_button"
