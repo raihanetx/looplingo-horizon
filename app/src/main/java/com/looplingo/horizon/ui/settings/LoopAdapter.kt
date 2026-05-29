@@ -7,7 +7,6 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.looplingo.horizon.R
-import com.looplingo.horizon.core.TimeUtils
 
 data class SavedLoop(
     val name: String,
@@ -18,7 +17,8 @@ data class SavedLoop(
 
 class LoopAdapter(
     private val onLoopClick: (SavedLoop, Int) -> Unit,
-    private val onDeleteClick: (SavedLoop, Int) -> Unit
+    private val onDeleteClick: (SavedLoop, Int) -> Unit,
+    private val onEditClick: (SavedLoop, Int) -> Unit
 ) : RecyclerView.Adapter<LoopAdapter.ViewHolder>() {
 
     private val loops = mutableListOf<SavedLoop>()
@@ -34,6 +34,13 @@ class LoopAdapter(
         notifyItemInserted(loops.size - 1)
     }
 
+    fun updateLoop(position: Int, name: String, startMs: Long, endMs: Long, loopCount: Int) {
+        if (position in loops.indices) {
+            loops[position] = SavedLoop(name, startMs, endMs, loopCount)
+            notifyItemChanged(position)
+        }
+    }
+
     fun removeLoop(position: Int) {
         if (position in loops.indices) {
             loops.removeAt(position)
@@ -46,7 +53,7 @@ class LoopAdapter(
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvName: TextView = view.findViewById(R.id.tv_loop_name)
         val tvRange: TextView = view.findViewById(R.id.tv_loop_range)
-        val tvCountBadge: TextView = view.findViewById(R.id.tv_loop_count_badge)
+        val ivEdit: ImageView = view.findViewById(R.id.iv_loop_edit)
         val ivDelete: ImageView = view.findViewById(R.id.iv_loop_delete)
     }
 
@@ -59,13 +66,14 @@ class LoopAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val loop = loops[position]
         holder.tvName.text = loop.name
-        val start = TimeUtils.formatMsToTime(loop.startMs)
-        val end = TimeUtils.formatMsToTime(loop.endMs)
-        holder.tvRange.text = "$start - $end  •  x${loop.loopCount}"
-        holder.tvCountBadge.text = "${loop.loopCount} loops"
+        holder.tvRange.text = "${loop.loopCount} loops"
 
         holder.itemView.setOnClickListener {
             onLoopClick(loop, holder.bindingAdapterPosition)
+        }
+
+        holder.ivEdit.setOnClickListener {
+            onEditClick(loop, holder.bindingAdapterPosition)
         }
 
         holder.ivDelete.setOnClickListener {

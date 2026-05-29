@@ -40,6 +40,7 @@ class PlaybackSettingsUiBinder @Inject constructor(
     private var loopAdapter: LoopAdapter? = null
     private var noteAdapter: NoteAdapter? = null
     private var editingNotePosition: Int = -1
+    private var editingLoopPosition: Int = -1
 
     fun bind(
         fragment: Fragment,
@@ -151,6 +152,16 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 val hasLoops = loopAdapter?.getLoops()?.isNotEmpty() == true
                 playbackUIHelper.updateLoopEmptyState(binding, hasLoops)
                 saveLoops(prefs, videoPath, loopAdapter?.getLoops() ?: emptyList())
+            },
+            onEditClick = { loop, position ->
+                editingLoopPosition = position
+                binding.etLoopName.setText(loop.name)
+                binding.etLoopStart.setText(TimeUtils.formatMsToTime(loop.startMs))
+                binding.etLoopEnd.setText(TimeUtils.formatMsToTime(loop.endMs))
+                binding.tvLoopFormCount.text = loop.loopCount.toString()
+                loopCount = loop.loopCount
+                binding.btnSaveLoop.text = "Save Changes"
+                playbackUIHelper.showLoopForm(binding)
             }
         )
         loopAdapter?.setLoops(savedLoops)
@@ -159,41 +170,39 @@ class PlaybackSettingsUiBinder @Inject constructor(
 
         // Setup loop form controls
         playbackUIHelper.setupLoopForm(binding,
-            onPreview = {
-                val startMs = TimeUtils.parseTimeToMs(binding.etLoopStart.text.toString())
-                val endMs = TimeUtils.parseTimeToMs(binding.etLoopEnd.text.toString())
-                if (startMs >= 0 && endMs > startMs) {
-                    AudioPlaybackService.seekToPosition(activity, videoPath, startMs)
-                    playbackUIHelper.showSnackbar(binding.root, "Previewing loop: ${TimeUtils.formatMsToTime(startMs)} - ${TimeUtils.formatMsToTime(endMs)}")
-                } else {
-                    playbackUIHelper.showSnackbar(binding.root, "Please enter valid start and end times")
-                }
-            },
             onSave = {
                 val name = binding.etLoopName.text.toString().trim()
                 val startMs = TimeUtils.parseTimeToMs(binding.etLoopStart.text.toString())
                 val endMs = TimeUtils.parseTimeToMs(binding.etLoopEnd.text.toString())
 
                 if (name.isEmpty()) {
-                    binding.tilLoopName.error = "Please enter a name"
+                    binding.etLoopName.error = "Please enter a name"
                     return@setupLoopForm
                 }
-                binding.tilLoopName.error = null
+                binding.etLoopName.error = null
 
                 if (startMs < 0) {
-                    binding.tilLoopStart.error = "Invalid start time"
+                    binding.etLoopStart.error = "Invalid start time"
                     return@setupLoopForm
                 }
-                binding.tilLoopStart.error = null
+                binding.etLoopStart.error = null
 
                 if (endMs <= startMs) {
-                    binding.tilLoopEnd.error = "End must be after start"
+                    binding.etLoopEnd.error = "End must be after start"
                     return@setupLoopForm
                 }
-                binding.tilLoopEnd.error = null
+                binding.etLoopEnd.error = null
 
-                val loop = SavedLoop(name, startMs, endMs, loopCount)
-                loopAdapter?.addLoop(loop)
+                if (editingLoopPosition >= 0) {
+                    // Editing existing loop
+                    loopAdapter?.updateLoop(editingLoopPosition, name, startMs, endMs, loopCount)
+                    editingLoopPosition = -1
+                    binding.btnSaveLoop.text = "Save Loop"
+                } else {
+                    // Adding new loop
+                    val loop = SavedLoop(name, startMs, endMs, loopCount)
+                    loopAdapter?.addLoop(loop)
+                }
                 val hasLoops = loopAdapter?.getLoops()?.isNotEmpty() == true
                 playbackUIHelper.updateLoopEmptyState(binding, hasLoops)
                 saveLoops(prefs, videoPath, loopAdapter?.getLoops() ?: emptyList())
@@ -208,9 +217,11 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 binding.etLoopName.setText("")
                 binding.etLoopStart.setText("0:00")
                 binding.etLoopEnd.setText("")
-                binding.tilLoopName.error = null
-                binding.tilLoopStart.error = null
-                binding.tilLoopEnd.error = null
+                binding.etLoopName.error = null
+                binding.etLoopStart.error = null
+                binding.etLoopEnd.error = null
+                editingLoopPosition = -1
+                binding.btnSaveLoop.text = "Save Loop"
             }
         )
 

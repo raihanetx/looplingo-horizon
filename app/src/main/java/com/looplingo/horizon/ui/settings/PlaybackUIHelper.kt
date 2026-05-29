@@ -100,7 +100,6 @@ class PlaybackUIHelper @Inject constructor() {
 
     internal fun setupLoopForm(
         binding: FragmentPlaybackSettingsBinding,
-        onPreview: () -> Unit,
         onSave: () -> Unit,
         onClose: () -> Unit
     ) {
@@ -108,13 +107,12 @@ class PlaybackUIHelper @Inject constructor() {
             binding.layoutAddLoopForm.visibility = View.VISIBLE
             binding.fabAddLoop.visibility = View.GONE
         }
-        binding.ivCloseLoopForm.setOnClickListener {
+        binding.btnCancelLoop.setOnClickListener {
             binding.layoutAddLoopForm.visibility = View.GONE
             binding.fabAddLoop.visibility = View.VISIBLE
             onClose()
         }
-        binding.btnLoopPreview.setOnClickListener { onPreview() }
-        binding.btnLoopSave.setOnClickListener { onSave() }
+        binding.btnSaveLoop.setOnClickListener { onSave() }
     }
 
     internal fun setupNoteForm(
