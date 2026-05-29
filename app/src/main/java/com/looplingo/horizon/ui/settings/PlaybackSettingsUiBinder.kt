@@ -226,16 +226,6 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 binding.etLoopCount.setText("3")
                 playbackUIHelper.hideLoopForm(binding)
                 playbackUIHelper.showSnackbar(binding.root, "Loop saved: $name")
-            },
-            onClose = {
-                binding.etLoopName.setText("")
-                binding.etLoopStart.setText("0:00")
-                binding.etLoopEnd.setText("")
-                binding.etLoopCount.setText("3")
-                binding.etLoopName.error = null
-                binding.etLoopStart.error = null
-                binding.etLoopEnd.error = null
-                editingLoopPosition = -1
             }
         )
 
