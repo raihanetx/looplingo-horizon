@@ -212,7 +212,6 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 if (editingLoopPosition >= 0) {
                     loopAdapter?.updateLoop(editingLoopPosition, name, startMs, endMs, validCount)
                     editingLoopPosition = -1
-                    binding.btnSaveLoop.text = "Save"
                 } else {
                     val loop = SavedLoop(name, startMs, endMs, validCount)
                     loopAdapter?.addLoop(loop)
@@ -237,7 +236,6 @@ class PlaybackSettingsUiBinder @Inject constructor(
                 binding.etLoopStart.error = null
                 binding.etLoopEnd.error = null
                 editingLoopPosition = -1
-                binding.btnSaveLoop.text = "Save"
             }
         )
 
@@ -285,7 +283,6 @@ class PlaybackSettingsUiBinder @Inject constructor(
                     // Editing existing note
                     noteAdapter?.updateNote(editingNotePosition, text)
                     editingNotePosition = -1
-                    binding.btnSaveNote.text = "Save"
                 } else {
                     // Adding new note
                     val currentPosMs = AudioPlaybackService.currentPositionMs
@@ -298,11 +295,6 @@ class PlaybackSettingsUiBinder @Inject constructor(
 
                 binding.etNoteText.setText("")
                 playbackUIHelper.hideNoteForm(binding)
-            },
-            onClose = {
-                binding.etNoteText.setText("")
-                editingNotePosition = -1
-                binding.btnSaveNote.text = "Save"
             }
         )
 

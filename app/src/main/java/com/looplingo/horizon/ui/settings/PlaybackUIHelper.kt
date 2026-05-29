@@ -103,15 +103,10 @@ class PlaybackUIHelper @Inject constructor() {
 
     internal fun setupNoteForm(
         binding: FragmentPlaybackSettingsBinding,
-        onSave: () -> Unit,
-        onClose: () -> Unit
+        onSave: () -> Unit
     ) {
         binding.fabAddNote.setOnClickListener {
             showNoteFormAnimated(binding)
-        }
-        binding.btnCancelNote.setOnClickListener {
-            hideNoteFormAnimated(binding)
-            onClose()
         }
         binding.btnSaveNote.setOnClickListener { onSave() }
     }

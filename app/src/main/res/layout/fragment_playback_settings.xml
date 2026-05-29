@@ -439,194 +439,133 @@
                 android:clickable="true"
                 android:focusable="true" />
 
-            <!-- Add loop form -->
+            <!-- Add loop form — compact single-line input -->
             <LinearLayout
                 android:id="@+id/layout_add_loop_form"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
                 android:layout_gravity="top"
                 android:layout_marginHorizontal="12dp"
                 android:layout_marginTop="12dp"
-                android:orientation="vertical"
-                android:padding="16dp"
-                android:background="@drawable/bg_note_form_card"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="4dp"
+                android:background="@drawable/bg_compact_form"
                 android:visibility="gone">
 
-                <!-- Loop name input -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Loop Name"
-                    android:textColor="@color/colorOnSurfaceVariant"
-                    android:textSize="12sp"
-                    android:layout_marginBottom="6dp" />
-
+                <!-- Loop name -->
                 <EditText
                     android:id="@+id/et_loop_name"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:background="@drawable/bg_form_input"
-                    android:hint="Enter loop name..."
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1.5"
+                    android:background="@null"
+                    android:hint="Name"
                     android:textColor="@color/colorOnSurface"
                     android:textColorHint="@color/colorOnSurfaceVariant"
-                    android:textSize="14sp"
-                    android:paddingHorizontal="12dp"
+                    android:textSize="13sp"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="10dp"
+                    android:singleLine="true"
                     android:inputType="text"
                     android:importantForAutofill="no" />
 
-                <!-- Start / End time row -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                <!-- Divider -->
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="24dp"
+                    android:background="@color/colorOutlineVariant" />
 
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
+                <!-- Start time -->
+                <EditText
+                    android:id="@+id/et_loop_start"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="0.8"
+                    android:background="@null"
+                    android:hint="0:00"
+                    android:text="0:00"
+                    android:textColor="@color/colorOnSurface"
+                    android:textColorHint="@color/colorOnSurfaceVariant"
+                    android:textSize="13sp"
+                    android:gravity="center"
+                    android:paddingHorizontal="6dp"
+                    android:singleLine="true"
+                    android:inputType="text"
+                    android:importantForAutofill="no" />
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Start Time"
-                            android:textColor="@color/colorOnSurfaceVariant"
-                            android:textSize="12sp"
-                            android:layout_marginBottom="6dp" />
+                <!-- Divider -->
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="24dp"
+                    android:background="@color/colorOutlineVariant" />
 
-                        <EditText
-                            android:id="@+id/et_loop_start"
-                            android:layout_width="match_parent"
-                            android:layout_height="44dp"
-                            android:background="@drawable/bg_form_input"
-                            android:hint="0:00"
-                            android:text="0:00"
-                            android:textColor="@color/colorOnSurface"
-                            android:textColorHint="@color/colorOnSurfaceVariant"
-                            android:textSize="14sp"
-                            android:gravity="center"
-                            android:paddingHorizontal="12dp"
-                            android:inputType="text"
-                            android:importantForAutofill="no" />
+                <!-- End time -->
+                <EditText
+                    android:id="@+id/et_loop_end"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="0.8"
+                    android:background="@null"
+                    android:hint="End"
+                    android:textColor="@color/colorOnSurface"
+                    android:textColorHint="@color/colorOnSurfaceVariant"
+                    android:textSize="13sp"
+                    android:gravity="center"
+                    android:paddingHorizontal="6dp"
+                    android:singleLine="true"
+                    android:inputType="text"
+                    android:importantForAutofill="no" />
 
-                    </LinearLayout>
+                <!-- Divider -->
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="24dp"
+                    android:background="@color/colorOutlineVariant" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginHorizontal="10dp"
-                        android:layout_marginTop="18dp"
-                        android:text="—"
-                        android:textColor="@color/colorOnSurfaceVariant"
-                        android:textSize="16sp" />
+                <!-- Loop count -->
+                <EditText
+                    android:id="@+id/et_loop_count"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="0.5"
+                    android:background="@null"
+                    android:gravity="center"
+                    android:text="3"
+                    android:textColor="@color/colorOnSurface"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:paddingHorizontal="4dp"
+                    android:singleLine="true"
+                    android:inputType="number"
+                    android:importantForAutofill="no" />
 
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
+                <!-- Preview icon -->
+                <ImageView
+                    android:id="@+id/btn_loop_preview"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:scaleType="centerInside"
+                    android:contentDescription="Preview"
+                    android:src="@drawable/ic_play"
+                    android:padding="8dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true" />
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="End Time"
-                            android:textColor="@color/colorOnSurfaceVariant"
-                            android:textSize="12sp"
-                            android:layout_marginBottom="6dp" />
-
-                        <EditText
-                            android:id="@+id/et_loop_end"
-                            android:layout_width="match_parent"
-                            android:layout_height="44dp"
-                            android:background="@drawable/bg_form_input"
-                            android:hint="End"
-                            android:textColor="@color/colorOnSurface"
-                            android:textColorHint="@color/colorOnSurfaceVariant"
-                            android:textSize="14sp"
-                            android:gravity="center"
-                            android:paddingHorizontal="12dp"
-                            android:inputType="text"
-                            android:importantForAutofill="no" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/hint_time_format"
-                    android:textColor="@color/colorOnSurfaceVariant"
-                    android:textSize="11sp"
-                    android:layout_marginTop="6dp"
-                    android:layout_marginBottom="12dp" />
-
-                <!-- Loop count + Preview + Save row -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Loop Count"
-                        android:textColor="@color/colorOnSurfaceVariant"
-                        android:textSize="12sp" />
-
-                    <EditText
-                        android:id="@+id/et_loop_count"
-                        android:layout_width="60dp"
-                        android:layout_height="40dp"
-                        android:layout_marginStart="8dp"
-                        android:background="@drawable/bg_form_input"
-                        android:gravity="center"
-                        android:text="3"
-                        android:textColor="@color/colorOnSurface"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:paddingHorizontal="8dp"
-                        android:inputType="number"
-                        android:importantForAutofill="no" />
-
-                    <View
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
-                        android:layout_weight="1" />
-
-                    <!-- Preview button -->
-                    <TextView
-                        android:id="@+id/btn_loop_preview"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:gravity="center"
-                        android:paddingHorizontal="16dp"
-                        android:text="Preview"
-                        android:textSize="13sp"
-                        android:textColor="@color/colorOnSurfaceVariant"
-                        android:background="@drawable/bg_cancel_button"
-                        android:clickable="true"
-                        android:focusable="true" />
-
-                    <!-- Save button -->
-                    <TextView
-                        android:id="@+id/btn_save_loop"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginStart="8dp"
-                        android:gravity="center"
-                        android:paddingHorizontal="16dp"
-                        android:text="Save"
-                        android:textSize="13sp"
-                        android:textColor="@color/colorSurface"
-                        android:background="@drawable/bg_note_button"
-                        android:clickable="true"
-                        android:focusable="true" />
-
-                </LinearLayout>
+                <!-- Save/Add icon -->
+                <ImageView
+                    android:id="@+id/btn_save_loop"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="4dp"
+                    android:scaleType="centerInside"
+                    android:contentDescription="Save loop"
+                    android:src="@drawable/ic_add"
+                    android:padding="8dp"
+                    android:background="@drawable/bg_circle_add"
+                    android:clickable="true"
+                    android:focusable="true" />
 
             </LinearLayout>
 
@@ -693,93 +632,50 @@
                 android:clickable="true"
                 android:focusable="true" />
 
-            <!-- Add note form -->
+            <!-- Add note form — compact single-line input -->
             <LinearLayout
                 android:id="@+id/layout_add_note_form"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
                 android:layout_gravity="top"
                 android:layout_marginHorizontal="12dp"
                 android:layout_marginTop="12dp"
-                android:orientation="vertical"
-                android:padding="16dp"
-                android:background="@drawable/bg_note_form_card"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="4dp"
+                android:background="@drawable/bg_compact_form"
                 android:visibility="gone">
 
-                <!-- Note label -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Note"
-                    android:textColor="@color/colorOnSurfaceVariant"
-                    android:textSize="12sp"
-                    android:layout_marginBottom="6dp" />
-
-                <!-- Auto-growing text input -->
+                <!-- Note text input -->
                 <EditText
                     android:id="@+id/et_note_text"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="80dp"
-                    android:maxHeight="300dp"
-                    android:gravity="top"
-                    android:background="@drawable/bg_form_input"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@null"
                     android:hint="Write a note..."
                     android:textColor="@color/colorOnSurface"
                     android:textColorHint="@color/colorOnSurfaceVariant"
-                    android:textSize="14sp"
-                    android:padding="12dp"
-                    android:lineSpacingMultiplier="1.5"
-                    android:inputType="textMultiLine|textCapSentences"
+                    android:textSize="13sp"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="12dp"
+                    android:singleLine="true"
+                    android:inputType="text"
                     android:importantForAutofill="no" />
 
-                <!-- Divider -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginTop="16dp"
-                    android:layout_marginBottom="12dp"
-                    android:background="@color/colorOutlineVariant" />
-
-                <!-- Action buttons row -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="end|center_vertical">
-
-                    <!-- Cancel button -->
-                    <TextView
-                        android:id="@+id/btn_cancel_note"
-                        android:layout_width="wrap_content"
-                        android:layout_height="38dp"
-                        android:gravity="center"
-                        android:paddingHorizontal="18dp"
-                        android:text="Cancel"
-                        android:textSize="13sp"
-                        android:textStyle="normal"
-                        android:textColor="@color/colorOnSurfaceVariant"
-                        android:background="@drawable/bg_cancel_button"
-                        android:clickable="true"
-                        android:focusable="true" />
-
-                    <!-- Save button -->
-                    <TextView
-                        android:id="@+id/btn_save_note"
-                        android:layout_width="wrap_content"
-                        android:layout_height="38dp"
-                        android:layout_marginStart="10dp"
-                        android:gravity="center"
-                        android:paddingHorizontal="18dp"
-                        android:text="Save"
-                        android:textSize="13sp"
-                        android:textStyle="normal"
-                        android:textColor="@color/colorSurface"
-                        android:background="@drawable/bg_note_button"
-                        android:clickable="true"
-                        android:focusable="true" />
-
-                </LinearLayout>
+                <!-- Save/Add icon -->
+                <ImageView
+                    android:id="@+id/btn_save_note"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="4dp"
+                    android:scaleType="centerInside"
+                    android:contentDescription="Save note"
+                    android:src="@drawable/ic_add"
+                    android:padding="8dp"
+                    android:background="@drawable/bg_circle_add"
+                    android:clickable="true"
+                    android:focusable="true" />
 
             </LinearLayout>
 
