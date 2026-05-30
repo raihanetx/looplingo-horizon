@@ -100,14 +100,14 @@ class MainFragment : Fragment() {
         filterOptions.forEach { filter ->
             val chip = MaterialButton(requireContext()).apply {
                 text = filter
-                textSize = 11f
+                textSize = 10f
                 isAllCaps = false
                 cornerRadius = 100
-                setPadding(18, 4, 18, 4)
+                setPadding(14, 2, 14, 2)
                 minimumHeight = 0
                 minimumWidth = 0
                 setTextColor(if (filter == activeFilter) ContextCompat.getColor(context, R.color.white) else ContextCompat.getColor(context, R.color.app_on_surface))
-                backgroundTintList = if (filter == activeFilter) ContextCompat.getColorStateList(context, R.color.app_primary) else ContextCompat.getColorStateList(context, R.color.app_surface_light)
+                backgroundTintList = if (filter == activeFilter) ContextCompat.getColorStateList(context, R.color.app_primary) else ContextCompat.getColorStateList(context, R.color.app_surface)
                 strokeWidth = 0
                 setOnClickListener {
                     activeFilter = filter
@@ -119,7 +119,7 @@ class MainFragment : Fragment() {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                marginEnd = 8
+                marginEnd = 6
             }
             chip.layoutParams = lp
             chipContainer.addView(chip)
@@ -133,7 +133,7 @@ class MainFragment : Fragment() {
             val filter = chip.text.toString()
             val isActive = filter == activeFilter
             chip.setTextColor(if (isActive) ContextCompat.getColor(requireContext(), R.color.white) else ContextCompat.getColor(requireContext(), R.color.app_on_surface))
-            chip.backgroundTintList = if (isActive) ContextCompat.getColorStateList(requireContext(), R.color.app_primary) else ContextCompat.getColorStateList(requireContext(), R.color.app_surface_light)
+            chip.backgroundTintList = if (isActive) ContextCompat.getColorStateList(requireContext(), R.color.app_primary) else ContextCompat.getColorStateList(requireContext(), R.color.app_surface)
             chip.strokeWidth = 0
         }
     }
