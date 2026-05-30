@@ -2,11 +2,11 @@
 <resources>
     <!-- ══════════════════════════════════════════════════════════════════════
          MATERIAL YOU — LAVENDER BLUE PALETTE
-         Primary: #9EA9E0 | Background: #EAEBF1
+         Primary: #A7B2E6 | Surface: #E0D9B2
          ══════════════════════════════════════════════════════════════════════ -->
 
-    <!-- Primary (Lavender Blue) -->
-    <color name="md_theme_light_primary">#9EA9E0</color>
+    <!-- Primary (Soft Blue) -->
+    <color name="md_theme_light_primary">#A7B2E6</color>
     <color name="md_theme_light_onPrimary">#FFFFFF</color>
     <color name="md_theme_light_primaryContainer">#D5D9F2</color>
     <color name="md_theme_light_onPrimaryContainer">#1A1A2E</color>
@@ -140,7 +140,7 @@
 
     <!-- Hero card gradient (top → bottom) -->
     <color name="colorGradientStart">@color/colorPrimaryContainer</color>
-    <color name="colorGradientEnd">#809EA9E0</color>
+    <color name="colorGradientEnd">#80A7B2E6</color>
 
     <!-- Bottom player bar surface -->
     <color name="colorPlayerBar">@color/colorSurfaceContainerLow</color>
@@ -148,23 +148,22 @@
     <!-- Active dialogue item highlight -->
     <color name="colorActiveIndicator">@color/colorTertiaryContainer</color>
 
-    <!-- Waveform -->
-    <color name="waveform_played">#9EA9E0</color>
-    <color name="waveform_unplayed">#D5D9F2</color>
-
-    <!-- Loop card -->
-    <color name="loop_play_bg">#1A9EA9E0</color>
-    <color name="loop_play_border">#9EA9E0</color>
-    <color name="loop_delete_bg">#0D000000</color>
-
     <!-- Glass effect -->
-    <color name="glass_splash">#209EA9E0</color>
+    <color name="glass_splash">#20A7B2E6</color>
     <color name="glass_highlight">#40FFFFFF</color>
 
     <!-- Utility -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="transparent">#00000000</color>
+
+    <!-- App brand colors -->
+    <color name="app_primary">#A7B2E6</color>
+    <color name="app_surface">#E0D9B2</color>
+    <color name="app_surface_light">#EDE8D0</color>
+    <color name="app_surface_lighter">#F5F1E3</color>
+    <color name="app_on_surface">#3D3A2E</color>
+    <color name="app_on_surface_variant">#6B6860</color>
 
     <!-- Slate palette (Tailwind) -->
     <color name="slate50">#FFF8FAFC</color>
@@ -188,15 +187,24 @@
     <color name="gray800">#FF262626</color>
     <color name="gray900">#FF171717</color>
 
-    <!-- Blue palette (Material) -->
-    <color name="blue50">#FFEFF6FF</color>
-    <color name="blue100">#FFDBEAFE</color>
-    <color name="blue200">#FFBFDBFE</color>
-    <color name="blue300">#FF93C5FD</color>
-    <color name="blue400">#FF60A5FA</color>
-    <color name="blue500">#FF3B82F6</color>
-    <color name="blue600">#FF2563EB</color>
-    <color name="blue700">#FF1D4ED8</color>
-    <color name="blue800">#FF1E40AF</color>
-    <color name="blue900">#FF1E3A8A</color>
+    <!-- Blue palette (App) -->
+    <color name="blue50">#FFF0F2FA</color>
+    <color name="blue100">#FFE0E5F5</color>
+    <color name="blue200">#FFC5CDEB</color>
+    <color name="blue300">#FFA7B2E6</color>
+    <color name="blue400">#FF8A98DB</color>
+    <color name="blue500">#FF6D7FD0</color>
+    <color name="blue600">#FF5066C5</color>
+    <color name="blue700">#FF3D4FA0</color>
+    <color name="blue800">#FF2A387B</color>
+    <color name="blue900">#FF1A2456</color>
+
+    <!-- Waveform -->
+    <color name="waveform_played">#A7B2E6</color>
+    <color name="waveform_unplayed">#D5D9F2</color>
+
+    <!-- Loop card -->
+    <color name="loop_play_bg">#1AA7B2E6</color>
+    <color name="loop_play_border">#A7B2E6</color>
+    <color name="loop_delete_bg">#0D000000</color>
 </resources>

@@ -103,11 +103,11 @@ class MainFragment : Fragment() {
                 textSize = 11f
                 isAllCaps = false
                 cornerRadius = 100
-                setPadding(20, 6, 20, 6)
+                setPadding(18, 4, 18, 4)
                 minimumHeight = 0
                 minimumWidth = 0
-                setTextColor(if (filter == activeFilter) ContextCompat.getColor(context, R.color.white) else ContextCompat.getColor(context, R.color.gray600))
-                backgroundTintList = if (filter == activeFilter) ContextCompat.getColorStateList(context, R.color.blue500) else ContextCompat.getColorStateList(context, R.color.gray100)
+                setTextColor(if (filter == activeFilter) ContextCompat.getColor(context, R.color.white) else ContextCompat.getColor(context, R.color.app_on_surface))
+                backgroundTintList = if (filter == activeFilter) ContextCompat.getColorStateList(context, R.color.app_primary) else ContextCompat.getColorStateList(context, R.color.app_surface_light)
                 strokeWidth = 0
                 setOnClickListener {
                     activeFilter = filter
@@ -132,8 +132,8 @@ class MainFragment : Fragment() {
             val chip = chipContainer.getChildAt(i) as? MaterialButton ?: continue
             val filter = chip.text.toString()
             val isActive = filter == activeFilter
-            chip.setTextColor(if (isActive) ContextCompat.getColor(requireContext(), R.color.white) else ContextCompat.getColor(requireContext(), R.color.gray600))
-            chip.backgroundTintList = if (isActive) ContextCompat.getColorStateList(requireContext(), R.color.blue500) else ContextCompat.getColorStateList(requireContext(), R.color.gray100)
+            chip.setTextColor(if (isActive) ContextCompat.getColor(requireContext(), R.color.white) else ContextCompat.getColor(requireContext(), R.color.app_on_surface))
+            chip.backgroundTintList = if (isActive) ContextCompat.getColorStateList(requireContext(), R.color.app_primary) else ContextCompat.getColorStateList(requireContext(), R.color.app_surface_light)
             chip.strokeWidth = 0
         }
     }
@@ -143,8 +143,8 @@ class MainFragment : Fragment() {
         binding.layoutFilterDrawer.visibility = if (isFilterOpen) View.VISIBLE else View.GONE
         binding.spacerFilter.visibility = if (isFilterOpen) View.VISIBLE else View.GONE
         binding.ivFilterToggle.setColorFilter(
-            if (isFilterOpen) ContextCompat.getColor(requireContext(), R.color.blue500)
-            else ContextCompat.getColor(requireContext(), R.color.gray500)
+            if (isFilterOpen) ContextCompat.getColor(requireContext(), R.color.app_primary)
+            else ContextCompat.getColor(requireContext(), R.color.app_on_surface_variant)
         )
     }
 

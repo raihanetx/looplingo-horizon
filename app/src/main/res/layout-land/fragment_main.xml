@@ -6,7 +6,7 @@
     android:id="@+id/swipe_refresh"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white">
+    android:background="@color/app_surface_lighter">
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
@@ -41,7 +41,7 @@
                         android:textSize="22sp"
                         android:textStyle="bold"
                         android:fontFamily="sans-serif-medium"
-                        android:textColor="@color/blue600" />
+                        android:textColor="@color/app_primary" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -50,7 +50,7 @@
                         android:text="Listen. Loop. Learn."
                         android:textSize="12sp"
                         android:fontFamily="sans-serif"
-                        android:textColor="@color/gray400" />
+                        android:textColor="@color/app_on_surface_variant" />
 
                 </LinearLayout>
 
@@ -71,7 +71,7 @@
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:focusable="true"
-                        app:tint="@color/gray500" />
+                        app:tint="@color/app_on_surface_variant" />
 
                     <ImageView
                         android:id="@+id/iv_settings"
@@ -85,7 +85,7 @@
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:focusable="true"
-                        app:tint="@color/gray500" />
+                        app:tint="@color/app_on_surface_variant" />
 
                 </LinearLayout>
 
@@ -98,10 +98,10 @@
                 android:id="@+id/card_search"
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
-                app:cardBackgroundColor="@color/gray100"
+                app:cardBackgroundColor="@color/app_surface_light"
                 app:cardCornerRadius="22dp"
                 app:cardElevation="0dp"
-                app:strokeColor="@color/gray200"
+                app:strokeColor="@color/app_surface"
                 app:strokeWidth="1dp">
 
                 <LinearLayout
@@ -116,7 +116,7 @@
                         android:layout_height="18dp"
                         android:contentDescription="Search"
                         android:src="@drawable/ic_search"
-                        app:tint="@color/gray400" />
+                        app:tint="@color/app_on_surface_variant" />
 
                     <EditText
                         android:id="@+id/et_search"
@@ -126,8 +126,8 @@
                         android:layout_marginStart="8dp"
                         android:background="@null"
                         android:hint="Search lessons..."
-                        android:textColorHint="@color/gray400"
-                        android:textColor="@color/gray700"
+                        android:textColorHint="@color/app_on_surface_variant"
+                        android:textColor="@color/app_on_surface"
                         android:textSize="14sp"
                         android:imeOptions="actionSearch"
                         android:inputType="text"
@@ -144,7 +144,7 @@
                         android:visibility="gone"
                         android:src="@drawable/ic_close"
                         android:padding="2dp"
-                        app:tint="@color/gray400" />
+                        app:tint="@color/app_on_surface_variant" />
 
                 </LinearLayout>
 
@@ -164,8 +164,7 @@
                     android:id="@+id/layout_filter_chips"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingBottom="4dp" />
+                    android:orientation="horizontal" />
 
             </HorizontalScrollView>
 
@@ -189,7 +188,7 @@
                     android:layout_height="12dp"
                     android:contentDescription="null"
                     android:src="@drawable/ic_info"
-                    app:tint="@color/gray400" />
+                    app:tint="@color/app_on_surface_variant" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -197,7 +196,7 @@
                     android:layout_marginStart="4dp"
                     android:text="Hold down a card to pin/unpin it"
                     android:textSize="10sp"
-                    android:textColor="@color/gray400" />
+                    android:textColor="@color/app_on_surface_variant" />
 
             </LinearLayout>
 
@@ -208,7 +207,7 @@
                 android:layout_marginStart="4dp"
                 android:layout_marginBottom="4dp"
                 android:textSize="12sp"
-                android:textColor="@color/gray400"
+                android:textColor="@color/app_on_surface_variant"
                 android:visibility="gone" />
 
             <androidx.recyclerview.widget.RecyclerView
@@ -236,7 +235,7 @@
                     android:contentDescription="Empty state"
                     android:importantForAccessibility="no"
                     app:srcCompat="@drawable/ic_empty_state"
-                    app:tint="@color/gray400" />
+                    app:tint="@color/app_on_surface_variant" />
 
                 <TextView
                     android:id="@+id/tv_empty"
@@ -246,7 +245,7 @@
                     android:gravity="center"
                     android:text="@string/no_videos_found"
                     android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
-                    android:textColor="@color/gray400" />
+                    android:textColor="@color/app_on_surface_variant" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_empty_retry"
@@ -265,7 +264,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_marginTop="40dp"
-                android:indeterminateTint="@color/blue500"
+                android:indeterminateTint="@color/app_primary"
                 android:visibility="gone" />
 
         </LinearLayout>

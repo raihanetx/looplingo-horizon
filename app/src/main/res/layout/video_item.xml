@@ -9,7 +9,7 @@
     app:cardBackgroundColor="@color/white"
     app:cardCornerRadius="12dp"
     app:cardElevation="0dp"
-    app:strokeColor="@color/slate200"
+    app:strokeColor="@color/app_surface"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -32,7 +32,7 @@
                 android:layout_gravity="center"
                 android:contentDescription="Audio"
                 android:src="@drawable/ic_mic"
-                app:tint="@color/colorPrimary" />
+                app:tint="@color/app_primary" />
 
         </FrameLayout>
 
@@ -53,7 +53,7 @@
                 android:maxLines="1"
                 android:textSize="15sp"
                 android:textStyle="bold"
-                android:textColor="@color/slate700"
+                android:textColor="@color/app_on_surface"
                 tools:text="Greetings &amp; Introductions" />
 
             <!-- Metadata row -->
@@ -70,7 +70,7 @@
                     android:layout_height="wrap_content"
                     android:textSize="12sp"
                     android:textStyle="bold"
-                    android:textColor="@color/slate500"
+                    android:textColor="@color/app_on_surface_variant"
                     tools:text="3:15" />
 
                 <TextView
@@ -78,7 +78,7 @@
                     android:layout_height="wrap_content"
                     android:text=" | "
                     android:textSize="12sp"
-                    android:textColor="@color/slate300" />
+                    android:textColor="@color/app_surface" />
 
                 <TextView
                     android:id="@+id/tv_size"
@@ -86,7 +86,7 @@
                     android:layout_height="wrap_content"
                     android:textSize="12sp"
                     android:textStyle="bold"
-                    android:textColor="@color/slate500"
+                    android:textColor="@color/app_on_surface_variant"
                     tools:text="4.2 MB" />
 
                 <TextView
@@ -94,7 +94,7 @@
                     android:layout_height="wrap_content"
                     android:text=" | "
                     android:textSize="12sp"
-                    android:textColor="@color/slate300" />
+                    android:textColor="@color/app_surface" />
 
                 <TextView
                     android:id="@+id/tv_subtitle_status"
@@ -102,7 +102,7 @@
                     android:layout_height="wrap_content"
                     android:textSize="12sp"
                     android:textStyle="bold"
-                    android:textColor="@color/slate500"
+                    android:textColor="@color/app_on_surface_variant"
                     tools:text="Subtitle: Yes" />
 
                 <ProgressBar
@@ -126,7 +126,7 @@
             android:layout_marginStart="16dp"
             android:textSize="12sp"
             android:textStyle="bold"
-            android:textColor="@color/slate400"
+            android:textColor="@color/app_on_surface_variant"
             tools:text="3:15" />
 
     </LinearLayout>
