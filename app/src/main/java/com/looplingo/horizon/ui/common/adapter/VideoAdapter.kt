@@ -146,15 +146,13 @@ class VideoAdapter(
                 binding.tvSubtitleStatus.visibility = View.VISIBLE
                 if (videosWithSubtitles.contains(video.path)) {
                     binding.tvSubtitleStatus.text = "Subtitles"
-                    binding.tvSubtitleStatus.setTextColor(
-                        binding.root.context.getColor(R.color.colorPrimary)
-                    )
                 } else {
                     binding.tvSubtitleStatus.text = "Not generated"
-                    binding.tvSubtitleStatus.setTextColor(
-                        binding.root.context.getColor(R.color.colorOnSurfaceVariant)
-                    )
                 }
+                // Same color for both states
+                binding.tvSubtitleStatus.setTextColor(
+                    binding.root.context.getColor(R.color.colorOnSurfaceVariant)
+                )
             }
         }
 
