@@ -276,10 +276,6 @@ class PlaybackUIHelper @Inject constructor() {
             dialog.dismiss()
         }
 
-        dialogBinding.btnDialogLoopCancel.setOnClickListener {
-            dialog.dismiss()
-        }
-
         dialogBinding.btnDialogLoopPreview.setOnClickListener {
             val startMs = TimeUtils.parseTimeToMs(dialogBinding.etDialogLoopStart.text.toString())
             val endMs = TimeUtils.parseTimeToMs(dialogBinding.etDialogLoopEnd.text.toString())

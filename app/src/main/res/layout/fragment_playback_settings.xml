@@ -652,25 +652,29 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom|end"
-                android:layout_marginEnd="16dp"
-                android:layout_marginBottom="16dp"
+                android:layout_marginEnd="14dp"
+                android:layout_marginBottom="14dp"
                 android:contentDescription="Add loop"
                 app:srcCompat="@drawable/ic_add"
-                app:fabSize="normal"
-                app:backgroundTint="@color/colorPrimary"
-                app:tint="@color/colorOnPrimary" />
+                app:fabSize="mini"
+                app:backgroundTint="@color/colorPrimaryContainer"
+                app:tint="@color/colorOnPrimaryContainer" />
 
         </FrameLayout>
 
          <!-- ══════ PANEL: NOTES (Saved Notes + Add Note FAB) ════════════════ -->
-        <LinearLayout
+        <FrameLayout
             android:id="@+id/panel_notes"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical"
             android:visibility="gone">
 
-            <!-- Section header with + button -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+
+            <!-- Section header -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
@@ -687,18 +691,6 @@
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="@color/colorOnSurface" />
-
-                <ImageView
-                    android:id="@+id/btn_add_note"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:scaleType="centerInside"
-                    android:contentDescription="Add note"
-                    android:src="@drawable/ic_add"
-                    android:padding="7dp"
-                    android:background="@drawable/bg_circle_button"
-                    android:clickable="true"
-                    android:focusable="true" />
 
             </LinearLayout>
 
@@ -789,7 +781,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/space_sm"
                         android:gravity="center"
-                        android:text="Tap the + button above to add a note"
+                        android:text="Tap the + button to add a note"
                         android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
                         android:textColor="@color/colorOnSurfaceVariant" />
 
@@ -797,7 +789,23 @@
 
             </FrameLayout>
 
-        </LinearLayout>
+            </LinearLayout>
+
+            <!-- FAB for adding note — bottom right -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_add_note"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|end"
+                android:layout_marginEnd="14dp"
+                android:layout_marginBottom="14dp"
+                android:contentDescription="Add note"
+                app:srcCompat="@drawable/ic_add"
+                app:fabSize="mini"
+                app:backgroundTint="@color/colorPrimaryContainer"
+                app:tint="@color/colorOnPrimaryContainer" />
+
+        </FrameLayout>
 
     </FrameLayout>
 

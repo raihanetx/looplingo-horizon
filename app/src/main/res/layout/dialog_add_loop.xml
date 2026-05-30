@@ -6,28 +6,49 @@
     android:orientation="vertical"
     android:padding="20dp">
 
-    <!-- Header with title and secondary text -->
+    <!-- Header with close button top-right -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:layout_marginBottom="20dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Loop"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:textColor="@color/colorOnSurface" />
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Set the loop start and end times"
-            android:textSize="14sp"
-            android:textColor="@color/colorOnSurfaceVariant" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Loop"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorOnSurface" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Set the loop start and end times"
+                android:textSize="14sp"
+                android:textColor="@color/colorOnSurfaceVariant" />
+
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/btn_dialog_loop_close"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:scaleType="centerInside"
+            android:contentDescription="Close"
+            android:src="@drawable/ic_close"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true" />
 
     </LinearLayout>
 
@@ -108,15 +129,7 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Buttons: Save full-width on top, Preview + Cancel below -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_dialog_loop_save"
-        style="@style/Widget.Horizon.Button"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
-        android:text="Save Loop" />
-
+    <!-- Buttons: Preview + Save same row, same style -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -125,7 +138,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_dialog_loop_preview"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.Horizon.Button"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -135,28 +148,13 @@
             app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_dialog_loop_cancel"
-            style="@style/Widget.Material3.Button.TextButton"
+            android:id="@+id/btn_dialog_loop_save"
+            style="@style/Widget.Horizon.Button"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Cancel" />
+            android:text="Save" />
 
     </LinearLayout>
-
-    <!-- Close icon at bottom corner -->
-    <ImageView
-        android:id="@+id/btn_dialog_loop_close"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_gravity="end"
-        android:layout_marginTop="8dp"
-        android:scaleType="centerInside"
-        android:contentDescription="Close"
-        android:src="@drawable/ic_close"
-        android:padding="8dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:clickable="true"
-        android:focusable="true" />
 
 </LinearLayout>

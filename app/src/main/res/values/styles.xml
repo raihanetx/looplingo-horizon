@@ -253,4 +253,16 @@
         <item name="android:textAppearance">@style/TextAppearance.Horizon.BodyMedium</item>
         <item name="android:textColor">@color/colorInverseOnSurface</item>
     </style>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         DIALOG — Reduced corner radius
+         ══════════════════════════════════════════════════════════════════════ -->
+
+    <style name="ThemeOverlay.Horizon.AlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="shapeAppearanceOverlay">@style/ShapeOverlay.Horizon.Dialog</item>
+    </style>
+
+    <style name="ShapeOverlay.Horizon.Dialog" parent="">
+        <item name="cornerSize">12dp</item>
+    </style>
 </resources>

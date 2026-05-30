@@ -1,32 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="20dp">
 
-    <!-- Header with title and secondary text -->
+    <!-- Header with close button top-right -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:layout_marginBottom="20dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Note"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:textColor="@color/colorOnSurface" />
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Add a note at the current playback position"
-            android:textSize="14sp"
-            android:textColor="@color/colorOnSurfaceVariant" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Note"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorOnSurface" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Add a note at the current playback position"
+                android:textSize="14sp"
+                android:textColor="@color/colorOnSurfaceVariant" />
+
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/btn_dialog_note_close"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:scaleType="centerInside"
+            android:contentDescription="Close"
+            android:src="@drawable/ic_close"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true" />
 
     </LinearLayout>
 
@@ -48,7 +70,7 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Buttons: Save and Cancel on same line -->
+    <!-- Buttons: Save + Cancel same row, same style -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -57,6 +79,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_dialog_note_save"
+            style="@style/Widget.Horizon.Button"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -65,27 +88,12 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_dialog_note_cancel"
-            style="@style/Widget.Material3.Button.TextButton"
+            style="@style/Widget.Horizon.Button"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Cancel" />
 
     </LinearLayout>
-
-    <!-- Close icon at bottom corner -->
-    <ImageView
-        android:id="@+id/btn_dialog_note_close"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_gravity="end"
-        android:layout_marginTop="8dp"
-        android:scaleType="centerInside"
-        android:contentDescription="Close"
-        android:src="@drawable/ic_close"
-        android:padding="8dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:clickable="true"
-        android:focusable="true" />
 
 </LinearLayout>

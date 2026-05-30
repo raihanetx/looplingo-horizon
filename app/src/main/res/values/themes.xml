@@ -53,6 +53,7 @@
         <item name="snackbarStyle">@style/Widget.Horizon.Snackbar</item>
         <item name="snackbarTextViewStyle">@style/Widget.Horizon.Snackbar.TextView</item>
         <item name="materialCardViewStyle">@style/Widget.Horizon.CardView.Elevated</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Horizon.AlertDialog</item>
     </style>
 
     <!-- ══════════════════════════════════════════════════════════════════════
