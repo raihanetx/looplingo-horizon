@@ -157,14 +157,14 @@
     <color name="white">#FFFFFFFF</color>
     <color name="transparent">#00000000</color>
 
-    <!-- App brand colors — Gray & White -->
+    <!-- App brand colors — Gray & White (darker grays for contrast) -->
     <color name="app_primary">#A7B2E6</color>
-    <color name="app_surface">#F3F4F6</color>
-    <color name="app_surface_light">#F9FAFB</color>
-    <color name="app_surface_lighter">#FFFFFF</color>
-    <color name="app_on_surface">#1F2937</color>
-    <color name="app_on_surface_variant">#6B7280</color>
-    <color name="app_outline">#E5E7EB</color>
+    <color name="app_surface">#E5E7EB</color>
+    <color name="app_surface_light">#F3F4F6</color>
+    <color name="app_surface_lighter">#F9FAFB</color>
+    <color name="app_on_surface">#111827</color>
+    <color name="app_on_surface_variant">#4B5563</color>
+    <color name="app_outline">#D1D5DB</color>
 
     <!-- Slate palette (Tailwind) -->
     <color name="slate50">#FFF8FAFC</color>

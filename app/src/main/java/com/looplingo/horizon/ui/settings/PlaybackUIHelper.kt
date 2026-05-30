@@ -124,11 +124,13 @@ class PlaybackUIHelper @Inject constructor() {
     internal fun updateLoopEmptyState(binding: FragmentPlaybackSettingsBinding, hasLoops: Boolean) {
         binding.layoutLoopEmpty.visibility = if (hasLoops) View.GONE else View.VISIBLE
         binding.rvLoopList.visibility = if (hasLoops) View.VISIBLE else View.GONE
+        binding.layoutLoopHeader.visibility = if (hasLoops) View.VISIBLE else View.GONE
     }
 
     internal fun updateNoteEmptyState(binding: FragmentPlaybackSettingsBinding, hasNotes: Boolean) {
         binding.layoutNotesEmpty.visibility = if (hasNotes) View.GONE else View.VISIBLE
         binding.rvNotesList.visibility = if (hasNotes) View.VISIBLE else View.GONE
+        binding.layoutNotesHeader.visibility = if (hasNotes) View.VISIBLE else View.GONE
     }
 
     internal fun updateTalkEmptyState(binding: FragmentPlaybackSettingsBinding, hasDialogue: Boolean) {

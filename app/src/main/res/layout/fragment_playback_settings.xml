@@ -439,6 +439,8 @@
             android:id="@+id/panel_loop"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_margin="12dp"
+            android:background="@drawable/bg_rounded_panel"
             android:visibility="gone">
 
             <LinearLayout
@@ -448,6 +450,7 @@
 
             <!-- Section header -->
             <LinearLayout
+                android:id="@+id/layout_loop_header"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="16dp"
@@ -628,7 +631,7 @@
                         android:text="No Loop"
                         android:textSize="16sp"
                         android:textStyle="bold"
-                        android:textColor="@color/app_on_surface_variant" />
+                        android:textColor="@color/app_on_surface" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -651,13 +654,13 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom|end"
-                android:layout_marginEnd="14dp"
-                android:layout_marginBottom="14dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="16dp"
                 android:contentDescription="Add loop"
                 app:srcCompat="@drawable/ic_add"
                 app:fabSize="mini"
                 app:maxImageSize="16dp"
-                app:backgroundTint="@color/app_surface"
+                app:backgroundTint="@color/app_surface_light"
                 app:tint="@color/app_on_surface" />
 
         </FrameLayout>
@@ -667,6 +670,8 @@
             android:id="@+id/panel_notes"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_margin="12dp"
+            android:background="@drawable/bg_rounded_panel"
             android:visibility="gone">
 
             <LinearLayout
@@ -676,6 +681,7 @@
 
             <!-- Section header -->
             <LinearLayout
+                android:id="@+id/layout_notes_header"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="16dp"
@@ -773,7 +779,7 @@
                         android:text="No Note"
                         android:textSize="16sp"
                         android:textStyle="bold"
-                        android:textColor="@color/app_on_surface_variant" />
+                        android:textColor="@color/app_on_surface" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -796,13 +802,13 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom|end"
-                android:layout_marginEnd="14dp"
-                android:layout_marginBottom="14dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="16dp"
                 android:contentDescription="Add note"
                 app:srcCompat="@drawable/ic_add"
                 app:fabSize="mini"
                 app:maxImageSize="16dp"
-                app:backgroundTint="@color/app_surface"
+                app:backgroundTint="@color/app_surface_light"
                 app:tint="@color/app_on_surface" />
 
         </FrameLayout>
