@@ -108,7 +108,15 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Buttons: Preview, Save, Cancel on same line -->
+    <!-- Buttons: Save full-width on top, Preview + Cancel below -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_dialog_loop_save"
+        style="@style/Widget.Horizon.Button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:text="Save Loop" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -123,15 +131,8 @@
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
             android:text="Preview"
-            app:icon="@drawable/ic_play" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_dialog_loop_save"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            android:text="Save" />
+            app:icon="@drawable/ic_play"
+            app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_dialog_loop_cancel"
