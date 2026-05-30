@@ -158,22 +158,32 @@
             <!-- Loading state (shown initially) -->
             <LinearLayout
                 android:id="@+id/layout_initial_loading"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
                 android:orientation="vertical"
-                android:gravity="center">
+                android:gravity="center"
+                android:background="@color/colorBackground">
 
                 <ProgressBar
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:indeterminate="true"
                     android:indeterminateTint="@color/colorPrimary" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_lg"
-                    android:text="Loading audio..."
+                    android:layout_marginTop="@dimen/space_xl"
+                    android:text="Loading..."
+                    android:textSize="16sp"
+                    android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                    android:textColor="@color/colorOnSurface" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_sm"
+                    android:text="Preparing subtitles and translations"
                     android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
                     android:textColor="@color/colorOnSurfaceVariant" />
 
@@ -195,24 +205,33 @@
             <!-- Processing state (shown during subtitle generation) -->
             <LinearLayout
                 android:id="@+id/layout_processing"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/space_lg"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
                 android:orientation="vertical"
                 android:gravity="center"
+                android:background="@color/colorBackground"
                 android:visibility="gone">
 
                 <ProgressBar
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:indeterminate="true"
                     android:indeterminateTint="@color/colorPrimary" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_sm"
+                    android:layout_marginTop="@dimen/space_xl"
                     android:text="Processing..."
+                    android:textSize="16sp"
+                    android:textAppearance="@style/TextAppearance.Horizon.BodyLarge"
+                    android:textColor="@color/colorOnSurface" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_sm"
+                    android:text="Generating subtitles and translations"
                     android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
                     android:textColor="@color/colorOnSurfaceVariant" />
 

@@ -6,46 +6,30 @@
     android:orientation="vertical"
     android:padding="20dp">
 
-    <!-- Header with title and close button -->
-    <RelativeLayout
+    <!-- Header with title and secondary text -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp">
+        android:orientation="vertical"
+        android:layout_marginBottom="20dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
             android:text="Loop"
-            android:textSize="18sp"
+            android:textSize="20sp"
             android:textStyle="bold"
             android:textColor="@color/colorOnSurface" />
 
-        <!-- Secondary text below title -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@android:id/text1"
-            android:layout_alignParentStart="true"
-            android:text="Set loop parameters"
-            android:textSize="12sp"
+            android:layout_marginTop="4dp"
+            android:text="Set the loop start and end times"
+            android:textSize="14sp"
             android:textColor="@color/colorOnSurfaceVariant" />
 
-        <ImageView
-            android:id="@+id/btn_dialog_loop_close"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:scaleType="centerInside"
-            android:contentDescription="Close"
-            android:src="@drawable/ic_close"
-            android:padding="4dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:clickable="true"
-            android:focusable="true" />
-
-    </RelativeLayout>
+    </LinearLayout>
 
     <!-- Loop name -->
     <com.google.android.material.textfield.TextInputLayout
@@ -111,7 +95,7 @@
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="20dp"
         android:hint="Loop count">
 
         <com.google.android.material.textfield.TextInputEditText
@@ -124,7 +108,7 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Buttons: Preview, Edit, Cancel -->
+    <!-- Buttons: Preview, Save, Cancel on same line -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -142,14 +126,12 @@
             app:icon="@drawable/ic_play" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_dialog_loop_edit"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:id="@+id/btn_dialog_loop_save"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
-            android:text="Edit"
-            app:icon="@drawable/ic_edit" />
+            android:text="Save" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_dialog_loop_cancel"
@@ -161,12 +143,19 @@
 
     </LinearLayout>
 
-    <!-- Save button -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_dialog_loop_save"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+    <!-- Close icon at bottom corner -->
+    <ImageView
+        android:id="@+id/btn_dialog_loop_close"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="end"
         android:layout_marginTop="8dp"
-        android:text="Save Loop" />
+        android:scaleType="centerInside"
+        android:contentDescription="Close"
+        android:src="@drawable/ic_close"
+        android:padding="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true" />
 
 </LinearLayout>

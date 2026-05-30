@@ -5,52 +5,36 @@
     android:orientation="vertical"
     android:padding="20dp">
 
-    <!-- Header with title and close button -->
-    <RelativeLayout
+    <!-- Header with title and secondary text -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp">
+        android:orientation="vertical"
+        android:layout_marginBottom="20dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
             android:text="Note"
-            android:textSize="18sp"
+            android:textSize="20sp"
             android:textStyle="bold"
             android:textColor="@color/colorOnSurface" />
 
-        <!-- Secondary text below title -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@android:id/text1"
-            android:layout_alignParentStart="true"
-            android:text="Add a note at current position"
-            android:textSize="12sp"
+            android:layout_marginTop="4dp"
+            android:text="Add a note at the current playback position"
+            android:textSize="14sp"
             android:textColor="@color/colorOnSurfaceVariant" />
 
-        <ImageView
-            android:id="@+id/btn_dialog_note_close"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:scaleType="centerInside"
-            android:contentDescription="Close"
-            android:src="@drawable/ic_close"
-            android:padding="4dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:clickable="true"
-            android:focusable="true" />
-
-    </RelativeLayout>
+    </LinearLayout>
 
     <!-- Note text -->
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="20dp"
         android:hint="Write a note...">
 
         <com.google.android.material.textfield.TextInputEditText
@@ -64,12 +48,20 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Buttons: Cancel and Save -->
+    <!-- Buttons: Save and Cancel on same line -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_dialog_note_save"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="Save" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_dialog_note_cancel"
@@ -79,13 +71,21 @@
             android:layout_weight="1"
             android:text="Cancel" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_dialog_note_save"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Save Note" />
-
     </LinearLayout>
+
+    <!-- Close icon at bottom corner -->
+    <ImageView
+        android:id="@+id/btn_dialog_note_close"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="end"
+        android:layout_marginTop="8dp"
+        android:scaleType="centerInside"
+        android:contentDescription="Close"
+        android:src="@drawable/ic_close"
+        android:padding="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true" />
 
 </LinearLayout>
