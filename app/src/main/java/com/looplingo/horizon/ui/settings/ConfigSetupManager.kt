@@ -102,6 +102,9 @@ class ConfigSetupManager @Inject constructor() {
     ) {
         viewModel.setCurrentTab(tab)
 
+        val isFullscreenTab = tab == PlaybackSettingsViewModel.TAB_LOOP || tab == PlaybackSettingsViewModel.TAB_NOTES
+        binding.layoutHeader.visibility = if (isFullscreenTab) View.GONE else View.VISIBLE
+
         binding.panelClean.visibility = if (tab == PlaybackSettingsViewModel.TAB_CLEAN) View.VISIBLE else View.GONE
         binding.panelTalk.visibility = if (tab == PlaybackSettingsViewModel.TAB_TALK) View.VISIBLE else View.GONE
         binding.panelLoop.visibility = if (tab == PlaybackSettingsViewModel.TAB_LOOP) View.VISIBLE else View.GONE
