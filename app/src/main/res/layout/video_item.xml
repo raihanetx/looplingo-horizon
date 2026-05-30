@@ -29,7 +29,7 @@
         android:layout_marginHorizontal="12dp"
         android:background="@color/colorOutlineVariant" />
 
-    <!-- Text content -->
+    <!-- Text content (title + info line) -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -47,7 +47,7 @@
             android:textColor="@color/colorOnSurface"
             tools:text="Chapter 03 - Introducing Yourself" />
 
-        <!-- Info line: size | subtitle status -->
+        <!-- Info line: file size | subtitle status -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -64,12 +64,12 @@
                 android:textColor="@color/colorOnSurfaceVariant"
                 tools:text="24.5 MB" />
 
-            <!-- Divider -->
+            <!-- Divider line (not dot) -->
             <View
                 android:id="@+id/divider_subtitle"
-                android:layout_width="2dp"
-                android:layout_height="2dp"
-                android:layout_marginHorizontal="6dp"
+                android:layout_width="1dp"
+                android:layout_height="12dp"
+                android:layout_marginHorizontal="8dp"
                 android:background="@color/colorOutlineVariant"
                 android:visibility="gone" />
 
@@ -87,16 +87,24 @@
 
     </LinearLayout>
 
-    <!-- Duration on the right side -->
-    <TextView
-        android:id="@+id/tv_duration"
+    <!-- Duration on the right side, vertically centered -->
+    <LinearLayout
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:layout_marginStart="8dp"
-        android:textSize="12sp"
-        android:textColor="@color/colorOnSurfaceVariant"
-        android:textStyle="bold"
-        tools:text="05:32" />
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_duration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="@color/colorOnSurfaceVariant"
+            android:textStyle="bold"
+            tools:text="05:32" />
+
+    </LinearLayout>
 
     <!-- Loop mode badge -->
     <TextView
