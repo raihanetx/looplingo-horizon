@@ -4,51 +4,45 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:padding="20dp"
+    android:paddingTop="12dp">
 
-    <!-- Header with close button top-right -->
+    <!-- Close icon top-right corner -->
+    <ImageView
+        android:id="@+id/btn_dialog_note_close"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="end"
+        android:scaleType="centerInside"
+        android:contentDescription="Close"
+        android:src="@drawable/ic_close"
+        android:padding="6dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <!-- Header with title -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:orientation="vertical"
         android:layout_marginBottom="20dp">
 
-        <LinearLayout
-            android:layout_width="0dp"
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:text="Note"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/colorOnSurface" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Note"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:textColor="@color/colorOnSurface" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Add a note at the current playback position"
-                android:textSize="14sp"
-                android:textColor="@color/colorOnSurfaceVariant" />
-
-        </LinearLayout>
-
-        <ImageView
-            android:id="@+id/btn_dialog_note_close"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:scaleType="centerInside"
-            android:contentDescription="Close"
-            android:src="@drawable/ic_close"
-            android:padding="8dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:clickable="true"
-            android:focusable="true" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Add a note at the current playback position"
+            android:textSize="14sp"
+            android:textColor="@color/colorOnSurfaceVariant" />
 
     </LinearLayout>
 

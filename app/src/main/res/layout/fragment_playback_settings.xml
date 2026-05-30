@@ -657,6 +657,7 @@
                 android:contentDescription="Add loop"
                 app:srcCompat="@drawable/ic_add"
                 app:fabSize="mini"
+                app:maxImageSize="16dp"
                 app:backgroundTint="@color/colorPrimaryContainer"
                 app:tint="@color/colorOnPrimaryContainer" />
 
@@ -802,6 +803,7 @@
                 android:contentDescription="Add note"
                 app:srcCompat="@drawable/ic_add"
                 app:fabSize="mini"
+                app:maxImageSize="16dp"
                 app:backgroundTint="@color/colorPrimaryContainer"
                 app:tint="@color/colorOnPrimaryContainer" />
 
