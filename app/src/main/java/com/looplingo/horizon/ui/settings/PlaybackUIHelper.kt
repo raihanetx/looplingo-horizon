@@ -155,6 +155,7 @@ class PlaybackUIHelper @Inject constructor() {
             binding.tvAudioMode.setTextColor(context.resources.getColor(R.color.colorOnPrimaryContainer, null))
             binding.tvAudioMode.setBackgroundResource(R.drawable.bg_audio_mode_active)
             binding.tvAudioMode.setPadding(20, 4, 20, 4)
+            binding.layoutInitialLoading.visibility = View.GONE
             binding.ivCleanIcon.setImageResource(R.drawable.ic_music_note)
             binding.ivCleanIcon.visibility = View.VISIBLE
             binding.tvCleanTitle.visibility = View.GONE
@@ -166,11 +167,17 @@ class PlaybackUIHelper @Inject constructor() {
             binding.tvAudioMode.setTextColor(context.resources.getColor(R.color.colorOnSurfaceVariant, null))
             binding.tvAudioMode.background = null
             binding.tvAudioMode.setPadding(0, 0, 0, 0)
+            binding.layoutInitialLoading.visibility = View.GONE
             binding.ivCleanIcon.visibility = View.GONE
             binding.tvCleanTitle.visibility = View.VISIBLE
             binding.tvCleanEnglish.visibility = View.GONE
             binding.tvCleanBangla.visibility = View.GONE
         }
+    }
+
+    internal fun hideInitialLoading(binding: FragmentPlaybackSettingsBinding) {
+        binding.layoutInitialLoading.visibility = View.GONE
+        binding.tvCleanTitle.visibility = View.VISIBLE
     }
 
     internal fun setupNowPlayingCard(
@@ -182,6 +189,8 @@ class PlaybackUIHelper @Inject constructor() {
         binding.tvCleanTitle.text = title
         binding.tvCurrentPosition.text = "0:00"
         binding.tvDuration.text = "0:00"
+        // Hide initial loading when now playing card is set up
+        hideInitialLoading(binding)
     }
 
     internal fun updateNowPlayingState(

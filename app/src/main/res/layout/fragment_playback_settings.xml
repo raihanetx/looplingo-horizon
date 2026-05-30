@@ -145,14 +145,39 @@
             android:paddingHorizontal="@dimen/space_xl"
             android:visibility="visible">
 
-            <!-- App logo (shown when no subtitles loaded) -->
+            <!-- App logo (hidden initially, shown after loading) -->
             <ImageView
                 android:id="@+id/iv_clean_icon"
                 android:layout_width="72dp"
                 android:layout_height="72dp"
                 android:contentDescription="App logo"
                 android:scaleType="centerCrop"
-                android:src="@drawable/ic_launcher_foreground" />
+                android:src="@drawable/ic_launcher_foreground"
+                android:visibility="gone" />
+
+            <!-- Loading state (shown initially) -->
+            <LinearLayout
+                android:id="@+id/layout_initial_loading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <ProgressBar
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:indeterminate="true"
+                    android:indeterminateTint="@color/colorPrimary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_lg"
+                    android:text="Loading audio..."
+                    android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
+                    android:textColor="@color/colorOnSurfaceVariant" />
+
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/tv_clean_title"
@@ -164,6 +189,7 @@
                 android:maxLines="2"
                 android:textAppearance="@style/TextAppearance.Horizon.HeadlineMedium"
                 android:textColor="@color/colorOnSurface"
+                android:visibility="gone"
                 tools:text="Chapter 03" />
 
             <!-- Processing state (shown during subtitle generation) -->
@@ -579,16 +605,27 @@
                     <ImageView
                         android:layout_width="64dp"
                         android:layout_height="64dp"
+                        android:alpha="0.4"
                         android:contentDescription="Loop"
-                        android:scaleType="centerCrop"
-                        android:src="@drawable/ic_launcher_foreground" />
+                        android:scaleType="centerInside"
+                        android:src="@drawable/ic_tab_loop"
+                        android:tint="@color/colorOnSurfaceVariant" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/space_lg"
                         android:gravity="center"
-                        android:text="@string/no_saved_loops"
+                        android:text="No loops yet"
+                        android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
+                        android:textColor="@color/colorOnSurfaceVariant" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_sm"
+                        android:gravity="center"
+                        android:text="Tap the + button above to add a loop"
                         android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
                         android:textColor="@color/colorOnSurfaceVariant" />
 
@@ -705,17 +742,27 @@
                     <ImageView
                         android:layout_width="64dp"
                         android:layout_height="64dp"
+                        android:alpha="0.4"
                         android:contentDescription="Notes"
-                        android:scaleType="centerCrop"
-                        android:src="@drawable/ic_launcher_foreground" />
+                        android:scaleType="centerInside"
+                        android:src="@drawable/ic_tab_notes"
+                        android:tint="@color/colorOnSurfaceVariant" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/space_lg"
                         android:gravity="center"
-                        android:text="No saved notes yet."
-                        android:textAlignment="center"
+                        android:text="No notes yet"
+                        android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
+                        android:textColor="@color/colorOnSurfaceVariant" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_sm"
+                        android:gravity="center"
+                        android:text="Tap the + button above to add a note"
                         android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
                         android:textColor="@color/colorOnSurfaceVariant" />
 
