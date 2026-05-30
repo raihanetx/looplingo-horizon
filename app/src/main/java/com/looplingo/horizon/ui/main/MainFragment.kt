@@ -93,23 +93,22 @@ class MainFragment : Fragment() {
     }
 
     private fun setupFilterDrawer() {
-        val filterOptions = listOf("All", "Size: High to Low", "Size: Low to High", "Subtitle: Yes", "Subtitle: No", "Pinned")
+        val filterOptions = listOf("All", "Size ↓", "Size ↑", "Sub: Yes", "Sub: No", "Pinned")
         val chipContainer = binding.layoutFilterChips
         chipContainer.removeAllViews()
 
         filterOptions.forEach { filter ->
             val chip = MaterialButton(requireContext()).apply {
                 text = filter
-                textSize = 10f
+                textSize = 11f
                 isAllCaps = false
                 cornerRadius = 100
-                setPadding(28, 12, 28, 12)
+                setPadding(20, 6, 20, 6)
                 minimumHeight = 0
                 minimumWidth = 0
-                setTextColor(if (filter == activeFilter) ContextCompat.getColor(context, R.color.white) else ContextCompat.getColor(context, R.color.slate500))
-                backgroundTintList = if (filter == activeFilter) ContextCompat.getColorStateList(context, R.color.colorPrimary) else ContextCompat.getColorStateList(context, R.color.white)
-                strokeWidth = if (filter == activeFilter) 0 else 2
-                strokeColor = if (filter != activeFilter) ContextCompat.getColorStateList(context, R.color.slate200) else null
+                setTextColor(if (filter == activeFilter) ContextCompat.getColor(context, R.color.white) else ContextCompat.getColor(context, R.color.gray600))
+                backgroundTintList = if (filter == activeFilter) ContextCompat.getColorStateList(context, R.color.blue500) else ContextCompat.getColorStateList(context, R.color.gray100)
+                strokeWidth = 0
                 setOnClickListener {
                     activeFilter = filter
                     applyFilter(filter)
@@ -120,7 +119,7 @@ class MainFragment : Fragment() {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                marginEnd = 12
+                marginEnd = 8
             }
             chip.layoutParams = lp
             chipContainer.addView(chip)
@@ -133,10 +132,9 @@ class MainFragment : Fragment() {
             val chip = chipContainer.getChildAt(i) as? MaterialButton ?: continue
             val filter = chip.text.toString()
             val isActive = filter == activeFilter
-            chip.setTextColor(if (isActive) ContextCompat.getColor(requireContext(), R.color.white) else ContextCompat.getColor(requireContext(), R.color.slate500))
-            chip.backgroundTintList = if (isActive) ContextCompat.getColorStateList(requireContext(), R.color.colorPrimary) else ContextCompat.getColorStateList(requireContext(), R.color.white)
-            chip.strokeWidth = if (isActive) 0 else 2
-            chip.strokeColor = if (!isActive) ContextCompat.getColorStateList(requireContext(), R.color.slate200) else null
+            chip.setTextColor(if (isActive) ContextCompat.getColor(requireContext(), R.color.white) else ContextCompat.getColor(requireContext(), R.color.gray600))
+            chip.backgroundTintList = if (isActive) ContextCompat.getColorStateList(requireContext(), R.color.blue500) else ContextCompat.getColorStateList(requireContext(), R.color.gray100)
+            chip.strokeWidth = 0
         }
     }
 
@@ -145,17 +143,17 @@ class MainFragment : Fragment() {
         binding.layoutFilterDrawer.visibility = if (isFilterOpen) View.VISIBLE else View.GONE
         binding.spacerFilter.visibility = if (isFilterOpen) View.VISIBLE else View.GONE
         binding.ivFilterToggle.setColorFilter(
-            if (isFilterOpen) ContextCompat.getColor(requireContext(), R.color.colorPrimary)
-            else ContextCompat.getColor(requireContext(), R.color.slate500)
+            if (isFilterOpen) ContextCompat.getColor(requireContext(), R.color.blue500)
+            else ContextCompat.getColor(requireContext(), R.color.gray500)
         )
     }
 
     private fun applyFilter(filter: String) {
         viewModel.setSortOrder(when (filter) {
-            "Size: High to Low" -> SortOrder.SIZE
-            "Size: Low to High" -> SortOrder.SIZE
-            "Subtitle: Yes" -> SortOrder.DATE
-            "Subtitle: No" -> SortOrder.DATE
+            "Size ↓" -> SortOrder.SIZE
+            "Size ↑" -> SortOrder.SIZE
+            "Sub: Yes" -> SortOrder.DATE
+            "Sub: No" -> SortOrder.DATE
             "Pinned" -> SortOrder.DATE
             else -> SortOrder.DATE
         })

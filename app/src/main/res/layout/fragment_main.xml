@@ -6,7 +6,7 @@
     android:id="@+id/swipe_refresh"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/slate50">
+    android:background="@color/white">
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
@@ -18,7 +18,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="16dp"
-            android:paddingTop="32dp"
+            android:paddingTop="24dp"
             android:paddingBottom="24dp">
 
             <!-- Header: App name + slogan | filter + settings icons -->
@@ -39,20 +39,19 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/app_name"
-                        android:textSize="24sp"
+                        android:textSize="22sp"
                         android:textStyle="bold"
-                        android:letterSpacing="-0.02"
-                        android:textColor="@color/slate800" />
+                        android:fontFamily="sans-serif-medium"
+                        android:textColor="@color/blue600" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="MASTER ENGLISH BY LISTENING"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:letterSpacing="0.1"
-                        android:textColor="@color/slate400" />
+                        android:layout_marginTop="2dp"
+                        android:text="Listen. Loop. Learn."
+                        android:textSize="12sp"
+                        android:fontFamily="sans-serif"
+                        android:textColor="@color/gray400" />
 
                 </LinearLayout>
 
@@ -65,8 +64,8 @@
 
                     <ImageView
                         android:id="@+id/iv_filter_toggle"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
                         android:scaleType="centerInside"
                         android:contentDescription="Toggle Filter Options"
                         android:src="@drawable/ic_filter"
@@ -74,13 +73,13 @@
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:focusable="true"
-                        app:tint="@color/slate500" />
+                        app:tint="@color/gray500" />
 
                     <ImageView
                         android:id="@+id/iv_settings"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:layout_marginStart="8dp"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_marginStart="4dp"
                         android:scaleType="centerInside"
                         android:contentDescription="Settings"
                         android:src="@drawable/ic_settings"
@@ -88,26 +87,26 @@
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:focusable="true"
-                        app:tint="@color/slate500" />
+                        app:tint="@color/gray500" />
 
                 </LinearLayout>
 
             </LinearLayout>
 
-            <!-- Spacer: header to search (20dp) -->
+            <!-- Spacer: header to search (16dp) -->
             <View
                 android:layout_width="0dp"
-                android:layout_height="20dp" />
+                android:layout_height="16dp" />
 
             <!-- Search Input Bar -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/card_search"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
-                app:cardBackgroundColor="@color/slate100"
-                app:cardCornerRadius="28dp"
+                android:layout_height="44dp"
+                app:cardBackgroundColor="@color/gray100"
+                app:cardCornerRadius="22dp"
                 app:cardElevation="0dp"
-                app:strokeColor="@color/slate200"
+                app:strokeColor="@color/gray200"
                 app:strokeWidth="1dp">
 
                 <LinearLayout
@@ -115,25 +114,25 @@
                     android:layout_height="match_parent"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="16dp">
+                    android:paddingHorizontal="14dp">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
                         android:contentDescription="Search"
                         android:src="@drawable/ic_search"
-                        app:tint="@color/slate400" />
+                        app:tint="@color/gray400" />
 
                     <EditText
                         android:id="@+id/et_search"
                         android:layout_width="0dp"
                         android:layout_height="match_parent"
                         android:layout_weight="1"
-                        android:layout_marginStart="10dp"
+                        android:layout_marginStart="8dp"
                         android:background="@null"
                         android:hint="Search lessons..."
-                        android:textColorHint="@color/slate400"
-                        android:textColor="@color/slate700"
+                        android:textColorHint="@color/gray400"
+                        android:textColor="@color/gray700"
                         android:textSize="14sp"
                         android:imeOptions="actionSearch"
                         android:inputType="text"
@@ -143,57 +142,46 @@
 
                     <ImageView
                         android:id="@+id/iv_clear_search"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="Clear search"
                         android:visibility="gone"
                         android:src="@drawable/ic_close"
                         android:padding="2dp"
-                        app:tint="@color/slate400" />
+                        app:tint="@color/gray400" />
 
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Spacer: search to filter (12dp) -->
+            <!-- Spacer: search to filter (10dp) -->
             <View
                 android:layout_width="0dp"
-                android:layout_height="12dp" />
+                android:layout_height="10dp" />
 
-            <!-- Collapsible Filter Drawer -->
-            <com.google.android.material.card.MaterialCardView
+            <!-- Collapsible Filter Chips (no card background) -->
+            <HorizontalScrollView
                 android:id="@+id/layout_filter_drawer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:visibility="gone"
-                app:cardBackgroundColor="@color/slate100"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/slate200"
-                app:strokeWidth="1dp">
+                android:scrollbars="none"
+                android:visibility="gone">
 
-                <HorizontalScrollView
-                    android:layout_width="match_parent"
+                <LinearLayout
+                    android:id="@+id/layout_filter_chips"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:scrollbars="none"
-                    android:padding="12dp">
+                    android:orientation="horizontal"
+                    android:paddingBottom="4dp" />
 
-                    <LinearLayout
-                        android:id="@+id/layout_filter_chips"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal" />
+            </HorizontalScrollView>
 
-                </HorizontalScrollView>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Spacer after filter (12dp when visible) -->
+            <!-- Spacer after filter (8dp when visible) -->
             <View
                 android:id="@+id/spacer_filter"
                 android:layout_width="0dp"
-                android:layout_height="12dp"
+                android:layout_height="8dp"
                 android:visibility="gone" />
 
             <!-- Long-press hint -->
@@ -202,14 +190,15 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:paddingHorizontal="4dp">
+                android:paddingHorizontal="4dp"
+                android:layout_marginBottom="8dp">
 
                 <ImageView
                     android:layout_width="12dp"
                     android:layout_height="12dp"
                     android:contentDescription="null"
                     android:src="@drawable/ic_info"
-                    app:tint="@color/slate400" />
+                    app:tint="@color/gray400" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -217,15 +206,9 @@
                     android:layout_marginStart="4dp"
                     android:text="Hold down a card to pin/unpin it"
                     android:textSize="10sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/slate400" />
+                    android:textColor="@color/gray400" />
 
             </LinearLayout>
-
-            <!-- Spacer: hint to cards (8dp) -->
-            <View
-                android:layout_width="0dp"
-                android:layout_height="8dp" />
 
             <!-- Stats count -->
             <TextView
@@ -235,7 +218,7 @@
                 android:layout_marginStart="4dp"
                 android:layout_marginBottom="4dp"
                 android:textSize="12sp"
-                android:textColor="@color/slate400"
+                android:textColor="@color/gray400"
                 android:visibility="gone" />
 
             <!-- Video list -->
@@ -259,13 +242,13 @@
 
                 <ImageView
                     android:id="@+id/iv_empty_icon"
-                    android:layout_width="96dp"
-                    android:layout_height="96dp"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
                     android:alpha="0.5"
                     android:contentDescription="Empty state"
                     android:importantForAccessibility="no"
                     app:srcCompat="@drawable/ic_empty_state"
-                    app:tint="@color/slate400" />
+                    app:tint="@color/gray400" />
 
                 <TextView
                     android:id="@+id/tv_empty"
@@ -275,7 +258,7 @@
                     android:gravity="center"
                     android:text="@string/no_videos_found"
                     android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
-                    android:textColor="@color/slate400" />
+                    android:textColor="@color/gray400" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_empty_retry"
@@ -295,7 +278,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_marginTop="40dp"
-                android:indeterminateTint="@color/colorPrimary"
+                android:indeterminateTint="@color/blue500"
                 android:visibility="gone" />
 
         </LinearLayout>
