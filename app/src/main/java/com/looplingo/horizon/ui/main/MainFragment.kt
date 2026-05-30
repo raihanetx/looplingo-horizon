@@ -259,6 +259,13 @@ class MainFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        // Update playing state when returning from playback
+        val currentPath = com.looplingo.horizon.domain.audio.service.AudioPlaybackService.currentVideoPath
+        if (currentPath.isNotBlank()) {
+            videoAdapter.playingPath = currentPath
+        } else {
+            videoAdapter.playingPath = null
+        }
     }
 
     override fun onPause() {
