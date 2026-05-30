@@ -449,20 +449,28 @@
             <!-- Section header -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
+                android:layout_height="wrap_content"
                 android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="4dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="12dp"
+                android:orientation="vertical"
+                android:gravity="center">
 
                 <TextView
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Loops"
-                    android:textSize="14sp"
+                    android:text="Loop"
+                    android:textSize="20sp"
                     android:textStyle="bold"
                     android:textColor="@color/colorOnSurface" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Set the loop start and end times"
+                    android:textSize="13sp"
+                    android:textColor="@color/colorOnSurfaceVariant" />
 
             </LinearLayout>
 
@@ -678,20 +686,28 @@
             <!-- Section header -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
+                android:layout_height="wrap_content"
                 android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="4dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="12dp"
+                android:orientation="vertical"
+                android:gravity="center">
 
                 <TextView
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Notes"
-                    android:textSize="14sp"
+                    android:text="Note"
+                    android:textSize="20sp"
                     android:textStyle="bold"
                     android:textColor="@color/colorOnSurface" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Add a note at the current playback position"
+                    android:textSize="13sp"
+                    android:textColor="@color/colorOnSurfaceVariant" />
 
             </LinearLayout>
 
