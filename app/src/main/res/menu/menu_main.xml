@@ -4,14 +4,14 @@
 
     <item
         android:id="@+id/action_sort"
-        android:icon="@drawable/ic_sort"
+        android:icon="@drawable/ic_filter"
         android:title="@string/action_sort"
         android:contentDescription="@string/content_desc_sort"
         app:showAsAction="ifRoom" />
 
     <item
         android:id="@+id/action_settings"
-        android:icon="@drawable/ic_person"
+        android:icon="@drawable/ic_settings"
         android:title="@string/action_settings"
         android:contentDescription="@string/content_desc_settings"
         app:showAsAction="ifRoom" />
