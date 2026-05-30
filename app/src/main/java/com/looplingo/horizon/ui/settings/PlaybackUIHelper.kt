@@ -290,11 +290,6 @@ class PlaybackUIHelper @Inject constructor() {
             }
         }
 
-        dialogBinding.btnDialogLoopEdit.setOnClickListener {
-            // Edit functionality - fields are already editable
-            showSnackbar(dialogBinding.root, "Edit the fields above")
-        }
-
         dialogBinding.btnDialogLoopSave.setOnClickListener {
             val name = dialogBinding.etDialogLoopName.text.toString().trim()
             val startText = dialogBinding.etDialogLoopStart.text.toString().trim()
