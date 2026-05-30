@@ -49,6 +49,20 @@ class VideoAdapter(
             }
         }
 
+    var playingPath: String? = null
+        set(value) {
+            val oldPath = field
+            field = value
+            if (oldPath != null) {
+                val oldPos = currentList.indexOfFirst { it.path == oldPath }
+                if (oldPos >= 0) notifyItemChanged(oldPos, PAYLOAD_PLAYING_UPDATE)
+            }
+            if (value != null) {
+                val newPos = currentList.indexOfFirst { it.path == value }
+                if (newPos >= 0) notifyItemChanged(newPos, PAYLOAD_PLAYING_UPDATE)
+            }
+        }
+
     fun clearSelection() {
         selectedPath = null
     }
@@ -67,6 +81,7 @@ class VideoAdapter(
             payloads.contains(PAYLOAD_BADGE_UPDATE) -> holder.bindBadge(getItem(position))
             payloads.contains(PAYLOAD_SUBTITLE_UPDATE) -> holder.bindSubtitleStatus(getItem(position))
             payloads.contains(PAYLOAD_SELECTION_UPDATE) -> holder.bindSelection(getItem(position))
+            payloads.contains(PAYLOAD_PLAYING_UPDATE) -> holder.bindPlayingState(getItem(position))
             else -> super.onBindViewHolder(holder, position, payloads)
         }
     }
@@ -82,6 +97,7 @@ class VideoAdapter(
             bindBadge(video)
             bindSubtitleStatus(video)
             bindSelection(video)
+            bindPlayingState(video)
 
             binding.root.setOnClickListener {
                 onVideoClick(video)
@@ -97,6 +113,14 @@ class VideoAdapter(
 
         fun bindSelection(video: VideoEntity) {
             binding.root.isSelected = video.path == selectedPath
+        }
+
+        fun bindPlayingState(video: VideoEntity) {
+            val isPlaying = video.path == playingPath
+            binding.viewPlayingIndicator.setBackgroundColor(
+                if (isPlaying) binding.root.context.getColor(R.color.colorPrimary)
+                else android.graphics.Color.TRANSPARENT
+            )
         }
 
         fun bindBadge(video: VideoEntity) {
@@ -165,6 +189,7 @@ class VideoAdapter(
         const val PAYLOAD_BADGE_UPDATE = "badge_update"
         const val PAYLOAD_SUBTITLE_UPDATE = "subtitle_update"
         const val PAYLOAD_SELECTION_UPDATE = "selection_update"
+        const val PAYLOAD_PLAYING_UPDATE = "playing_update"
 
         private val fileSizeFormat = DecimalFormat("#,##0.#")
 
