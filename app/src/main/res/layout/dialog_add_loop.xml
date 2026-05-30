@@ -1,18 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="20dp">
 
-    <TextView
+    <!-- Header with title and close button -->
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Add Loop"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="@color/colorOnSurface"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:text="Loop"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/colorOnSurface" />
+
+        <!-- Secondary text below title -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@android:id/text1"
+            android:layout_alignParentStart="true"
+            android:text="Set loop parameters"
+            android:textSize="12sp"
+            android:textColor="@color/colorOnSurfaceVariant" />
+
+        <ImageView
+            android:id="@+id/btn_dialog_loop_close"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:scaleType="centerInside"
+            android:contentDescription="Close"
+            android:src="@drawable/ic_close"
+            android:padding="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true" />
+
+    </RelativeLayout>
 
     <!-- Loop name -->
     <com.google.android.material.textfield.TextInputLayout
@@ -91,27 +124,49 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Buttons -->
+    <!-- Buttons: Preview, Edit, Cancel -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="end">
+        android:gravity="center">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_dialog_loop_preview"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="Preview"
+            app:icon="@drawable/ic_play" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_dialog_loop_edit"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="Edit"
+            app:icon="@drawable/ic_edit" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_dialog_loop_cancel"
             style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="Cancel" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_dialog_loop_save"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="Add Loop" />
-
     </LinearLayout>
+
+    <!-- Save button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_dialog_loop_save"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Save Loop" />
 
 </LinearLayout>

@@ -269,8 +269,30 @@ class PlaybackUIHelper @Inject constructor() {
             .setView(dialogBinding.root)
             .create()
 
+        // Center the dialog
+        dialog.window?.setGravity(android.view.Gravity.CENTER)
+
+        dialogBinding.btnDialogLoopClose.setOnClickListener {
+            dialog.dismiss()
+        }
+
         dialogBinding.btnDialogLoopCancel.setOnClickListener {
             dialog.dismiss()
+        }
+
+        dialogBinding.btnDialogLoopPreview.setOnClickListener {
+            val startMs = TimeUtils.parseTimeToMs(dialogBinding.etDialogLoopStart.text.toString())
+            val endMs = TimeUtils.parseTimeToMs(dialogBinding.etDialogLoopEnd.text.toString())
+            if (startMs >= 0 && endMs > startMs) {
+                showSnackbar(dialogBinding.root, "Preview: ${TimeUtils.formatMsToTime(startMs)} — ${TimeUtils.formatMsToTime(endMs)}")
+            } else {
+                showSnackbar(dialogBinding.root, "Enter valid start and end times")
+            }
+        }
+
+        dialogBinding.btnDialogLoopEdit.setOnClickListener {
+            // Edit functionality - fields are already editable
+            showSnackbar(dialogBinding.root, "Edit the fields above")
         }
 
         dialogBinding.btnDialogLoopSave.setOnClickListener {
@@ -312,6 +334,13 @@ class PlaybackUIHelper @Inject constructor() {
         val dialog = MaterialAlertDialogBuilder(context)
             .setView(dialogBinding.root)
             .create()
+
+        // Center the dialog
+        dialog.window?.setGravity(android.view.Gravity.CENTER)
+
+        dialogBinding.btnDialogNoteClose.setOnClickListener {
+            dialog.dismiss()
+        }
 
         dialogBinding.btnDialogNoteCancel.setOnClickListener {
             dialog.dismiss()
