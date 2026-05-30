@@ -1,16 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ripple xmlns:android="http://schemas.android.com/apk/res/android"
-    android:color="@color/glass_splash">
-    <item>
-        <shape android:shape="rectangle">
-            <solid android:color="@color/colorSurfaceContainerLow" />
-            <corners android:radius="12dp" />
-        </shape>
-    </item>
-    <item android:id="@android:id/mask">
-        <shape android:shape="rectangle">
-            <solid android:color="@color/white" />
-            <corners android:radius="12dp" />
-        </shape>
-    </item>
-</ripple>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/bg_glass_card_selected" android:state_selected="true" />
+    <item android:drawable="@drawable/bg_glass_card_normal" />
+</selector>

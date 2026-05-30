@@ -50,21 +50,29 @@ class MainFragmentHelper @Inject constructor(
         viewModel: MainViewModel,
         notificationPermissionLauncher: ActivityResultLauncher<String>
     ): VideoAdapter {
-        val adapter = VideoAdapter { video ->
-            Timber.d("Video clicked: %s", video.title)
-            try {
-                requestNotificationPermissionIfNeeded(fragment, notificationPermissionLauncher)
-                val action = MainFragmentDirections.actionMainToPlaybackSettings(video.path, "")
-                fragment.findNavController().navigate(action)
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to navigate for: %s", video.title)
-                Snackbar.make(
-                    binding.root,
-                    fragment.getString(R.string.error_starting_playback),
-                    Snackbar.LENGTH_LONG
-                ).show()
+        lateinit var videoAdapter: VideoAdapter
+        videoAdapter = VideoAdapter(
+            onVideoClick = { video ->
+                Timber.d("Video clicked: %s", video.title)
+                try {
+                    requestNotificationPermissionIfNeeded(fragment, notificationPermissionLauncher)
+                    val action = MainFragmentDirections.actionMainToPlaybackSettings(video.path, "")
+                    fragment.findNavController().navigate(action)
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to navigate for: %s", video.title)
+                    Snackbar.make(
+                        binding.root,
+                        fragment.getString(R.string.error_starting_playback),
+                        Snackbar.LENGTH_LONG
+                    ).show()
+                }
+            },
+            onVideoLongClick = { video ->
+                val current = videoAdapter.selectedPath
+                videoAdapter.selectedPath = if (current == video.path) null else video.path
             }
-        }
+        )
+        val adapter = videoAdapter
         binding.rvVideoList.layoutManager = LinearLayoutManager(fragment.requireContext())
         binding.rvVideoList.adapter = adapter
         binding.rvVideoList.setHasFixedSize(false)
@@ -101,6 +109,8 @@ class MainFragmentHelper @Inject constructor(
                         showEmptyState(binding, videoList.isEmpty())
                         // Check which videos have subtitles
                         launch {
+                            // Show loading state
+                            videoAdapter.videosLoadingSubtitles = videoList.map { it.path }.toSet()
                             val videosWithSubs = mutableSetOf<String>()
                             for (video in videoList) {
                                 try {
@@ -112,6 +122,7 @@ class MainFragmentHelper @Inject constructor(
                                 }
                             }
                             videoAdapter.videosWithSubtitles = videosWithSubs
+                            videoAdapter.videosLoadingSubtitles = emptySet()
                         }
                     }
                 }

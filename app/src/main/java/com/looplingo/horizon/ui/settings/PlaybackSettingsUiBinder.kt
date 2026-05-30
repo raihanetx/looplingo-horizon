@@ -115,6 +115,9 @@ class PlaybackSettingsUiBinder @Inject constructor(
         // Setup note form
         setupNoteForm(fragment, binding, activity, videoPath)
 
+        // Setup + buttons for loop/note dialogs
+        setupAddButtons(fragment, binding, activity, videoPath)
+
         // Setup play selected button
         binding.btnPlaySelected.setOnClickListener {
             dialogueInteractionHandler.playSelectedDialogues(binding, videoPath, dialogueAdapter)
@@ -289,6 +292,48 @@ class PlaybackSettingsUiBinder @Inject constructor(
         )
 
         playbackUIHelper.updateNoteEmptyState(binding, savedNotes.isNotEmpty())
+    }
+
+    private fun setupAddButtons(
+        fragment: Fragment,
+        binding: FragmentPlaybackSettingsBinding,
+        activity: android.app.Activity,
+        videoPath: String
+    ) {
+        val prefs = fragment.requireContext().getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+
+        // Add loop button
+        playbackUIHelper.setupAddLoopButton(binding) {
+            val currentTimeMs = AudioPlaybackService.currentPositionMs
+            playbackUIHelper.showAddLoopDialog(
+                context = fragment.requireContext(),
+                currentTimeMs = currentTimeMs,
+                onSave = { name, startMs, endMs, loopCount ->
+                    val loop = SavedLoop(name, startMs, endMs, loopCount)
+                    loopAdapter?.addLoop(loop)
+                    val hasLoops = loopAdapter?.getLoops()?.isNotEmpty() == true
+                    playbackUIHelper.updateLoopEmptyState(binding, hasLoops)
+                    saveLoops(prefs, videoPath, loopAdapter?.getLoops() ?: emptyList())
+                    playbackUIHelper.showSnackbar(binding.root, "Loop saved: $name")
+                }
+            )
+        }
+
+        // Add note button
+        playbackUIHelper.setupAddNoteButton(binding) {
+            val currentPosMs = AudioPlaybackService.currentPositionMs
+            playbackUIHelper.showAddNoteDialog(
+                context = fragment.requireContext(),
+                onSave = { text ->
+                    val note = SavedNote(text, currentPosMs)
+                    noteAdapter?.addNote(note)
+                    val hasNotes = noteAdapter?.getNotes()?.isNotEmpty() == true
+                    playbackUIHelper.updateNoteEmptyState(binding, hasNotes)
+                    saveNotes(prefs, videoPath, noteAdapter?.getNotes() ?: emptyList())
+                    playbackUIHelper.showSnackbar(binding.root, "Note saved")
+                }
+            )
+        }
     }
 
     companion object {

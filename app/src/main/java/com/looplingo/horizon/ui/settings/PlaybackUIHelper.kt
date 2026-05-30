@@ -3,8 +3,11 @@ package com.looplingo.horizon.ui.settings
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.looplingo.horizon.R
+import com.looplingo.horizon.databinding.DialogAddLoopBinding
+import com.looplingo.horizon.databinding.DialogAddNoteBinding
 import com.looplingo.horizon.databinding.FragmentPlaybackSettingsBinding
 import com.looplingo.horizon.ui.settings.PlaybackSettingsViewModel
 import com.looplingo.horizon.domain.audio.service.AudioPlaybackService
@@ -240,5 +243,97 @@ class PlaybackUIHelper @Inject constructor() {
         }
 
         snackbar.show()
+    }
+
+    internal fun showAddLoopDialog(
+        context: android.content.Context,
+        currentTimeMs: Long,
+        onSave: (name: String, startMs: Long, endMs: Long, loopCount: Int) -> Unit
+    ) {
+        val dialogBinding = DialogAddLoopBinding.inflate(
+            android.view.LayoutInflater.from(context)
+        )
+        dialogBinding.etDialogLoopStart.setText(TimeUtils.formatMsToTime(currentTimeMs))
+        dialogBinding.etDialogLoopEnd.setText(TimeUtils.formatMsToTime(currentTimeMs + 10000))
+
+        val dialog = MaterialAlertDialogBuilder(context)
+            .setView(dialogBinding.root)
+            .create()
+
+        dialogBinding.btnDialogLoopCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialogBinding.btnDialogLoopSave.setOnClickListener {
+            val name = dialogBinding.etDialogLoopName.text.toString().trim()
+            val startText = dialogBinding.etDialogLoopStart.text.toString().trim()
+            val endText = dialogBinding.etDialogLoopEnd.text.toString().trim()
+            val countText = dialogBinding.etDialogLoopCount.text.toString().trim()
+
+            if (name.isEmpty()) {
+                dialogBinding.etDialogLoopName.error = "Required"
+                return@setOnClickListener
+            }
+
+            val startMs = TimeUtils.parseTimeToMs(startText)
+            val endMs = TimeUtils.parseTimeToMs(endText)
+            val loopCount = countText.toIntOrNull() ?: 3
+
+            if (startMs < 0 || endMs < 0 || endMs <= startMs) {
+                dialogBinding.etDialogLoopStart.error = "Invalid"
+                dialogBinding.etDialogLoopEnd.error = "Invalid"
+                return@setOnClickListener
+            }
+
+            onSave(name, startMs, endMs, loopCount)
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    internal fun showAddNoteDialog(
+        context: android.content.Context,
+        onSave: (text: String) -> Unit
+    ) {
+        val dialogBinding = DialogAddNoteBinding.inflate(
+            android.view.LayoutInflater.from(context)
+        )
+
+        val dialog = MaterialAlertDialogBuilder(context)
+            .setView(dialogBinding.root)
+            .create()
+
+        dialogBinding.btnDialogNoteCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialogBinding.btnDialogNoteSave.setOnClickListener {
+            val text = dialogBinding.etDialogNoteText.text.toString().trim()
+
+            if (text.isEmpty()) {
+                dialogBinding.etDialogNoteText.error = "Required"
+                return@setOnClickListener
+            }
+
+            onSave(text)
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    internal fun setupAddLoopButton(
+        binding: FragmentPlaybackSettingsBinding,
+        onAddClick: () -> Unit
+    ) {
+        binding.btnAddLoop.setOnClickListener { onAddClick() }
+    }
+
+    internal fun setupAddNoteButton(
+        binding: FragmentPlaybackSettingsBinding,
+        onAddClick: () -> Unit
+    ) {
+        binding.btnAddNote.setOnClickListener { onAddClick() }
     }
 }

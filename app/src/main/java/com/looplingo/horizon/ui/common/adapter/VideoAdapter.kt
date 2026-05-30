@@ -13,7 +13,8 @@ import java.util.concurrent.TimeUnit
 import java.text.DecimalFormat
 
 class VideoAdapter(
-    private val onVideoClick: (VideoEntity) -> Unit
+    private val onVideoClick: (VideoEntity) -> Unit,
+    private val onVideoLongClick: ((VideoEntity) -> Unit)? = null
 ) : ListAdapter<VideoEntity, VideoAdapter.VideoViewHolder>(VideoDiffCallback) {
 
     var configuredModes: Map<String, String> = emptyMap()
@@ -28,6 +29,30 @@ class VideoAdapter(
             notifyItemRangeChanged(0, itemCount, PAYLOAD_SUBTITLE_UPDATE)
         }
 
+    var videosLoadingSubtitles: Set<String> = emptySet()
+        set(value) {
+            field = value
+            notifyItemRangeChanged(0, itemCount, PAYLOAD_SUBTITLE_UPDATE)
+        }
+
+    var selectedPath: String? = null
+        set(value) {
+            val oldPath = field
+            field = value
+            if (oldPath != null) {
+                val oldPos = currentList.indexOfFirst { it.path == oldPath }
+                if (oldPos >= 0) notifyItemChanged(oldPos, PAYLOAD_SELECTION_UPDATE)
+            }
+            if (value != null) {
+                val newPos = currentList.indexOfFirst { it.path == value }
+                if (newPos >= 0) notifyItemChanged(newPos, PAYLOAD_SELECTION_UPDATE)
+            }
+        }
+
+    fun clearSelection() {
+        selectedPath = null
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VideoViewHolder {
         val binding = VideoItemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return VideoViewHolder(binding)
@@ -41,6 +66,7 @@ class VideoAdapter(
         when {
             payloads.contains(PAYLOAD_BADGE_UPDATE) -> holder.bindBadge(getItem(position))
             payloads.contains(PAYLOAD_SUBTITLE_UPDATE) -> holder.bindSubtitleStatus(getItem(position))
+            payloads.contains(PAYLOAD_SELECTION_UPDATE) -> holder.bindSelection(getItem(position))
             else -> super.onBindViewHolder(holder, position, payloads)
         }
     }
@@ -55,12 +81,22 @@ class VideoAdapter(
 
             bindBadge(video)
             bindSubtitleStatus(video)
+            bindSelection(video)
 
             binding.root.setOnClickListener {
                 onVideoClick(video)
             }
 
+            binding.root.setOnLongClickListener {
+                onVideoLongClick?.invoke(video)
+                true
+            }
+
             binding.root.contentDescription = buildContentDescription(video)
+        }
+
+        fun bindSelection(video: VideoEntity) {
+            binding.root.isSelected = video.path == selectedPath
         }
 
         fun bindBadge(video: VideoEntity) {
@@ -74,13 +110,27 @@ class VideoAdapter(
         }
 
         fun bindSubtitleStatus(video: VideoEntity) {
-            if (videosWithSubtitles.contains(video.path)) {
-                binding.tvSubtitleStatus.visibility = View.VISIBLE
-                binding.dividerSubtitle.visibility = View.VISIBLE
-                binding.tvSubtitleStatus.text = "Subtitles"
-            } else {
+            binding.dividerSubtitle.visibility = View.VISIBLE
+            binding.tvSubtitleStatus.visibility = View.VISIBLE
+
+            if (videosLoadingSubtitles.contains(video.path)) {
+                // Loading state - show spinner
                 binding.tvSubtitleStatus.visibility = View.GONE
-                binding.dividerSubtitle.visibility = View.GONE
+                binding.progressSubtitleCheck.visibility = View.VISIBLE
+            } else {
+                binding.progressSubtitleCheck.visibility = View.GONE
+                binding.tvSubtitleStatus.visibility = View.VISIBLE
+                if (videosWithSubtitles.contains(video.path)) {
+                    binding.tvSubtitleStatus.text = "Subtitles"
+                    binding.tvSubtitleStatus.setTextColor(
+                        binding.root.context.getColor(R.color.colorPrimary)
+                    )
+                } else {
+                    binding.tvSubtitleStatus.text = "Not generated"
+                    binding.tvSubtitleStatus.setTextColor(
+                        binding.root.context.getColor(R.color.colorOnSurfaceVariant)
+                    )
+                }
             }
         }
 
@@ -114,6 +164,7 @@ class VideoAdapter(
     companion object {
         const val PAYLOAD_BADGE_UPDATE = "badge_update"
         const val PAYLOAD_SUBTITLE_UPDATE = "subtitle_update"
+        const val PAYLOAD_SELECTION_UPDATE = "selection_update"
 
         private val fileSizeFormat = DecimalFormat("#,##0.#")
 

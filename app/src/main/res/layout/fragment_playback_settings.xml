@@ -389,7 +389,7 @@
 
         </LinearLayout>
 
-        <!-- ══════ PANEL: LOOP (Saved Loops + Add Loop FAB) ═════════════════ -->
+         <!-- ══════ PANEL: LOOP (Saved Loops + Add Loop FAB) ═════════════════ -->
         <LinearLayout
             android:id="@+id/panel_loop"
             android:layout_width="match_parent"
@@ -397,17 +397,46 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <!-- Add loop form — compact single-line input (at top, always visible) -->
+            <!-- Section header with + button -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Loops"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorOnSurface" />
+
+                <ImageView
+                    android:id="@+id/btn_add_loop"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:scaleType="centerInside"
+                    android:contentDescription="Add loop"
+                    android:src="@drawable/ic_add"
+                    android:padding="7dp"
+                    android:background="@drawable/bg_circle_button"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </LinearLayout>
+
+            <!-- Add loop form — hidden (kept for code compatibility) -->
             <LinearLayout
                 android:id="@+id/layout_add_loop_form"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="4dp"
+                android:layout_height="0dp"
+                android:visibility="gone"
                 android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/bg_compact_form">
+                android:gravity="center_vertical">
 
                 <!-- Loop name -->
                 <EditText
@@ -569,7 +598,7 @@
 
         </LinearLayout>
 
-        <!-- ══════ PANEL: NOTES (Saved Notes + Add Note FAB) ════════════════ -->
+         <!-- ══════ PANEL: NOTES (Saved Notes + Add Note FAB) ════════════════ -->
         <LinearLayout
             android:id="@+id/panel_notes"
             android:layout_width="match_parent"
@@ -577,17 +606,46 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <!-- Add note form — compact single-line input (at top, always visible) -->
+            <!-- Section header with + button -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Notes"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorOnSurface" />
+
+                <ImageView
+                    android:id="@+id/btn_add_note"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:scaleType="centerInside"
+                    android:contentDescription="Add note"
+                    android:src="@drawable/ic_add"
+                    android:padding="7dp"
+                    android:background="@drawable/bg_circle_button"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </LinearLayout>
+
+            <!-- Add note form — hidden (kept for code compatibility) -->
             <LinearLayout
                 android:id="@+id/layout_add_note_form"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="4dp"
+                android:layout_height="0dp"
+                android:visibility="gone"
                 android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/bg_compact_form">
+                android:gravity="center_vertical">
 
                 <!-- Note text input -->
                 <EditText
