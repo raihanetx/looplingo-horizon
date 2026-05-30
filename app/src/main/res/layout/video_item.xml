@@ -3,39 +3,37 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="16dp"
-    android:layout_marginVertical="4dp"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginVertical="6dp"
     android:orientation="horizontal"
     android:gravity="center_vertical"
     android:paddingHorizontal="14dp"
-    android:paddingVertical="14dp"
+    android:paddingVertical="12dp"
     android:background="@drawable/bg_glass_card"
     android:foreground="?attr/selectableItemBackground">
 
-    <!-- Audio track icon -->
-    <FrameLayout
-        android:layout_width="42dp"
-        android:layout_height="42dp"
-        android:background="@drawable/bg_icon_circle">
+    <!-- Headphone icon (no background, bigger) -->
+    <ImageView
+        android:id="@+id/iv_video_icon"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:contentDescription="@string/content_desc_video_icon"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_audio_track"
+        android:tint="@color/colorPrimary" />
 
-        <ImageView
-            android:id="@+id/iv_video_icon"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:layout_gravity="center"
-            android:contentDescription="@string/content_desc_video_icon"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_audio_track"
-            android:tint="@color/colorPrimary" />
-
-    </FrameLayout>
+    <!-- Vertical divider -->
+    <View
+        android:layout_width="1dp"
+        android:layout_height="32dp"
+        android:layout_marginHorizontal="12dp"
+        android:background="@color/colorOutlineVariant" />
 
     <!-- Text content -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:layout_marginStart="12dp"
         android:orientation="vertical">
 
         <!-- Title -->
@@ -49,7 +47,7 @@
             android:textColor="@color/colorOnSurface"
             tools:text="Chapter 03 - Introducing Yourself" />
 
-        <!-- Info line: size | duration | subtitle -->
+        <!-- Info line: size | subtitle status -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -68,22 +66,6 @@
 
             <!-- Divider -->
             <View
-                android:layout_width="2dp"
-                android:layout_height="2dp"
-                android:layout_marginHorizontal="6dp"
-                android:background="@color/colorOutlineVariant" />
-
-            <!-- Duration -->
-            <TextView
-                android:id="@+id/tv_duration"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="11sp"
-                android:textColor="@color/colorOnSurfaceVariant"
-                tools:text="05:32" />
-
-            <!-- Divider (subtitle) -->
-            <View
                 android:id="@+id/divider_subtitle"
                 android:layout_width="2dp"
                 android:layout_height="2dp"
@@ -99,17 +81,29 @@
                 android:textSize="11sp"
                 android:textColor="@color/colorPrimary"
                 android:visibility="gone"
-                tools:text="Subtitles" />
+                tools:text="Generated" />
 
         </LinearLayout>
 
     </LinearLayout>
+
+    <!-- Duration on the right side -->
+    <TextView
+        android:id="@+id/tv_duration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:textSize="12sp"
+        android:textColor="@color/colorOnSurfaceVariant"
+        android:textStyle="bold"
+        tools:text="05:32" />
 
     <!-- Loop mode badge -->
     <TextView
         android:id="@+id/tv_loop_badge"
         android:layout_width="@dimen/video_item_badge_size"
         android:layout_height="@dimen/video_item_badge_size"
+        android:layout_marginStart="6dp"
         android:background="@drawable/badge_background"
         android:gravity="center"
         android:textColor="@color/colorOnPrimary"
