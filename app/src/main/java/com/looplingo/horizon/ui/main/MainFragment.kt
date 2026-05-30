@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.looplingo.horizon.BuildConfig
@@ -36,6 +37,8 @@ class MainFragment : Fragment() {
 
     private lateinit var videoAdapter: VideoAdapter
 
+    private var isFilterOpen = false
+    private var activeFilter = "All"
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -53,9 +56,9 @@ class MainFragment : Fragment() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            Timber.i("Notification permission granted — media controls will be visible")
+            Timber.i("Notification permission granted")
         } else {
-            Timber.w("Notification permission denied — media controls won't appear in notification shade")
+            Timber.w("Notification permission denied")
         }
     }
 
@@ -70,30 +73,92 @@ class MainFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupToolbar()
         videoAdapter = helper.setupRecyclerView(this, binding, viewModel, notificationPermissionLauncher)
         setupSwipeRefresh()
+        setupHeader()
+        setupFilterDrawer()
         helper.setupObservers(this, binding, viewModel, videoAdapter)
         helper.setupSettingsButton(binding, viewModel)
         helper.setupSearchView(binding, viewModel)
         checkPermissionsAndScan()
     }
 
-    private fun setupToolbar() {
-        binding.toolbar.setOnMenuItemClickListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.action_sort -> {
-                    Timber.d("Sort action clicked")
-                    showSortDialog()
-                    true
-                }
-                R.id.action_settings -> {
-                    showSettingsDialog()
-                    true
-                }
-                else -> false
-            }
+    private fun setupHeader() {
+        binding.ivSettings.setOnClickListener {
+            showSettingsDialog()
         }
+        binding.ivFilterToggle.setOnClickListener {
+            toggleFilterDrawer()
+        }
+    }
+
+    private fun setupFilterDrawer() {
+        val filterOptions = listOf("All", "Size: High to Low", "Size: Low to High", "Subtitle: Yes", "Subtitle: No", "Pinned")
+        val chipContainer = binding.layoutFilterChips
+        chipContainer.removeAllViews()
+
+        filterOptions.forEach { filter ->
+            val chip = MaterialButton(requireContext()).apply {
+                text = filter
+                textSize = 10f
+                isAllCaps = false
+                cornerRadius = 100
+                setPadding(28, 12, 28, 12)
+                minimumHeight = 0
+                minimumWidth = 0
+                setTextColor(if (filter == activeFilter) ContextCompat.getColor(context, R.color.white) else ContextCompat.getColor(context, R.color.slate500))
+                backgroundTintList = if (filter == activeFilter) ContextCompat.getColorStateList(context, R.color.colorPrimary) else ContextCompat.getColorStateList(context, R.color.white)
+                strokeWidth = if (filter == activeFilter) 0 else 2
+                strokeColor = if (filter != activeFilter) ContextCompat.getColorStateList(context, R.color.slate200) else null
+                setOnClickListener {
+                    activeFilter = filter
+                    applyFilter(filter)
+                    refreshFilterChips()
+                }
+            }
+            val lp = ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                marginEnd = 12
+            }
+            chip.layoutParams = lp
+            chipContainer.addView(chip)
+        }
+    }
+
+    private fun refreshFilterChips() {
+        val chipContainer = binding.layoutFilterChips
+        for (i in 0 until chipContainer.childCount) {
+            val chip = chipContainer.getChildAt(i) as? MaterialButton ?: continue
+            val filter = chip.text.toString()
+            val isActive = filter == activeFilter
+            chip.setTextColor(if (isActive) ContextCompat.getColor(requireContext(), R.color.white) else ContextCompat.getColor(requireContext(), R.color.slate500))
+            chip.backgroundTintList = if (isActive) ContextCompat.getColorStateList(requireContext(), R.color.colorPrimary) else ContextCompat.getColorStateList(requireContext(), R.color.white)
+            chip.strokeWidth = if (isActive) 0 else 2
+            chip.strokeColor = if (!isActive) ContextCompat.getColorStateList(requireContext(), R.color.slate200) else null
+        }
+    }
+
+    private fun toggleFilterDrawer() {
+        isFilterOpen = !isFilterOpen
+        binding.layoutFilterDrawer.visibility = if (isFilterOpen) View.VISIBLE else View.GONE
+        binding.spacerFilter.visibility = if (isFilterOpen) View.VISIBLE else View.GONE
+        binding.ivFilterToggle.setColorFilter(
+            if (isFilterOpen) ContextCompat.getColor(requireContext(), R.color.colorPrimary)
+            else ContextCompat.getColor(requireContext(), R.color.slate500)
+        )
+    }
+
+    private fun applyFilter(filter: String) {
+        viewModel.setSortOrder(when (filter) {
+            "Size: High to Low" -> SortOrder.SIZE
+            "Size: Low to High" -> SortOrder.SIZE
+            "Subtitle: Yes" -> SortOrder.DATE
+            "Subtitle: No" -> SortOrder.DATE
+            "Pinned" -> SortOrder.DATE
+            else -> SortOrder.DATE
+        })
     }
 
     private fun showSortDialog() {
@@ -161,9 +226,6 @@ class MainFragment : Fragment() {
         binding.swipeRefresh.setColorSchemeColors(
             ContextCompat.getColor(requireContext(), R.color.colorPrimary),
             ContextCompat.getColor(requireContext(), R.color.colorTertiary)
-        )
-        binding.swipeRefresh.setProgressBackgroundColorSchemeColor(
-            ContextCompat.getColor(requireContext(), R.color.colorSurfaceContainerHighest)
         )
         binding.swipeRefresh.setOnRefreshListener {
             Timber.d("Pull-to-refresh triggered")
@@ -259,7 +321,6 @@ class MainFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Update playing state when returning from playback
         val currentPath = com.looplingo.horizon.domain.audio.service.AudioPlaybackService.currentVideoPath
         if (currentPath.isNotBlank()) {
             videoAdapter.playingPath = currentPath

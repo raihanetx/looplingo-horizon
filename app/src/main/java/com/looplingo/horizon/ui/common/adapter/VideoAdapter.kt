@@ -35,6 +35,8 @@ class VideoAdapter(
             notifyItemRangeChanged(0, itemCount, PAYLOAD_SUBTITLE_UPDATE)
         }
 
+    var pinnedPaths: MutableSet<String> = mutableSetOf()
+
     var selectedPath: String? = null
         set(value) {
             val oldPath = field
@@ -92,6 +94,7 @@ class VideoAdapter(
         fun bind(video: VideoEntity) {
             binding.tvTitle.text = video.title
             binding.tvDuration.text = formatDuration(video.duration)
+            binding.tvDurationRight.text = formatDuration(video.duration)
             binding.tvSize.text = formatFileSize(video.size)
 
             bindBadge(video)
@@ -117,41 +120,32 @@ class VideoAdapter(
 
         fun bindPlayingState(video: VideoEntity) {
             val isPlaying = video.path == playingPath
-            binding.viewPlayingIndicator.setBackgroundColor(
-                if (isPlaying) binding.root.context.getColor(R.color.colorPrimary)
-                else android.graphics.Color.TRANSPARENT
-            )
-        }
-
-        fun bindBadge(video: VideoEntity) {
-            val modeLabel = configuredModes[video.path]
-            if (modeLabel != null) {
-                binding.tvLoopBadge.text = modeLabel
-                binding.tvLoopBadge.visibility = View.VISIBLE
+            if (isPlaying) {
+                binding.root.strokeWidth = 2
+                binding.root.strokeColor = binding.root.context.getColor(R.color.colorPrimary)
             } else {
-                binding.tvLoopBadge.visibility = View.GONE
+                binding.root.strokeWidth = 0
             }
         }
 
-        fun bindSubtitleStatus(video: VideoEntity) {
-            binding.dividerSubtitle.visibility = View.VISIBLE
-            binding.tvSubtitleStatus.visibility = View.VISIBLE
+        fun bindBadge(video: VideoEntity) {
+            // Pin state shown via border color in bindPlayingState
+        }
 
+        fun bindSubtitleStatus(video: VideoEntity) {
             if (videosLoadingSubtitles.contains(video.path)) {
-                // Loading state - show spinner
                 binding.tvSubtitleStatus.visibility = View.GONE
                 binding.progressSubtitleCheck.visibility = View.VISIBLE
             } else {
                 binding.progressSubtitleCheck.visibility = View.GONE
                 binding.tvSubtitleStatus.visibility = View.VISIBLE
                 if (videosWithSubtitles.contains(video.path)) {
-                    binding.tvSubtitleStatus.text = "Subtitles"
+                    binding.tvSubtitleStatus.text = "Subtitle: Yes"
                 } else {
-                    binding.tvSubtitleStatus.text = "Not generated"
+                    binding.tvSubtitleStatus.text = "Subtitle: No"
                 }
-                // Same color for both states
                 binding.tvSubtitleStatus.setTextColor(
-                    binding.root.context.getColor(R.color.colorOnSurfaceVariant)
+                    binding.root.context.getColor(R.color.slate500)
                 )
             }
         }

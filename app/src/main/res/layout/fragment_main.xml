@@ -1,191 +1,305 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/swipe_refresh"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/colorBackground"
-    android:fitsSystemWindows="true">
+    android:background="@color/slate50">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/app_bar_layout"
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/colorSurface"
-        app:elevation="@dimen/app_bar_elevation">
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:title="@string/app_name"
-            app:titleTextAppearance="@style/TextAppearance.Horizon.TitleLarge"
-            app:titleTextColor="@color/colorOnSurface"
-            app:subtitle="@string/app_slogan"
-            app:subtitleTextAppearance="@style/TextAppearance.Horizon.BodySmall"
-            app:subtitleTextColor="@color/colorOnSurfaceVariant"
-            app:menu="@menu/menu_main"
-            app:layout_scrollFlags="scroll|enterAlways" />
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="32dp"
+            android:paddingBottom="24dp">
 
-        <!-- Search bar — rounded pill (scrolls with content) -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/card_search"
-            style="@style/Widget.Horizon.CardView.Filled"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="12dp"
-            app:cardBackgroundColor="@color/colorSurfaceContainerHighest"
-            app:cardCornerRadius="28dp"
-            app:cardElevation="0dp"
-            app:strokeColor="@color/colorOutlineVariant"
-            app:strokeWidth="0dp"
-            app:layout_scrollFlags="scroll|enterAlways">
-
+            <!-- Header: App name + slogan | filter + settings icons -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingHorizontal="@dimen/space_lg"
-                android:paddingVertical="@dimen/space_sm">
+                android:gravity="center_vertical">
 
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:contentDescription="@string/content_desc_search"
-                    app:srcCompat="@drawable/ic_search"
-                    app:tint="@color/colorOnSurfaceVariant" />
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/et_search"
+                <!-- App Name & Slogan -->
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/space_sm"
                     android:layout_weight="1"
-                    android:background="@android:color/transparent"
-                    android:hint="@string/hint_search_videos"
-                    android:imeOptions="actionSearch"
-                    android:inputType="text"
-                    android:maxLines="1"
-                    android:textAppearance="@style/TextAppearance.Horizon.BodyMedium"
-                    android:textColor="@color/colorOnSurface"
-                    android:textColorHint="@color/colorOnSurfaceVariant" />
+                    android:orientation="vertical">
 
-                <ImageView
-                    android:id="@+id/iv_clear_search"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/content_desc_clear_search"
-                    android:visibility="gone"
-                    app:srcCompat="@drawable/ic_close"
-                    app:tint="@color/colorOnSurfaceVariant" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/app_name"
+                        android:textSize="24sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="-0.02"
+                        android:textColor="@color/slate800" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="MASTER ENGLISH BY LISTENING"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.1"
+                        android:textColor="@color/slate400" />
+
+                </LinearLayout>
+
+                <!-- Header Icons -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:id="@+id/iv_filter_toggle"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:scaleType="centerInside"
+                        android:contentDescription="Toggle Filter Options"
+                        android:src="@drawable/ic_filter"
+                        android:padding="8dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:tint="@color/slate500" />
+
+                    <ImageView
+                        android:id="@+id/iv_settings"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="8dp"
+                        android:scaleType="centerInside"
+                        android:contentDescription="Settings"
+                        android:src="@drawable/ic_settings"
+                        android:padding="8dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:tint="@color/slate500" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
-        </com.google.android.material.card.MaterialCardView>
+            <!-- Spacer: header to search (20dp) -->
+            <View
+                android:layout_width="0dp"
+                android:layout_height="20dp" />
 
-        <!-- Stats bar with chip group -->
-        <LinearLayout
-            android:id="@+id/layout_stats_bar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="@dimen/space_lg"
-            android:layout_marginBottom="@dimen/space_xs"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:visibility="gone"
-            app:layout_scrollFlags="scroll|enterAlways">
+            <!-- Search Input Bar -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_search"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                app:cardBackgroundColor="@color/slate100"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/slate200"
+                app:strokeWidth="1dp">
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="16dp">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:contentDescription="Search"
+                        android:src="@drawable/ic_search"
+                        app:tint="@color/slate400" />
+
+                    <EditText
+                        android:id="@+id/et_search"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:layout_marginStart="10dp"
+                        android:background="@null"
+                        android:hint="Search lessons..."
+                        android:textColorHint="@color/slate400"
+                        android:textColor="@color/slate700"
+                        android:textSize="14sp"
+                        android:imeOptions="actionSearch"
+                        android:inputType="text"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:importantForAutofill="no" />
+
+                    <ImageView
+                        android:id="@+id/iv_clear_search"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Clear search"
+                        android:visibility="gone"
+                        android:src="@drawable/ic_close"
+                        android:padding="2dp"
+                        app:tint="@color/slate400" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Spacer: search to filter (12dp) -->
+            <View
+                android:layout_width="0dp"
+                android:layout_height="12dp" />
+
+            <!-- Collapsible Filter Drawer -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/layout_filter_drawer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                app:cardBackgroundColor="@color/slate100"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/slate200"
+                app:strokeWidth="1dp">
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none"
+                    android:padding="12dp">
+
+                    <LinearLayout
+                        android:id="@+id/layout_filter_chips"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+
+                </HorizontalScrollView>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Spacer after filter (12dp when visible) -->
+            <View
+                android:id="@+id/spacer_filter"
+                android:layout_width="0dp"
+                android:layout_height="12dp"
+                android:visibility="gone" />
+
+            <!-- Long-press hint -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="4dp">
+
+                <ImageView
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:contentDescription="null"
+                    android:src="@drawable/ic_info"
+                    app:tint="@color/slate400" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="Hold down a card to pin/unpin it"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/slate400" />
+
+            </LinearLayout>
+
+            <!-- Spacer: hint to cards (8dp) -->
+            <View
+                android:layout_width="0dp"
+                android:layout_height="8dp" />
+
+            <!-- Stats count -->
             <TextView
                 android:id="@+id/tv_result_count"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textAppearance="@style/TextAppearance.Horizon.LabelMedium"
-                android:textColor="@color/colorOnSurfaceVariant" />
-
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/chip_group_filter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:chipSpacingHorizontal="@dimen/space_xs"
-                app:singleSelection="true" />
+                android:layout_marginStart="4dp"
+                android:layout_marginBottom="4dp"
+                android:textSize="12sp"
+                android:textColor="@color/slate400"
+                android:visibility="gone" />
+
+            <!-- Video list -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_video_list"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false"
+                tools:listitem="@layout/video_item" />
+
+            <!-- Empty state -->
+            <LinearLayout
+                android:id="@+id/layout_empty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingTop="80dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/iv_empty_icon"
+                    android:layout_width="96dp"
+                    android:layout_height="96dp"
+                    android:alpha="0.5"
+                    android:contentDescription="Empty state"
+                    android:importantForAccessibility="no"
+                    app:srcCompat="@drawable/ic_empty_state"
+                    app:tint="@color/slate400" />
+
+                <TextView
+                    android:id="@+id/tv_empty"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center"
+                    android:text="@string/no_videos_found"
+                    android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
+                    android:textColor="@color/slate400" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_empty_retry"
+                    style="@style/Widget.Horizon.Button.Tonal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/retry"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+            <!-- Loading indicator -->
+            <ProgressBar
+                android:id="@+id/progress_bar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="40dp"
+                android:indeterminateTint="@color/colorPrimary"
+                android:visibility="gone" />
 
         </LinearLayout>
 
-    </com.google.android.material.appbar.AppBarLayout>
+    </androidx.core.widget.NestedScrollView>
 
-    <!-- Main content area with video list -->
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/swipe_refresh"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_video_list"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingTop="0dp"
-            android:paddingBottom="@dimen/space_2xl"
-            tools:listitem="@layout/video_item" />
-
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
-
-    <!-- Loading indicator -->
-    <ProgressBar
-        android:id="@+id/progress_bar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:indeterminateTint="@color/colorPrimary"
-        android:visibility="gone"
-        app:layout_anchor="@id/swipe_refresh"
-        app:layout_anchorGravity="center" />
-
-    <!-- Empty state -->
-    <LinearLayout
-        android:id="@+id/layout_empty"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_anchor="@id/swipe_refresh"
-        app:layout_anchorGravity="center">
-
-        <ImageView
-            android:id="@+id/iv_empty_icon"
-            android:layout_width="96dp"
-            android:layout_height="96dp"
-            android:alpha="0.5"
-            android:contentDescription="@string/content_desc_empty_state"
-            android:importantForAccessibility="no"
-            app:srcCompat="@drawable/ic_empty_state"
-            app:tint="@color/colorOnSurfaceVariant" />
-
-        <TextView
-            android:id="@+id/tv_empty"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_lg"
-            android:gravity="center"
-            android:text="@string/no_videos_found"
-            android:textAppearance="@style/TextAppearance.Horizon.TitleMedium"
-            android:textColor="@color/colorOnSurfaceVariant" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_empty_retry"
-            style="@style/Widget.Horizon.Button.Tonal"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_lg"
-            android:text="@string/retry"
-            android:visibility="gone" />
-
-    </LinearLayout>
-
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

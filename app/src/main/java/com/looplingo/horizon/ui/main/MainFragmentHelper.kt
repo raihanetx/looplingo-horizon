@@ -94,7 +94,6 @@ class MainFragmentHelper @Inject constructor(
         }
     }
 
-
     internal fun setupObservers(
         fragment: Fragment,
         binding: FragmentMainBinding,
@@ -107,9 +106,7 @@ class MainFragmentHelper @Inject constructor(
                     viewModel.videos.collect { videoList ->
                         videoAdapter.submitList(videoList)
                         showEmptyState(binding, videoList.isEmpty())
-                        // Check which videos have subtitles
                         launch {
-                            // Show loading state
                             videoAdapter.videosLoadingSubtitles = videoList.map { it.path }.toSet()
                             val videosWithSubs = mutableSetOf<String>()
                             for (video in videoList) {

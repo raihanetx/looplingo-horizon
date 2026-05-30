@@ -165,4 +165,14 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="transparent">#00000000</color>
+
+    <!-- Slate palette (Tailwind) -->
+    <color name="slate50">#FFF8FAFC</color>
+    <color name="slate100">#FFF1F5F9</color>
+    <color name="slate200">#FFE2E8F0</color>
+    <color name="slate300">#FFCBD5E1</color>
+    <color name="slate400">#FF94A3B8</color>
+    <color name="slate500">#FF64748B</color>
+    <color name="slate700">#FF334155</color>
+    <color name="slate800">#FF1E293B</color>
 </resources>
