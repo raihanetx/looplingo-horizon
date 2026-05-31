@@ -8,8 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.looplingo.horizon.core.TimeUtils
 
@@ -35,10 +34,7 @@ fun TransportControls(
             Text(
                 text = TimeUtils.formatMsToTime(currentPositionMs),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.semantics {
-                    contentDescription = "Current position: ${TimeUtils.formatMsToTime(currentPositionMs)}"
-                }
+                color = Color(0xFFCCCCCC)
             )
 
             Slider(
@@ -49,23 +45,18 @@ fun TransportControls(
                 },
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 8.dp)
-                    .semantics {
-                        contentDescription = "Seek bar"
-                    },
+                    .padding(horizontal = 8.dp),
                 colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.primary
+                    thumbColor = Color.White,
+                    activeTrackColor = Color.White,
+                    inactiveTrackColor = Color(0xFF555555)
                 )
             )
 
             Text(
                 text = TimeUtils.formatMsToTime(durationMs),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.semantics {
-                    contentDescription = "Total duration: ${TimeUtils.formatMsToTime(durationMs)}"
-                }
+                color = Color(0xFFCCCCCC)
             )
         }
 
@@ -78,16 +69,12 @@ fun TransportControls(
         ) {
             IconButton(
                 onClick = onPlayPauseClick,
-                modifier = Modifier
-                    .size(64.dp)
-                    .semantics {
-                        contentDescription = if (isPlaying) "Pause" else "Play"
-                    }
+                modifier = Modifier.size(64.dp)
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = Color.White,
                     modifier = Modifier.size(48.dp)
                 )
             }

@@ -5,9 +5,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import com.looplingo.horizon.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,10 +26,7 @@ fun HeaderBar(
         },
         navigationIcon = {
             IconButton(
-                onClick = onBackClick,
-                modifier = Modifier.semantics {
-                    contentDescription = "Navigate back"
-                }
+                onClick = onBackClick
             ) {
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
