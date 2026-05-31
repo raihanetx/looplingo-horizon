@@ -72,8 +72,8 @@ class ChatTranslator @javax.inject.Inject constructor() {
         val chunks = segments.chunked(CHUNK_SIZE)
         Timber.i("=== CHAT TRANSLATOR v2 === Model=%s, Segments=%d, Chunks=%d, Target=%s",
             TRANSLATION_MODEL, segments.size, chunks.size, targetLangName)
-        com.looplingo.horizon.ui.settings.ProcessLogger.log("ChatTranslator", "=== TRANSLATION START ===")
-        com.looplingo.horizon.ui.settings.ProcessLogger.log("ChatTranslator", "Model=$TRANSLATION_MODEL, Segments=${segments.size}, Chunks=${chunks.size}, Target=$targetLangName")
+        com.looplingo.horizon.ui.common.ProcessLogger.log("ChatTranslator", "=== TRANSLATION START ===")
+        com.looplingo.horizon.ui.common.ProcessLogger.log("ChatTranslator", "Model=$TRANSLATION_MODEL, Segments=${segments.size}, Chunks=${chunks.size}, Target=$targetLangName")
 
         val allTranslations = mutableMapOf<Int, String>()
 
@@ -81,7 +81,7 @@ class ChatTranslator @javax.inject.Inject constructor() {
             val chunkStart = chunkIdx * CHUNK_SIZE
             Timber.i("Chunk %d/%d: segments %d-%d (%d items)",
                 chunkIdx + 1, chunks.size, chunkStart, chunkStart + chunk.size - 1, chunk.size)
-            com.looplingo.horizon.ui.settings.ProcessLogger.log("ChatTranslator", "Chunk ${chunkIdx+1}/${chunks.size}: segments $chunkStart-${chunkStart + chunk.size - 1} (${chunk.size} items)")
+            com.looplingo.horizon.ui.common.ProcessLogger.log("ChatTranslator", "Chunk ${chunkIdx+1}/${chunks.size}: segments $chunkStart-${chunkStart + chunk.size - 1} (${chunk.size} items)")
 
             val chunkText = chunk.mapIndexed { idx, seg ->
                 "${idx}: ${seg.text.trim()}"
@@ -92,7 +92,7 @@ class ChatTranslator @javax.inject.Inject constructor() {
 
             Timber.i("Chunk %d/%d result: %d/%d translations",
                 chunkIdx + 1, chunks.size, translation.size, chunk.size)
-            com.looplingo.horizon.ui.settings.ProcessLogger.log("ChatTranslator", "Chunk ${chunkIdx+1}/${chunks.size} result: ${translation.size}/${chunk.size} translations")
+            com.looplingo.horizon.ui.common.ProcessLogger.log("ChatTranslator", "Chunk ${chunkIdx+1}/${chunks.size} result: ${translation.size}/${chunk.size} translations")
         }
 
         val banglaFile = File(context?.cacheDir ?: File("/tmp"), "bangla_translations.txt")
@@ -165,7 +165,7 @@ Do NOT include any explanation or markdown. ONLY the JSON object."""
 
         return try {
             Timber.i("Chunk %d/%d: Calling Groq (model=%s)...", chunkNum, totalChunks, model)
-            com.looplingo.horizon.ui.settings.ProcessLogger.log("API", "Chunk $chunkNum/$totalChunks: Calling Groq Chat API (model=$model)...")
+            com.looplingo.horizon.ui.common.ProcessLogger.log("API", "Chunk $chunkNum/$totalChunks: Calling Groq Chat API (model=$model)...")
             val response = client.newCall(request).execute()
             val responseBody = response.body?.string()
             response.close()
@@ -173,8 +173,8 @@ Do NOT include any explanation or markdown. ONLY the JSON object."""
             if (!response.isSuccessful || responseBody.isNullOrBlank()) {
                 Timber.e("Chunk %d/%d: %s FAILED — HTTP %d, body: %.500s",
                     chunkNum, totalChunks, model, response.code, responseBody ?: "null")
-                com.looplingo.horizon.ui.settings.ProcessLogger.log("API", "Chunk $chunkNum/$totalChunks: $model FAILED — HTTP ${response.code}")
-                com.looplingo.horizon.ui.settings.ProcessLogger.log("API", "Response: ${(responseBody ?: "null").take(300)}")
+                com.looplingo.horizon.ui.common.ProcessLogger.log("API", "Chunk $chunkNum/$totalChunks: $model FAILED — HTTP ${response.code}")
+                com.looplingo.horizon.ui.common.ProcessLogger.log("API", "Response: ${(responseBody ?: "null").take(300)}")
                 return null
             }
 
@@ -182,19 +182,19 @@ Do NOT include any explanation or markdown. ONLY the JSON object."""
 
             if (content.isNullOrBlank()) {
                 Timber.w("Chunk %d/%d: %s returned empty content", chunkNum, totalChunks, model)
-                com.looplingo.horizon.ui.settings.ProcessLogger.log("API", "Chunk $chunkNum/$totalChunks: $model returned EMPTY content!")
-                com.looplingo.horizon.ui.settings.ProcessLogger.log("API", "Raw response: ${responseBody.take(500)}")
+                com.looplingo.horizon.ui.common.ProcessLogger.log("API", "Chunk $chunkNum/$totalChunks: $model returned EMPTY content!")
+                com.looplingo.horizon.ui.common.ProcessLogger.log("API", "Raw response: ${responseBody.take(500)}")
                 return null
             }
 
             Timber.i("Chunk %d/%d: %s responded (%d chars): %.500s",
                 chunkNum, totalChunks, model, content.length, content)
-            com.looplingo.horizon.ui.settings.ProcessLogger.log("API", "Chunk $chunkNum/$totalChunks: $model responded OK (${content.length} chars)")
-            com.looplingo.horizon.ui.settings.ProcessLogger.log("API", "Response: ${content.take(200)}")
+            com.looplingo.horizon.ui.common.ProcessLogger.log("API", "Chunk $chunkNum/$totalChunks: $model responded OK (${content.length} chars)")
+            com.looplingo.horizon.ui.common.ProcessLogger.log("API", "Response: ${content.take(200)}")
             content
         } catch (e: Exception) {
             Timber.e(e, "Chunk %d/%d: %s EXCEPTION: %s", chunkNum, totalChunks, model, e.message)
-            com.looplingo.horizon.ui.settings.ProcessLogger.log("API", "Chunk $chunkNum/$totalChunks: $model EXCEPTION: ${e.message?.take(200)}")
+            com.looplingo.horizon.ui.common.ProcessLogger.log("API", "Chunk $chunkNum/$totalChunks: $model EXCEPTION: ${e.message?.take(200)}")
             null
         }
     }
@@ -221,25 +221,25 @@ Do NOT include any explanation or markdown. ONLY the JSON object."""
                     }
                 }
                 Timber.i("Chunk %d/%d: JSON parsed %d translations", chunkNum, totalChunks, result.size)
-                com.looplingo.horizon.ui.settings.ProcessLogger.log("Parse", "Chunk $chunkNum/$totalChunks: JSON parsed ${result.size} translations")
+                com.looplingo.horizon.ui.common.ProcessLogger.log("Parse", "Chunk $chunkNum/$totalChunks: JSON parsed ${result.size} translations")
             } catch (e: Exception) {
                 Timber.w(e, "Chunk %d/%d: JSON parse failed for: %.500s", chunkNum, totalChunks, jsonStr)
-                com.looplingo.horizon.ui.settings.ProcessLogger.log("Parse", "Chunk $chunkNum/$totalChunks: JSON parse FAILED: ${e.message?.take(100)}")
+                com.looplingo.horizon.ui.common.ProcessLogger.log("Parse", "Chunk $chunkNum/$totalChunks: JSON parse FAILED: ${e.message?.take(100)}")
             }
         } else {
             Timber.w("Chunk %d/%d: No JSON object found in response", chunkNum, totalChunks)
-            com.looplingo.horizon.ui.settings.ProcessLogger.log("Parse", "Chunk $chunkNum/$totalChunks: No JSON object found in response!")
+            com.looplingo.horizon.ui.common.ProcessLogger.log("Parse", "Chunk $chunkNum/$totalChunks: No JSON object found in response!")
         }
 
         if (result.isEmpty()) {
             result = parseLineByLine(content, segments)
             Timber.i("Chunk %d/%d: Line-by-line fallback got %d translations", chunkNum, totalChunks, result.size)
-            com.looplingo.horizon.ui.settings.ProcessLogger.log("Parse", "Chunk $chunkNum/$totalChunks: Line-by-line fallback got ${result.size} translations")
+            com.looplingo.horizon.ui.common.ProcessLogger.log("Parse", "Chunk $chunkNum/$totalChunks: Line-by-line fallback got ${result.size} translations")
         }
 
         if (result.isEmpty()) {
             Timber.w("Chunk %d/%d: ZERO translations parsed! Content: %.2000s", chunkNum, totalChunks, content)
-            com.looplingo.horizon.ui.settings.ProcessLogger.log("Parse", "Chunk $chunkNum/$totalChunks: ZERO translations parsed!")
+            com.looplingo.horizon.ui.common.ProcessLogger.log("Parse", "Chunk $chunkNum/$totalChunks: ZERO translations parsed!")
         }
 
         return result
