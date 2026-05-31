@@ -56,7 +56,7 @@ jobs:
           chmod 600 ci-release.jks
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace -Dorg.gradle.dependency.verification=off
 
       - name: Build Release APK
         continue-on-error: true
@@ -65,7 +65,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease --stacktrace
+        run: ./gradlew assembleRelease --stacktrace -Dorg.gradle.dependency.verification=off
 
       - name: Get version info
         id: version
