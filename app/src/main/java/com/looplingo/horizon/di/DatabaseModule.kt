@@ -6,6 +6,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.looplingo.horizon.data.local.AppDatabase
 import com.looplingo.horizon.data.local.dao.LoopTemplateDao
+import com.looplingo.horizon.data.local.dao.NoteDao
 import com.looplingo.horizon.data.local.dao.PlaybackRuleDao
 import com.looplingo.horizon.data.local.dao.SavedTimestampDao
 import com.looplingo.horizon.data.local.dao.TranscriptionDao
@@ -33,6 +34,27 @@ object DatabaseModule {
             db.execSQL("ALTER TABLE `transcriptions` ADD COLUMN `vadStartMs` INTEGER DEFAULT NULL")
             db.execSQL("ALTER TABLE `transcriptions` ADD COLUMN `vadEndMs` INTEGER DEFAULT NULL")
             Timber.i("Migration 8→9: added vadStartMs + vadEndMs columns")
+        }
+    }
+
+    /**
+     * Migration from v9 → v10: Added notes table for user annotations.
+     */
+    private val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `notes` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `videoPath` TEXT NOT NULL,
+                    `text` TEXT NOT NULL,
+                    `timestampMs` INTEGER NOT NULL,
+                    `createdAt` INTEGER NOT NULL
+                )
+            """.trimIndent())
+            db.execSQL("""
+                CREATE INDEX IF NOT EXISTS `index_notes_videoPath` ON `notes` (`videoPath`)
+            """.trimIndent())
+            Timber.i("Migration 9→10: created notes table")
         }
     }
 
@@ -187,7 +209,7 @@ object DatabaseModule {
             .addMigrations(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
                 MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                MIGRATION_7_8, MIGRATION_8_9
+                MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
             )
             // REMOVED fallbackToDestructiveMigration() — it silently destroys user data
             // when an unmapped migration path is encountered. All migration paths from
@@ -220,5 +242,10 @@ object DatabaseModule {
     @Provides
     fun provideLoopTemplateDao(database: AppDatabase): LoopTemplateDao {
         return database.loopTemplateDao()
+    }
+
+    @Provides
+    fun provideNoteDao(database: AppDatabase): NoteDao {
+        return database.noteDao()
     }
 }

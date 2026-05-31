@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<verification-metadata>
+    <configuration>
+        <verify-metadata>true</verify-metadata>
+        <verify-signatures>false</verify-signatures>
+        <trusted-artifacts>
+            <trust group="androidx.*" />
+            <trust group="com.google.android.*" />
+            <trust group="com.google.dagger" />
+            <trust group="org.jetbrains.kotlin*" />
+            <trust group="org.jetbrains.kotlinx" />
+            <trust group="io.gitlab.arturbosch.detekt" />
+        </trusted-artifacts>
+    </configuration>
+</verification-metadata>

@@ -110,3 +110,54 @@
 
 # ── VAD Engine (silence midpoint detection — no neural network) ─────────
 -keepclassmembers class com.looplingo.horizon.vad.VadEngine$RefinedSegment { *; }
+
+# ── Jetpack Compose ─────────────────────────────────────────────────────
+# Compose uses runtime reflection for certain operations.
+-keep class androidx.compose.** { *; }
+-dontwarn androidx.compose.**
+
+# Keep Compose runtime
+-keep class androidx.compose.runtime.** { *; }
+-keepclassmembers class androidx.compose.runtime.** { *; }
+
+# Keep Compose UI
+-keep class androidx.compose.ui.** { *; }
+-keepclassmembers class androidx.compose.ui.** { *; }
+
+# Keep Compose Material3
+-keep class androidx.compose.material3.** { *; }
+-keepclassmembers class androidx.compose.material3.** { *; }
+
+# Keep Compose Navigation
+-keep class androidx.navigation.compose.** { *; }
+-keepclassmembers class androidx.navigation.compose.** { *; }
+
+# Keep Hilt Navigation Compose
+-keep class androidx.hilt.navigation.compose.** { *; }
+-keepclassmembers class androidx.hilt.navigation.compose.** { *; }
+
+# Keep Compose ViewModels
+-keep class * extends androidx.lifecycle.ViewModel { *; }
+-keep class * extends androidx.lifecycle.AndroidViewModel { *; }
+
+# Keep all ViewModels in our app
+-keep class com.looplingo.horizon.ui.**ViewModel { *; }
+-keepclassmembers class com.looplingo.horizon.ui.**ViewModel { *; }
+
+# Keep Composable functions (they're used at runtime)
+-keep @androidx.compose.runtime.Composable class * { *; }
+-keepclassmembers class * {
+    @androidx.compose.runtime.Composable <methods>;
+}
+
+# Keep UiState data classes (used for state management)
+-keep class com.looplingo.horizon.ui.**UiState { *; }
+-keepclassmembers class com.looplingo.horizon.ui.**UiState { *; }
+
+# Keep Entity data classes
+-keep class com.looplingo.horizon.data.local.entity.** { *; }
+-keepclassmembers class com.looplingo.horizon.data.local.entity.** { *; }
+
+# Keep Domain model classes
+-keep class com.looplingo.horizon.domain.model.** { *; }
+-keepclassmembers class com.looplingo.horizon.domain.model.** { *; }

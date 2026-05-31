@@ -26,6 +26,14 @@ gson = "2.10.1"
 leakcanary = "2.13"
 security-crypto = "1.1.0-alpha06"
 
+# Compose
+compose-bom = "2024.02.00"
+compose-compiler = "1.5.8"
+activity-compose = "1.8.2"
+navigation-compose = "2.7.7"
+lifecycle-runtime-compose = "2.7.0"
+hilt-navigation-compose = "1.1.0"
+
 # Testing
 junit = "4.13.2"
 truth = "1.4.2"
@@ -95,6 +103,19 @@ security-crypto = { group = "androidx.security", name = "security-crypto", versi
 
 # Debug tools
 leakcanary = { group = "com.squareup.leakcanary", name = "leakcanary-android", version.ref = "leakcanary" }
+
+# Compose
+compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
+compose-ui = { group = "androidx.compose.ui", name = "ui" }
+compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+compose-material-icons = { group = "androidx.compose.material", name = "material-icons-extended" }
+activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }
+navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation-compose" }
+lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle-runtime-compose" }
+hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hilt-navigation-compose" }
 
 # ── Unit Testing ───────────────────────────────────────────────────────
 junit = { group = "junit", name = "junit", version.ref = "junit" }

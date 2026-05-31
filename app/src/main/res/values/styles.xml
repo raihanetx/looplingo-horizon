@@ -146,7 +146,7 @@
         <item name="android:width">@dimen/transport_button_size</item>
         <item name="android:height">@dimen/transport_button_size</item>
         <item name="android:background">@drawable/bg_transport_button</item>
-        <item name="iconTint">@color/colorOnSurface</item>
+        <item name="iconTint">@color/white</item>
         <item name="iconSize">24dp</item>
     </style>
 
@@ -207,7 +207,7 @@
 
     <style name="Widget.Horizon.SectionHeader" parent="android:Widget.TextView">
         <item name="android:textAppearance">@style/TextAppearance.Horizon.LabelLarge</item>
-        <item name="android:textColor">@color/colorPrimary</item>
+        <item name="android:textColor">@color/white</item>
         <item name="android:letterSpacing">0.05</item>
         <item name="android:textAllCaps">true</item>
         <item name="android:paddingTop">@dimen/space_lg</item>
@@ -219,10 +219,10 @@
          ══════════════════════════════════════════════════════════════════════ -->
 
     <style name="Widget.Horizon.Slider" parent="Widget.Material3.Slider">
-        <item name="thumbColor">@color/colorPrimary</item>
-        <item name="trackColorActive">@color/colorPrimary</item>
+        <item name="thumbColor">@color/white</item>
+        <item name="trackColorActive">@color/white</item>
         <item name="trackColorInactive">@color/colorSurfaceVariant</item>
-        <item name="haloColor">@color/colorPrimaryContainer</item>
+        <item name="haloColor">@color/colorSurfaceContainer</item>
         <item name="haloRadius">16dp</item>
         <item name="thumbElevation">2dp</item>
     </style>
@@ -237,7 +237,7 @@
         <item name="chipStrokeWidth">1dp</item>
         <item name="chipCornerRadius">@dimen/dialogue_item_corner_radius</item>
         <item name="android:textAppearance">@style/TextAppearance.Horizon.BodyMedium</item>
-        <item name="android:textColor">@color/colorOnSurface</item>
+        <item name="android:textColor">@color/white</item>
     </style>
 
     <!-- ══════════════════════════════════════════════════════════════════════

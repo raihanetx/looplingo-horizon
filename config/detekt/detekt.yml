@@ -1,0 +1,275 @@
+# Detekt Configuration for Horizon Loop
+# https://detekt.github.io/detekt/configurations.html
+
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+  weights:
+    complexity: 2
+    LongParameterList: 1
+    style: 1
+
+complexity:
+  active: true
+  ComplexCondition:
+    active: true
+    maxComplexity: 4
+  ComplexMethod:
+    active: true
+    maxComplexity: 15
+  CyclomaticComplexMethod:
+    active: true
+    maxComplexity: 15
+  LargeClass:
+    active: true
+    maxLines: 600
+  LongMethod:
+    active: true
+    maxLines: 60
+  LongParameterList:
+    active: true
+    maxParameters: 8
+  MethodOverloading:
+    active: true
+    threshold: 6
+  NestedBlockDepth:
+    active: true
+    maxDepth: 4
+  StringLiteralDuplication:
+    active: true
+    threshold: 3
+
+empty-blocks:
+  active: true
+  EmptyCatchBlock:
+    active: true
+    allowedExceptionName: 'expected'
+  EmptyClassBlock:
+    active: true
+  EmptyDefaultConstructor:
+    active: true
+  EmptyDoWhileBlock:
+    active: true
+  EmptyElseBlock:
+    active: true
+  EmptyFinallyBlock:
+    active: true
+  EmptyForBlock:
+    active: true
+  EmptyFunctionBlock:
+    active: true
+  EmptyIfBlock:
+    active: true
+  EmptyKtFile:
+    active: true
+  EmptyWhenBlock:
+    active: true
+  EmptyWhileBlock:
+    active: true
+
+exceptions:
+  active: true
+  ExceptionRaisedInUnexpectedLocation:
+    active: true
+  NotImplementedDeclaration:
+    active: true
+  ThrowingExceptionsWithoutMessageOrCause:
+    active: true
+  ThrowingNewInstanceOfSameException:
+    active: true
+
+naming:
+  active: true
+  BooleanNaming:
+    active: true
+    pattern: 'is|has|can|should|will|was|are|did|does|has|have|had|may|might|must|shall|should|will|would'
+  ClassNaming:
+    active: true
+    pattern: '[A-Z][a-zA-Z0-9]*'
+  ConstructorParameterNaming:
+    active: true
+    pattern: '[a-z][A-Za-z0-9]*'
+  EnumNaming:
+    active: true
+    pattern: '[A-Z][_A-Z0-9]*'
+  ForbiddenClassName:
+    active: false
+  FunctionNaming:
+    active: true
+    pattern: '[a-z][a-zA-Z0-9]*'
+    ignoreAnnotated: ['Composable']
+  FunctionParameterNaming:
+    active: true
+    pattern: '[a-z][A-Za-z0-9]*'
+  InvalidPackageDeclaration:
+    active: true
+  MatchingDeclarationName:
+    active: true
+  MemberNameEqualsClassName:
+    active: true
+  ObjectPropertyNaming:
+    active: true
+    pattern: '[A-Za-z][_A-Za-z0-9]*'
+  PackageNaming:
+    active: true
+    pattern: '[a-z]+(\.[a-z][a-z0-9]*)*'
+  TopLevelPropertyNaming:
+    active: true
+    pattern: '[A-Za-z][_A-Za-z0-9]*'
+  VariableMaxLength:
+    active: true
+    maximumVariableNameLength: 64
+  VariableMinLength:
+    active: true
+    minimumVariableNameLength: 1
+  VariableNaming:
+    active: true
+    pattern: '[a-z][A-Za-z0-9]*'
+
+performance:
+  active: true
+  ArrayPrimitive:
+    active: true
+  ForEachOnRange:
+    active: true
+  SpreadOperator:
+    active: true
+  UnnecessaryTemporaryVariable:
+    active: true
+
+style:
+  active: true
+  CollapsibleIfStatements:
+    active: true
+  DataClassContainsFunctions:
+    active: true
+    conversionFunctionPrefix: 'to'
+  EqualsOnSignatureLine:
+    active: true
+  EqualsNullCall:
+    active: true
+  ForbiddenComment:
+    active: true
+  ForbiddenImport:
+    active: true
+  ForbiddenPublicDataClass:
+    active: true
+  LibraryCodeMustSpecifyReturnType:
+    active: true
+  MagicNumber:
+    active: true
+    ignoreAnnotated: ['Composable', 'Preview']
+  MaxLineLength:
+    active: true
+    maxLineLength: 120
+    ignoreAnnotated: ['Composable', 'Preview']
+  MayBeConst:
+    active: true
+  NoTabs:
+    active: true
+  OptionalAbstractKeyword:
+    active: true
+  OptionalWhenBraces:
+    active: true
+  PreferToOverPairSyntax:
+    active: true
+  ProtectedMemberInFinalClass:
+    active: true
+  ReturnCount:
+    active: true
+    max: 3
+  SafeCast:
+    active: true
+  SerialVersionUIDInSerializableClass:
+    active: true
+  SpacingBetweenPackageAndImports:
+    active: true
+  ThrowsCount:
+    active: true
+    max: 3
+  TrailingWhitespace:
+    active: true
+  UnderscoresInNumericLiterals:
+    active: true
+    acceptableDecimalLength: 5
+  UnnecessaryAbstractClass:
+    active: true
+  UnnecessaryApply:
+    active: true
+  UnnecessaryInheritance:
+    active: true
+  UnnecessaryLet:
+    active: true
+  UnnecessaryParentheses:
+    active: true
+  Until:
+    active: true
+  UnusedImports:
+    active: true
+  UnusedPrivateMember:
+    active: true
+  UseCheckNotNull:
+    active: true
+  UseCheckOrError:
+    active: true
+  UseEmptyCounterpart:
+    active: true
+  UseIfInsteadOfWhen:
+    active: true
+  UseIsNullOrEmpty:
+    active: true
+  UseRequire:
+    active: true
+  UseRequireNotNull:
+    active: true
+  UselessCallOnNotNull:
+    active: true
+  UtilityClassWithPublicConstructor:
+    active: true
+  VarCouldBeVal:
+    active: true
+  WildcardImport:
+    active: true
+
+potential-bugs:
+  active: true
+  DuplicateCaseInWhenExpression:
+    active: true
+  EqualsAlwaysReturnsTrueOrFalse:
+    active: true
+  HasPlatformType:
+    active: true
+  IgnoredReturnValue:
+    active: true
+  ImplicitDefaultLocale:
+    active: true
+  InvalidRange:
+    active: true
+  IteratorHasNextCallsNextMethod:
+    active: true
+  IteratorNotThrowingNoSuchElementException:
+    active: true
+  LateinitUsage:
+    active: true
+  MapGetWithNotNullAssertionOperator:
+    active: true
+  MissingWhenCase:
+    active: true
+  NullCheckOnMutableProperty:
+    active: true
+  RedundantElseInWhen:
+    active: true
+  UnconditionalJumpStatementInLoop:
+    active: true
+  UnnecessaryNotNullOperator:
+    active: true
+  UnnecessarySafeCall:
+    active: true
+  UnsafeCallOnNullableType:
+    active: true
+  UnsafeCast:
+    active: true
+  UselessPostfixExpression:
+    active: true
+  WrongEqualsTypeParameter:
+    active: true

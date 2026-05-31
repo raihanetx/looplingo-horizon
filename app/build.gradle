@@ -4,6 +4,7 @@ plugins {
     id 'com.google.devtools.ksp'
     id 'com.google.dagger.hilt.android'
     id 'androidx.navigation.safeargs.kotlin'
+    id 'io.gitlab.arturbosch.detekt'
 }
 
 android {
@@ -80,6 +81,10 @@ android {
     buildFeatures {
         viewBinding true
         buildConfig true
+        compose true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
     }
 
     // Lint configuration
@@ -98,6 +103,16 @@ android {
             returnDefaultValues = true
         }
     }
+}
+
+detekt {
+    config.setFrom("$rootDir/config/detekt/detekt.yml")
+    buildUponDefaultConfig = true
+    allRules = false
+    disableDefaultRuleSets = false
+    parallel = true
+    ignoreFailures = false
+    basePath = projectDir
 }
 
 dependencies {
@@ -148,6 +163,19 @@ dependencies {
 
     // Security (encrypted SharedPreferences for API keys)
     implementation libs.security.crypto
+
+    // Compose
+    implementation platform(libs.compose.bom)
+    implementation libs.compose.ui
+    implementation libs.compose.ui.graphics
+    implementation libs.compose.ui.tooling.preview
+    implementation libs.compose.material3
+    implementation libs.compose.material.icons
+    implementation libs.activity.compose
+    implementation libs.navigation.compose
+    implementation libs.lifecycle.runtime.compose
+    implementation libs.hilt.navigation.compose
+    debugImplementation libs.compose.ui.tooling
 
     // Networking — OkHttp + Gson for Groq API
     implementation libs.okhttp

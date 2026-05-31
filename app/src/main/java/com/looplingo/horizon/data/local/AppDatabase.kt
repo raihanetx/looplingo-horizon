@@ -3,12 +3,14 @@ package com.looplingo.horizon.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.looplingo.horizon.data.local.dao.LoopTemplateDao
+import com.looplingo.horizon.data.local.dao.NoteDao
 import com.looplingo.horizon.data.local.dao.PlaybackRuleDao
 import com.looplingo.horizon.data.local.dao.SavedTimestampDao
 import com.looplingo.horizon.data.local.dao.TranscriptionDao
 import com.looplingo.horizon.data.local.dao.VideoDao
 import com.looplingo.horizon.data.local.entity.LoopTemplateEntity
 import com.looplingo.horizon.data.local.entity.LoopTemplateRangeEntity
+import com.looplingo.horizon.data.local.entity.NoteEntity
 import com.looplingo.horizon.data.local.entity.PlaybackRuleEntity
 import com.looplingo.horizon.data.local.entity.SavedTimestampEntity
 import com.looplingo.horizon.data.local.entity.TranscriptionEntity
@@ -21,9 +23,10 @@ import com.looplingo.horizon.data.local.entity.VideoEntity
         SavedTimestampEntity::class,
         TranscriptionEntity::class,
         LoopTemplateEntity::class,
-        LoopTemplateRangeEntity::class
+        LoopTemplateRangeEntity::class,
+        NoteEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -32,4 +35,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun savedTimestampDao(): SavedTimestampDao
     abstract fun transcriptionDao(): TranscriptionDao
     abstract fun loopTemplateDao(): LoopTemplateDao
+    abstract fun noteDao(): NoteDao
 }
